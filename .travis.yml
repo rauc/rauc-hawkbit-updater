@@ -1,0 +1,18 @@
+language: c
+
+compiler:
+  - clang
+  - gcc
+
+addons:
+  apt:
+    packages:
+     - libcurl4-openssl
+     - libsystmd
+     - libjson-glib-dev
+
+script:
+   - mkdir -p build
+   - cd build
+   - cmake .. 
+   - make
