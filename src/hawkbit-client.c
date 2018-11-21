@@ -767,8 +767,8 @@ void hawkbit_start_service_sync()
         sd_notify (0, "STOPPING=1\nSTATUS=Stopped polling HawkBit for new software.");
 #endif
 
-finish:
 #ifdef WITH_SYSTEMD
+finish:
         g_source_unref(event_source);
         g_source_destroy(event_source);
         sd_event_set_watchdog(event, FALSE);
