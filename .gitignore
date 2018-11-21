@@ -1,0 +1,6 @@
+# Auto gen files
+src/*-gen.c
+include/*-gen.h
+include/*.gch
+# build
+build/

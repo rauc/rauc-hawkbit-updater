@@ -1,0 +1,19 @@
+[Unit]
+Description=HawkBit client for Rauc
+After=network.target
+After=rauc.service
+
+[Service]
+User=rauc-hawkbit
+Group=rauc-hawkbit
+ExecStart=/usr/bin/rauc-hawkbit-updater -s -c /etc/rauc-hawkbit-updater/config.conf
+TimeoutSec=60s
+WatchdogSec=5m
+Restart=on-failure
+RestartSec=1m
+NotifyAccess=main
+ProtectSystem=full
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
