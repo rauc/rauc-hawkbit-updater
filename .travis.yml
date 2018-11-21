@@ -1,0 +1,20 @@
+language: c
+
+dist: xenial
+
+compiler:
+  - clang
+  - gcc
+
+addons:
+  apt:
+    packages:
+     - libcurl4-openssl-dev
+     - libsystemd-dev
+     - libjson-glib-dev
+
+script:
+   - mkdir -p build
+   - cd build
+   - cmake .. 
+   - make
