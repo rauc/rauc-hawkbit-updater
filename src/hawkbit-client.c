@@ -475,6 +475,12 @@ gboolean install_complete_cb(gpointer ptr)
 
 gpointer download_thread(gpointer data)
 {
+        struct on_new_software_userdata userdata = {
+                .install_progress_callback = (GSourceFunc) hawkbit_progress,
+                .install_complete_callback = install_complete_cb,
+                .file = hawkbit_config->bundle_download_location,
+        };
+
         GError **error = NULL;
         struct artifact *artifact = data;
         g_message("Start downloading: %s", artifact->download_url);
@@ -519,12 +525,6 @@ gpointer download_thread(gpointer data)
         g_free(checksum.checksum_result);
         process_artifact_cleanup(artifact);
 
-        // lets install software
-        struct on_new_software_userdata userdata = {
-                .install_progress_callback = (GSourceFunc) hawkbit_progress,
-                .install_complete_callback = install_complete_cb,
-                .file = hawkbit_config->bundle_download_location,
-        };
         software_ready_cb(&userdata);
         return NULL;
 down_error:
