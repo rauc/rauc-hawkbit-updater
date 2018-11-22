@@ -481,6 +481,8 @@ gpointer download_thread(gpointer data)
                 .file = hawkbit_config->bundle_download_location,
         };
 
+        g_autofree gchar *download_msg = NULL;
+
         GError **error = NULL;
         struct artifact *artifact = data;
         g_message("Start downloading: %s", artifact->download_url);
@@ -501,11 +503,11 @@ gpointer download_thread(gpointer data)
         }
 
         // notify hawkbit that download is complete
-        g_autofree gchar *msg = g_strdup_printf(
+        download_msg = g_strdup_printf(
                 "Download complete. %.2f MB/s",
                 (artifact->size / ((double)(end_time - start_time) / 1000000)) / (1024 * 1024));
-        feedback_progress(artifact->feedback_url, action_id, 1, msg, NULL);
-        g_message("%s", msg);
+        feedback_progress(artifact->feedback_url, action_id, 1, download_msg, NULL);
+        g_message("%s", download_msg);
 
         // validate checksum
         if (g_strcmp0(artifact->sha1, checksum.checksum_result)) {
