@@ -726,9 +726,13 @@ void hawkbit_start_service_sync()
 {
         GMainContext *ctx;
         GMainLoop *loop;
-        GSource *event_source = NULL;
         GSource *timeout_source = NULL;
         int res = 0;
+
+#ifdef WITH_SYSTEMD
+        GSource *event_source = NULL;
+        sd_event *event = NULL;
+#endif
 
         ctx = g_main_context_new();
         loop = g_main_loop_new(ctx, FALSE);
@@ -740,7 +744,6 @@ void hawkbit_start_service_sync()
         g_source_unref (timeout_source);
 
 #ifdef WITH_SYSTEMD
-        sd_event *event = NULL;
         res = sd_event_default(&event);
         if (res < 0)
                 goto finish;
