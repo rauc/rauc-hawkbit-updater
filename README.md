@@ -1,6 +1,8 @@
 RAUC hawkBit Updater
 ====================
 
+[![Build Status](https://travis-ci.com/prevas-dk/rauc-hawkbit-updater.svg?branch=master)](https://travis-ci.com/prevas-dk/rauc-hawkbit-updater)
+
 The RAUC hawkBit updater is a simple commandline tool / daemon written in C (glibc).
 It is a port of the RAUC hawkBit Client written in Python.
 The daemon runs on your target and operates as an interface between the
