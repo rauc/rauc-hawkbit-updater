@@ -13,8 +13,12 @@ addons:
      - libsystemd-dev
      - libjson-glib-dev
 
+env:
+  - CMAKE_PARAMS=-DWITH_SYSTEMD=ON
+  - CMAKE_PARAMS=-DWITH_SYSTEMD=OFF
+
 script:
    - mkdir -p build
    - cd build
-   - cmake .. 
+   - cmake $CMAKE_PARAMS .. 
    - make
