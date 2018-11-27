@@ -482,6 +482,7 @@ gpointer download_thread(gpointer data)
         };
 
         GError **error = NULL;
+        g_autofree gchar *msg = NULL;
         struct artifact *artifact = data;
         g_message("Start downloading: %s", artifact->download_url);
 
@@ -501,9 +502,8 @@ gpointer download_thread(gpointer data)
         }
 
         // notify hawkbit that download is complete
-        g_autofree gchar *msg = g_strdup_printf(
-                "Download complete. %.2f MB/s",
-                (artifact->size / ((double)(end_time - start_time) / 1000000)) / (1024 * 1024));
+        msg = g_strdup_printf("Download complete. %.2f MB/s",
+                              (artifact->size / ((double)(end_time - start_time) / 1000000)) / (1024 * 1024));
         feedback_progress(artifact->feedback_url, action_id, 1, msg, NULL);
         g_message("%s", msg);
 
@@ -724,7 +724,6 @@ void hawkbit_start_service_sync()
 {
         GMainContext *ctx;
         GMainLoop *loop;
-        GSource *event_source = NULL;
         GSource *timeout_source = NULL;
         int res = 0;
 
@@ -738,6 +737,7 @@ void hawkbit_start_service_sync()
         g_source_unref (timeout_source);
 
 #ifdef WITH_SYSTEMD
+        GSource *event_source = NULL;
         sd_event *event = NULL;
         res = sd_event_default(&event);
         if (res < 0)
