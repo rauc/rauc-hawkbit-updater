@@ -2,9 +2,9 @@ RAUC hawkBit Updater
 ====================
 
 [![Build Status](https://travis-ci.com/prevas-dk/rauc-hawkbit-updater.svg?branch=master)](https://travis-ci.com/prevas-dk/rauc-hawkbit-updater)
-[![License](https://img.shields.io/badge/license-LGPL-blue.svg)](https://raw.githubusercontent.com/prevas-dk/rauc-hawkbit-updater/master/LICENSE)
+[![License](https://img.shields.io/badge/license-LGPLv2.1-blue.svg)](https://raw.githubusercontent.com/prevas-dk/rauc-hawkbit-updater/master/LICENSE)
 
-The RAUC hawkBit updater is a simple commandline tool / daemon written in C (glibc).
+The RAUC hawkBit updater is a simple commandline tool / daemon written in C (glib).
 It is a port of the RAUC hawkBit Client written in Python.
 The daemon runs on your target and operates as an interface between the
 [RAUC D-Bus API](https://github.com/rauc/rauc)
