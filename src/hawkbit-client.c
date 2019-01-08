@@ -615,13 +615,13 @@ gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto proc_error;
         }
 
-        g_message("New software ready for download. (Name: %s, Version: %s, Size: %ld, URL: %s)",
+        g_message("New software ready for download. (Name: %s, Version: %s, Size: %" G_GINT64_FORMAT ", URL: %s)",
                   artifact->name, artifact->version, artifact->size, artifact->download_url);
 
         // Check if there is enough free diskspace
         long freespace = get_available_space(hawkbit_config->bundle_download_location);
         if (freespace < artifact->size) {
-                g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %ld. Free space: %ld",
+                g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %ld",
                                                         artifact->size, freespace);
                 g_debug("%s", msg);
                 // Notify hawkbit that there is not enough free space.
