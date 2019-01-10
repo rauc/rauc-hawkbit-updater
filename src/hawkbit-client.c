@@ -177,6 +177,7 @@ gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonReq
         fetch_buffer.payload = g_malloc0(DEFAULT_CURL_REQUEST_BUFFER_SIZE);
         if (fetch_buffer.payload == NULL) {
                 g_debug("Failed to expand buffer");
+                curl_easy_cleanup(curl);
                 return -1;
         }
         fetch_buffer.size = 0;
