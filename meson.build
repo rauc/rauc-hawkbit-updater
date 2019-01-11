@@ -32,6 +32,23 @@ dbus_sources = gnome.gdbus_codegen(
   namespace: 'R',
 )
 
+doxygen = find_program('doxygen', required : false)
+if doxygen.found()
+  message('Doxygen found')
+
+  doc_config = configuration_data()
+  doc_config.set('CMAKE_CURRENT_BINARY_DIR', meson.current_build_dir())
+  doc_config.set('CMAKE_CURRENT_SOURCE_DIR', meson.source_root())
+
+  doxyfile = configure_file(input : meson.source_root() + '/Doxyfile.in',
+			    output : 'Doxyfile',
+			    configuration : doc_config,
+			    install : false)
+  run_target('docs', command : [doxygen, doxyfile])
+else
+  warning('Documentation disabled without doxygen')
+endif
+
 executable('rauc-hawkbit-updater',
 	   sources_updater,
 	   dbus_sources,
