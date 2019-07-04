@@ -22,7 +22,7 @@ gchar* json_get_string(JsonNode *json_node, const gchar *path)
         return res_str;
 }
 
-const gint64 json_get_int(JsonNode *json_node, const gchar *path)
+gint64 json_get_int(JsonNode *json_node, const gchar *path)
 {
         gint64 res_int = -1;
         JsonNode *result = json_path_query(path, json_node, NULL);

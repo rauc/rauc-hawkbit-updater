@@ -266,11 +266,11 @@ void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detai
 
         // Get current time in UTC
         time_t current_time;
-        struct tm * time_info;
+        struct tm time_info;
         char timeString[16];
         time(&current_time);
-        time_info = gmtime(&current_time);
-        strftime(timeString, sizeof(timeString), "%Y%m%dT%H%M%S", time_info);
+        gmtime_r(&current_time, &time_info);
+        strftime(timeString, sizeof(timeString), "%Y%m%dT%H%M%S", &time_info);
 
         // build json status
         json_builder_begin_object (builder);
@@ -366,9 +366,9 @@ long json_get_sleeptime(JsonNode *root)
         if (sleeptime_str) {
                 struct tm time;
                 strptime(sleeptime_str, "%T", &time);
-                long sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
-                //g_debug("sleep time: %s %ld\n", sleeptime_str, sleep_time);
-                return sleep_time;
+                long poll_sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
+                //g_debug("sleep time: %s %ld\n", sleeptime_str, poll_sleep_time);
+                return poll_sleep_time;
         }
         return DEFAULT_SLEEP_TIME_SEC;
 }

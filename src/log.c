@@ -40,7 +40,7 @@ const gchar *log_level_to_string (GLogLevelFlags level)
  * @param[in] level Log level that should be returned as string.
  * @return    syslog level
  */
-const int log_level_to_int (GLogLevelFlags level)
+int log_level_to_int (GLogLevelFlags level)
 {
         switch (level) {
         case G_LOG_LEVEL_ERROR:
