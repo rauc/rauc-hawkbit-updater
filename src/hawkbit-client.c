@@ -507,7 +507,7 @@ static gpointer download_thread(gpointer data)
                 .file = hawkbit_config->bundle_download_location,
         };
 
-        GError **error = NULL;
+        GError *error = NULL;
         g_autofree gchar *msg = NULL;
         struct artifact *artifact = data;
         g_message("Start downloading: %s", artifact->download_url);
@@ -518,7 +518,7 @@ static gpointer download_thread(gpointer data)
         // Download software bundle (artifact)
         gint64 start_time = g_get_monotonic_time();
         gint status = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                 artifact->size, &checksum, error);
+                                 artifact->size, &checksum, &error);
         gint64 end_time = g_get_monotonic_time();
         if (status != 200) {
                 g_autofree gchar *msg = g_strdup_printf("Download failed. Status: %d", status);
