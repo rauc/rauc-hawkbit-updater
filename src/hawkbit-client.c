@@ -542,7 +542,6 @@ static gpointer download_thread(gpointer data)
                         artifact->sha1);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_critical("%s", msg);
-                g_set_error(error, 1, 25, "%s", msg);
                 status = -3;
                 goto down_error;
         }
