@@ -35,7 +35,7 @@ static long last_run_sec = 0;
  * @param[in] path Path
  * @return If error -1 else free space in bytes
  */
-long get_available_space(const char* path)
+static long get_available_space(const char* path)
 {
         struct statvfs stat;
         g_autofree gchar *npath = g_strdup(path);
@@ -54,7 +54,7 @@ long get_available_space(const char* path)
  *
  * @see   https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
  */
-size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct get_binary *data) {
+static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct get_binary *data) {
         size_t written = fwrite(ptr, size, nmemb, data->fp);
         data->written += written;
         if (data->checksum) {
@@ -73,7 +73,7 @@ size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct get_bi
  * @param[out] checksum       Calculated checksum
  * @param[out] error          Error
  */
-gint get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, GError **error)
+static gint get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, GError **error)
 {
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
@@ -137,7 +137,7 @@ gint get_binary(const gchar* download_url, const gchar* file, gint64 filesize, s
 /**
  * @brief Curl callback used for writting rest response to buffer.
  */
-size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data) {
+static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data) {
         struct rest_payload *p = (struct rest_payload *) data;
         size_t real_size = size * nmemb;
 
@@ -165,7 +165,7 @@ size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data) {
  * @param[out] error              Error
  * @return HTTP Status code (Standard codes: 200 = OK, 524 = Operation timed out, 401 = Authorization needed, 403 = Authentication failed )
  */
-gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonRequestBody, JsonParser** jsonResponseParser, GError** error)
+static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonRequestBody, JsonParser** jsonResponseParser, GError** error)
 {
         gchar *postdata = NULL;
         struct rest_payload fetch_buffer;
@@ -259,7 +259,7 @@ gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonReq
  * @brief Build JSON status request.
  * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_post_tenant_controller_v1_controllerid_deploymentbase_actionid_feedback
  */
-void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detail, const gchar *result, const gchar *execution, GHashTable *data, gint progress)
+static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detail, const gchar *result, const gchar *execution, GHashTable *data, gint progress)
 {
         GHashTableIter iter;
         gpointer key, value;
@@ -332,7 +332,7 @@ void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detai
 /**
  * @brief Send feedback to hawkBit.
  */
-gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *execution, GError **error)
+static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *execution, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
         json_build_status(builder, id, detail, finished, execution, NULL, 0);
@@ -346,7 +346,7 @@ gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *
 /**
  * @brief Send progress feedback to hawkBit.
  */
-gboolean feedback_progress(const gchar *url, const gchar *id, gint progress, const gchar *detail, GError **error)
+static gboolean feedback_progress(const gchar *url, const gchar *id, gint progress, const gchar *detail, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
         json_build_status(builder, id, detail, "none", "proceeding", NULL, progress);
@@ -360,7 +360,7 @@ gboolean feedback_progress(const gchar *url, const gchar *id, gint progress, con
 /**
  * @brief Get polling sleep time from hawkBit JSON response.
  */
-long json_get_sleeptime(JsonNode *root)
+static long json_get_sleeptime(JsonNode *root)
 {
         const gchar *sleeptime_str = json_get_string(root, "$.config.polling.sleep");
         if (sleeptime_str) {
@@ -376,7 +376,7 @@ long json_get_sleeptime(JsonNode *root)
 /**
  * @brief
  */
-gchar** regex_groups(const gchar* pattern, const gchar *str, GError **error)
+static gchar** regex_groups(const gchar* pattern, const gchar *str, GError **error)
 {
         gchar **result = NULL;
         GMatchInfo *match_info;
@@ -394,7 +394,7 @@ gchar** regex_groups(const gchar* pattern, const gchar *str, GError **error)
 /**
  * @brief Build API URL
  */
-gchar* build_api_url(gchar *path)
+static gchar* build_api_url(gchar *path)
 {
         return g_strdup_printf("%s://%s%s", hawkbit_config->ssl ? "https" : "http", hawkbit_config->hawkbit_server, path);
 }
@@ -411,7 +411,7 @@ gboolean hawkbit_progress(const gchar *msg) {
         return G_SOURCE_REMOVE;
 }
 
-gboolean identify(GError **error)
+static gboolean identify(GError **error)
 {
         g_debug("Identifying ourself to hawkbit server");
         g_autofree gchar *put_config_data_url = build_api_url(
@@ -426,7 +426,7 @@ gboolean identify(GError **error)
         return (status == 200);
 }
 
-void process_artifact_cleanup(struct artifact *artifact)
+static void process_artifact_cleanup(struct artifact *artifact)
 {
         if (artifact == NULL)
                 return;
@@ -439,7 +439,7 @@ void process_artifact_cleanup(struct artifact *artifact)
         g_free(artifact);
 }
 
-void process_deployment_cleanup() {
+static void process_deployment_cleanup() {
         //g_clear_pointer(action_id, g_free);
         gpointer ptr = action_id;
         action_id = NULL;
@@ -474,7 +474,7 @@ gboolean install_complete_cb(gpointer ptr)
         return G_SOURCE_REMOVE;
 }
 
-gpointer download_thread(gpointer data)
+static gpointer download_thread(gpointer data)
 {
         struct on_new_software_userdata userdata = {
                 .install_progress_callback = (GSourceFunc) hawkbit_progress,
@@ -535,7 +535,7 @@ down_error:
         return NULL;
 }
 
-gboolean process_deployment(JsonNode *req_root, GError **error)
+static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         struct artifact *artifact = NULL;
 
