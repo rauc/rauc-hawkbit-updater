@@ -25,7 +25,7 @@ void config_file_free(struct config *config)
         g_hash_table_destroy(config->device);
 }
 
-gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gchar* key, gchar** value, const gchar* default_value, GError **error)
+static gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gchar* key, gchar** value, const gchar* default_value, GError **error)
 {
         gchar *val = NULL;
         val = g_key_file_get_string(key_file, group, key, error);
@@ -40,7 +40,7 @@ gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gchar* key
         return TRUE;
 }
 
-gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar* key, gboolean* value, const gboolean default_value, GError **error)
+static gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar* key, gboolean* value, const gboolean default_value, GError **error)
 {
         g_autofree gchar *val = NULL;
         val = g_key_file_get_string(key_file, group, key, NULL);
@@ -61,7 +61,7 @@ gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar* key, 
         return FALSE;
 }
 
-gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar* key, gint* value, const gint default_value, GError **error)
+static gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar* key, gint* value, const gint default_value, GError **error)
 {
         gint val = g_key_file_get_integer(key_file, group, key, NULL);
         if (val == 0) {
@@ -72,7 +72,7 @@ gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar* key, g
         return TRUE;
 }
 
-gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GError *error)
+static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GError *error)
 {
         guint key;
         gsize num_keys;
@@ -92,7 +92,7 @@ gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GE
         return (num_keys > 0);
 }
 
-GLogLevelFlags log_level_from_string(const gchar *log_level)
+static GLogLevelFlags log_level_from_string(const gchar *log_level)
 {
         if (g_strcmp0(log_level, "error") == 0) {
                 return G_LOG_LEVEL_ERROR;
