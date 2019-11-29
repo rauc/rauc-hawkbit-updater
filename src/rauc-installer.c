@@ -72,7 +72,7 @@ static void on_installer_completed(GDBusProxy *proxy, gint result,
  * @return Pointer to initialized install_context struct. Should be freed by calling
  *         install_context_free().
  */
-struct install_context *install_context_new(void)
+static struct install_context *install_context_new(void)
 {
         struct install_context *context = g_new0(struct install_context, 1);
 
@@ -89,7 +89,7 @@ struct install_context *install_context_new(void)
  * @param[in] context the install_context struct that should be freed.
  *                    If NULL
  */
-void install_context_free(struct install_context *context)
+static void install_context_free(struct install_context *context)
 {
         if (context == NULL)
                 return;
@@ -109,7 +109,7 @@ void install_context_free(struct install_context *context)
  * @param[in] data pointer to a install_context struct.
  * @return NULL is always returned.
  */
-gpointer install_loop_thread(gpointer data)
+static gpointer install_loop_thread(gpointer data)
 {
         GBusType bus_type = (!g_strcmp0(g_getenv("DBUS_STARTER_BUS_TYPE"), "session"))
                             ? G_BUS_TYPE_SESSION : G_BUS_TYPE_SYSTEM;
