@@ -14,7 +14,7 @@ static gboolean output_to_systemd = FALSE;
  *
  * @param[in] level Log level that should be returned as string.
  */
-const gchar *log_level_to_string (GLogLevelFlags level)
+static const gchar *log_level_to_string (GLogLevelFlags level)
 {
         switch (level) {
         case G_LOG_LEVEL_ERROR:
@@ -40,7 +40,8 @@ const gchar *log_level_to_string (GLogLevelFlags level)
  * @param[in] level Log level that should be returned as string.
  * @return    syslog level
  */
-int log_level_to_int (GLogLevelFlags level)
+#ifdef WITH_SYSTEMD
+static int log_level_to_int (GLogLevelFlags level)
 {
         switch (level) {
         case G_LOG_LEVEL_ERROR:
@@ -59,6 +60,7 @@ int log_level_to_int (GLogLevelFlags level)
                 return LOG_INFO;
         }
 }
+#endif
 
 /**
  * @brief     Glib log handler callback
@@ -68,7 +70,7 @@ int log_level_to_int (GLogLevelFlags level)
  * @param[in] message    Log message
  * @param[in] user_data  Not used
  */
-void log_handler_cb(const gchar    *log_domain,
+static void log_handler_cb(const gchar    *log_domain,
                     GLogLevelFlags log_level,
                     const gchar    *message,
                     gpointer user_data)
