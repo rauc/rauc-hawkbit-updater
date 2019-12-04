@@ -14,7 +14,7 @@ static gboolean output_to_systemd = FALSE;
  *
  * @param[in] level Log level that should be returned as string.
  */
-static const gchar *log_level_to_string (GLogLevelFlags level)
+static const gchar *log_level_to_string(GLogLevelFlags level)
 {
         switch (level) {
         case G_LOG_LEVEL_ERROR:
@@ -41,7 +41,7 @@ static const gchar *log_level_to_string (GLogLevelFlags level)
  * @return    syslog level
  */
 #ifdef WITH_SYSTEMD
-static int log_level_to_int (GLogLevelFlags level)
+static int log_level_to_int(GLogLevelFlags level)
 {
         switch (level) {
         case G_LOG_LEVEL_ERROR:
@@ -71,18 +71,18 @@ static int log_level_to_int (GLogLevelFlags level)
  * @param[in] user_data  Not used
  */
 static void log_handler_cb(const gchar    *log_domain,
-                    GLogLevelFlags log_level,
-                    const gchar    *message,
-                    gpointer user_data)
+                           GLogLevelFlags log_level,
+                           const gchar    *message,
+                           gpointer user_data)
 {
 #ifdef WITH_SYSTEMD
         if (output_to_systemd) {
-                int log_level_int = log_level_to_int (log_level & G_LOG_LEVEL_MASK);
+                int log_level_int = log_level_to_int(log_level & G_LOG_LEVEL_MASK);
                 sd_journal_print(log_level_int, "%s", message);
         } else {
 #endif
         const gchar *log_level_str;
-        log_level_str = log_level_to_string (log_level & G_LOG_LEVEL_MASK);
+        log_level_str = log_level_to_string(log_level & G_LOG_LEVEL_MASK);
         if (log_level <= G_LOG_LEVEL_WARNING) {
                 g_printerr("%s: %s\n", log_level_str, message);
         } else {
@@ -103,7 +103,7 @@ static void log_handler_cb(const gchar    *log_domain,
 void setup_logging(const gchar *domain, GLogLevelFlags level, gboolean p_output_to_systemd)
 {
         output_to_systemd = p_output_to_systemd;
-        g_log_set_handler (NULL,
-                           level | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION,
-                           log_handler_cb, NULL);
+        g_log_set_handler(NULL,
+                          level | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION,
+                          log_handler_cb, NULL);
 }

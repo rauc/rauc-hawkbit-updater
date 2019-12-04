@@ -80,7 +80,7 @@ static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **h
 
         *hash = g_hash_table_new(g_str_hash, g_str_equal);
         keys = g_key_file_get_keys(key_file, group, &num_keys, &error);
-        for(key = 0; key < num_keys; key++)
+        for (key = 0; key < num_keys; key++)
         {
                 value = g_key_file_get_value(key_file,
                                              group,

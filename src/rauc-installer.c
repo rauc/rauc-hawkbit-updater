@@ -42,7 +42,7 @@ static void on_installer_status(GDBusProxy *proxy, GVariant *changed,
                 g_mutex_unlock(&context->status_mutex);
 
                 if (!g_queue_is_empty(&context->status_messages)) {
-                        g_main_context_invoke (context->loop_context, context->notify_event, context);
+                        g_main_context_invoke(context->loop_context, context->notify_event, context);
                 }
         }
 }
@@ -116,7 +116,7 @@ static gpointer install_loop_thread(gpointer data)
         RInstaller *r_installer_proxy = NULL;
         GError *error = NULL;
         struct install_context *context = data;
-        g_main_context_push_thread_default (context->loop_context);
+        g_main_context_push_thread_default(context->loop_context);
 
         g_debug("Creating RAUC DBUS proxy");
         r_installer_proxy = r_installer_proxy_new_for_bus_sync(bus_type,
