@@ -22,3 +22,5 @@ script:
    - cd build
    - cmake $CMAKE_PARAMS .. 
    - make
+   - cd -
+   - ./uncrustify.sh && git diff --exit-code

@@ -72,7 +72,7 @@ static gboolean on_rauc_install_complete_cb(gpointer data)
         struct install_context *context = data;
 
         struct on_install_complete_userdata userdata = {
-              .install_success = (context->status_result == 0)
+                .install_success = (context->status_result == 0)
         };
         // lets notify hawkbit with install result
         notify_hawkbit_install_complete(&userdata);
@@ -104,9 +104,9 @@ int main(int argc, char **argv)
         // Lets support unicode filenames
         args = g_strdupv(argv);
 
-        context = g_option_context_new ("");
-        g_option_context_add_main_entries (context, entries, NULL);
-        if (!g_option_context_parse_strv (context, &args, &error)) {
+        context = g_option_context_new("");
+        g_option_context_add_main_entries(context, entries, NULL);
+        if (!g_option_context_parse_strv(context, &args, &error)) {
                 g_printerr("option parsing failed: %s\n", error->message);
                 g_error_free(error);
                 exit_code = 1;
@@ -150,6 +150,6 @@ int main(int argc, char **argv)
         config_file_free(config);
 out:
         g_option_context_free(context);
-        g_strfreev (args);
+        g_strfreev(args);
         return exit_code;
 }

@@ -54,7 +54,8 @@ static long get_available_space(const char* path)
  *
  * @see   https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
  */
-static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct get_binary *data) {
+static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct get_binary *data)
+{
         size_t written = fwrite(ptr, size, nmemb, data->fp);
         data->written += written;
         if (data->checksum) {
@@ -114,18 +115,18 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
 
         CURLcode res = curl_easy_perform(curl);
         int http_code = 0;
-        curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (res == CURLE_OK) {
                 if (gb.checksum) { // if checksum enabled then return the value
                         checksum->checksum_result = g_strdup(g_checksum_get_string(gb.checksum));
                         g_checksum_free(gb.checksum);
                 }
         } else {
-                g_set_error (error,
-                             1,                   // error domain
-                             http_code,           // error code = HTTP statuscode
-                             "HTTP request failed: %s", // error message format string
-                             curl_easy_strerror(res));
+                g_set_error(error,
+                            1,                    // error domain
+                            http_code,            // error code = HTTP statuscode
+                            "HTTP request failed: %s",     // error message format string
+                            curl_easy_strerror(res));
         }
 
         curl_easy_cleanup(curl);
@@ -137,7 +138,8 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
 /**
  * @brief Curl callback used for writting rest response to buffer.
  */
-static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data) {
+static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data)
+{
         struct rest_payload *p = (struct rest_payload *) data;
         size_t real_size = size * nmemb;
 
@@ -196,9 +198,9 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         if (jsonRequestBody) {
                 // Convert request into a string
                 JsonGenerator *generator = json_generator_new();
-                json_generator_set_root (generator, json_builder_get_root(jsonRequestBody));
+                json_generator_set_root(generator, json_builder_get_root(jsonRequestBody));
                 gsize length;
-                postdata = json_generator_to_data (generator, &length);
+                postdata = json_generator_to_data(generator, &length);
                 g_object_unref(generator);
                 curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata);
                 g_debug("Request body: %s\n", postdata);
@@ -219,7 +221,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         // perform request
         CURLcode res = curl_easy_perform(curl);
         int http_code = 0;
-        curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (res == CURLE_OK && http_code == 200) {
                 if (jsonResponseParser && fetch_buffer.size > 0) {
                         JsonParser *parser = json_parser_new_immutable();
@@ -233,17 +235,17 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         } else if (res == CURLE_OPERATION_TIMEDOUT) {
                 // libcurl was able to complete a TCP connection to the origin server, but did not receive a timely HTTP response.
                 http_code = 524;
-                g_set_error (error,
-                             1,                   // error domain
-                             http_code,
-                             "HTTP request timed out: %s",
-                             curl_easy_strerror(res));
+                g_set_error(error,
+                            1,                    // error domain
+                            http_code,
+                            "HTTP request timed out: %s",
+                            curl_easy_strerror(res));
         } else {
-                g_set_error (error,
-                             1,                   // error domain
-                             http_code,
-                             "HTTP request failed: %s",
-                             curl_easy_strerror(res));
+                g_set_error(error,
+                            1,                    // error domain
+                            http_code,
+                            "HTTP request failed: %s",
+                            curl_easy_strerror(res));
         }
 
         //g_debug("Response body: %s\n", fetch_buffer.payload);
@@ -273,60 +275,60 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
         strftime(timeString, sizeof(timeString), "%Y%m%dT%H%M%S", &time_info);
 
         // build json status
-        json_builder_begin_object (builder);
+        json_builder_begin_object(builder);
 
         if (id) {
-                json_builder_set_member_name (builder, "id");
-                json_builder_add_string_value (builder, id);
+                json_builder_set_member_name(builder, "id");
+                json_builder_add_string_value(builder, id);
         }
 
-        json_builder_set_member_name (builder, "time");
-        json_builder_add_string_value (builder, timeString);
+        json_builder_set_member_name(builder, "time");
+        json_builder_add_string_value(builder, timeString);
 
-        json_builder_set_member_name (builder, "status");
-        json_builder_begin_object (builder);
-        json_builder_set_member_name (builder, "result");
-        json_builder_begin_object (builder);
+        json_builder_set_member_name(builder, "status");
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "result");
+        json_builder_begin_object(builder);
 
         if (g_strcmp0(execution, "proceeding") == 0) {
-                json_builder_set_member_name (builder, "progress");
-                json_builder_begin_object (builder);
+                json_builder_set_member_name(builder, "progress");
+                json_builder_begin_object(builder);
 
-                json_builder_set_member_name (builder, "of");
-                json_builder_add_int_value (builder, 1);
+                json_builder_set_member_name(builder, "of");
+                json_builder_add_int_value(builder, 1);
 
-                json_builder_set_member_name (builder, "cnt");
-                json_builder_add_int_value (builder, 3);
+                json_builder_set_member_name(builder, "cnt");
+                json_builder_add_int_value(builder, 3);
 
-                json_builder_end_object (builder);
+                json_builder_end_object(builder);
         }
 
-        json_builder_set_member_name (builder, "finished");
-        json_builder_add_string_value (builder, result);
-        json_builder_end_object (builder);
+        json_builder_set_member_name(builder, "finished");
+        json_builder_add_string_value(builder, result);
+        json_builder_end_object(builder);
 
-        json_builder_set_member_name (builder, "execution");
-        json_builder_add_string_value (builder, execution);
+        json_builder_set_member_name(builder, "execution");
+        json_builder_add_string_value(builder, execution);
 
         if (detail) {
-                json_builder_set_member_name (builder, "details");
+                json_builder_set_member_name(builder, "details");
                 json_builder_begin_array(builder);
-                json_builder_add_string_value (builder, detail);
+                json_builder_add_string_value(builder, detail);
                 json_builder_end_array(builder);
         }
-        json_builder_end_object (builder);
+        json_builder_end_object(builder);
 
         if (data) {
-                json_builder_set_member_name (builder, "data");
-                json_builder_begin_object (builder);
-                g_hash_table_iter_init (&iter, data);
-                while (g_hash_table_iter_next (&iter, &key, &value)) {
-                        json_builder_set_member_name (builder, key);
-                        json_builder_add_string_value (builder, value);
+                json_builder_set_member_name(builder, "data");
+                json_builder_begin_object(builder);
+                g_hash_table_iter_init(&iter, data);
+                while (g_hash_table_iter_next(&iter, &key, &value)) {
+                        json_builder_set_member_name(builder, key);
+                        json_builder_add_string_value(builder, value);
                 }
-                json_builder_end_object (builder);
+                json_builder_end_object(builder);
         }
-        json_builder_end_object (builder);
+        json_builder_end_object(builder);
 }
 
 /**
@@ -399,7 +401,8 @@ static gchar* build_api_url(gchar *path)
         return g_strdup_printf("%s://%s%s", hawkbit_config->ssl ? "https" : "http", hawkbit_config->hawkbit_server, path);
 }
 
-gboolean hawkbit_progress(const gchar *msg) {
+gboolean hawkbit_progress(const gchar *msg)
+{
         g_autofree gchar *feedback_url = NULL;
         g_autofree gchar *path = NULL;
         if (action_id) {
@@ -439,7 +442,8 @@ static void process_artifact_cleanup(struct artifact *artifact)
         g_free(artifact);
 }
 
-static void process_deployment_cleanup() {
+static void process_deployment_cleanup()
+{
         //g_clear_pointer(action_id, g_free);
         gpointer ptr = action_id;
         action_id = NULL;
@@ -517,7 +521,7 @@ static gpointer download_thread(gpointer data)
                         artifact->sha1);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_critical("%s", msg);
-                g_set_error (error, 1, 25, "%s", msg);
+                g_set_error(error, 1, 25, "%s", msg);
                 status = -3;
                 goto down_error;
         }
@@ -547,14 +551,14 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         // get deployment url
         gchar *deployment = json_get_string(req_root, "$._links.deploymentBase.href");
         if (deployment == NULL) {
-                g_set_error (error,1,1,"Failed to parse deployment base response.");
+                g_set_error(error,1,1,"Failed to parse deployment base response.");
                 return FALSE;
         }
 
         // get resource id and action id from url
         gchar** groups = regex_groups("/deploymentBase/(.+)[?]c=(.+)$", deployment, NULL);
         if (groups == NULL) {
-                g_set_error (error,1,2,"Failed to parse deployment base response.");
+                g_set_error(error,1,2,"Failed to parse deployment base response.");
                 return FALSE;
         }
         action_id = g_strdup(groups[1]);
@@ -583,7 +587,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks");
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error (error,1,20,"Failed to parse deployment resource.");
+                g_set_error(error,1,20,"Failed to parse deployment resource.");
                 goto proc_error;
         }
 
@@ -592,7 +596,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         JsonArray *json_artifacts = json_get_array(json_chunk, "$.artifacts");
         if (json_artifacts == NULL || json_array_get_length(json_artifacts) == 0) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error (error,1,21,"Failed to parse deployment resource.");
+                g_set_error(error,1,21,"Failed to parse deployment resource.");
                 goto proc_error;
         }
         JsonNode *json_artifact = json_array_get_element(json_artifacts, 0);
@@ -612,7 +616,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         if (artifact->download_url == NULL) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error (error,1,22,"Failed to parse deployment resource.");
+                g_set_error(error,1,22,"Failed to parse deployment resource.");
                 goto proc_error;
         }
 
@@ -627,7 +631,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 g_debug("%s", msg);
                 // Notify hawkbit that there is not enough free space.
                 feedback(feedback_url, action_id, msg, "failure", "closed", NULL);
-                g_set_error (error, 1, 23, "%s", msg);
+                g_set_error(error, 1, 23, "%s", msg);
                 status = -4;
                 goto proc_error;
         }
@@ -731,11 +735,11 @@ void hawkbit_start_service_sync()
         ctx = g_main_context_new();
         loop = g_main_loop_new(ctx, FALSE);
 
-        timeout_source = g_timeout_source_new (1000); // pull every second
-        g_source_set_name (timeout_source, "Add timeout");
-        g_source_set_callback (timeout_source, (GSourceFunc) hawkbit_pull_cb, loop, NULL);
-        g_source_attach (timeout_source, ctx);
-        g_source_unref (timeout_source);
+        timeout_source = g_timeout_source_new(1000);   // pull every second
+        g_source_set_name(timeout_source, "Add timeout");
+        g_source_set_callback(timeout_source, (GSourceFunc) hawkbit_pull_cb, loop, NULL);
+        g_source_attach(timeout_source, ctx);
+        g_source_unref(timeout_source);
 
 #ifdef WITH_SYSTEMD
         GSource *event_source = NULL;
@@ -759,13 +763,13 @@ void hawkbit_start_service_sync()
         if (res < 0)
                 goto finish;
 
-        sd_notify (0, "READY=1\nSTATUS=Init completed, start polling HawkBit for new software.");
+        sd_notify(0, "READY=1\nSTATUS=Init completed, start polling HawkBit for new software.");
 #endif
 
         g_main_loop_run(loop);
 
 #ifdef WITH_SYSTEMD
-        sd_notify (0, "STOPPING=1\nSTATUS=Stopped polling HawkBit for new software.");
+        sd_notify(0, "STOPPING=1\nSTATUS=Stopped polling HawkBit for new software.");
 #endif
 
 #ifdef WITH_SYSTEMD
@@ -776,7 +780,7 @@ finish:
         event = sd_event_unref(event);
 #endif
         g_main_loop_unref(loop);
-        g_main_context_unref (ctx);
+        g_main_context_unref(ctx);
         if (res < 0)
                 g_error("Failure: %s\n", strerror(-res));
 }
