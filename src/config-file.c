@@ -76,6 +76,11 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar
                 *value = TRUE;
                 return TRUE;
         }
+
+        g_set_error(error, G_KEY_FILE_ERROR,
+                    G_KEY_FILE_ERROR_INVALID_VALUE,
+                    "Value '%s' cannot be interpreted as a boolean.", val);
+
         return FALSE;
 }
 
