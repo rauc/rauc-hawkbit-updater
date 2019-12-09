@@ -86,10 +86,17 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar
 
 static gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar* key, gint* value, const gint default_value, GError **error)
 {
-        gint val = g_key_file_get_integer(key_file, group, key, NULL);
-        if (val == 0) {
+        GError *ierror = NULL;
+        gint val = g_key_file_get_integer(key_file, group, key, &ierror);
+
+        if (val == 0 && g_error_matches(ierror, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND)) {
+                g_clear_error(&ierror);
                 *value = default_value;
                 return TRUE;
+        }
+        else if (val == 0 && ierror) {
+                g_propagate_error(error, ierror);
+                return FALSE;
         }
         *value = val;
         return TRUE;
