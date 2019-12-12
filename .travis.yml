@@ -24,4 +24,7 @@ script:
    - make
    - cd -
    - ./uncrustify.sh && git diff --exit-code
+   - docker pull hawkbit/hawkbit-update-server
+   - docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server
+   - ./test/wait-for-hawkbit-online
    - cd test && ./rauc-hawkbit-updater.t -v
