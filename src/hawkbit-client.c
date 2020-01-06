@@ -658,8 +658,14 @@ void hawkbit_init(struct config *config, GSourceFunc on_install_ready)
         curl_global_init(CURL_GLOBAL_ALL);
 }
 
-static gboolean hawkbit_pull_cb(gpointer data)
+typedef struct ClientData_ {
+        GMainLoop *loop;
+} ClientData;
+
+static gboolean hawkbit_pull_cb(gpointer user_data)
 {
+        ClientData *data = user_data;
+
         if (!force_check_run && ++last_run_sec < sleep_time)
                 return G_SOURCE_CONTINUE;
 
@@ -719,7 +725,7 @@ static gboolean hawkbit_pull_cb(gpointer data)
         g_clear_error(&error);
 
         if (run_once) {
-                g_main_loop_quit(data);
+                g_main_loop_quit(data->loop);
                 return G_SOURCE_REMOVE;
         }
         return G_SOURCE_CONTINUE;
@@ -728,16 +734,16 @@ static gboolean hawkbit_pull_cb(gpointer data)
 int hawkbit_start_service_sync()
 {
         GMainContext *ctx;
-        GMainLoop *loop;
+        ClientData cdata;
         GSource *timeout_source = NULL;
         int res = 0;
 
         ctx = g_main_context_new();
-        loop = g_main_loop_new(ctx, FALSE);
+        cdata.loop = g_main_loop_new(ctx, FALSE);
 
         timeout_source = g_timeout_source_new(1000);   // pull every second
         g_source_set_name(timeout_source, "Add timeout");
-        g_source_set_callback(timeout_source, (GSourceFunc) hawkbit_pull_cb, loop, NULL);
+        g_source_set_callback(timeout_source, (GSourceFunc) hawkbit_pull_cb, &cdata, NULL);
         g_source_attach(timeout_source, ctx);
         g_source_unref(timeout_source);
 
@@ -759,14 +765,14 @@ int hawkbit_start_service_sync()
         }
 
         // attach systemd source to glib mainloop
-        res = sd_source_attach(event_source, loop);
+        res = sd_source_attach(event_source, cdata.loop);
         if (res < 0)
                 goto finish;
 
         sd_notify(0, "READY=1\nSTATUS=Init completed, start polling HawkBit for new software.");
 #endif
 
-        g_main_loop_run(loop);
+        g_main_loop_run(cdata.loop);
 
 #ifdef WITH_SYSTEMD
         sd_notify(0, "STOPPING=1\nSTATUS=Stopped polling HawkBit for new software.");
@@ -779,7 +785,7 @@ finish:
         sd_event_set_watchdog(event, FALSE);
         event = sd_event_unref(event);
 #endif
-        g_main_loop_unref(loop);
+        g_main_loop_unref(cdata.loop);
         g_main_context_unref(ctx);
         if (res < 0)
                 g_error("Failure: %s\n", strerror(-res));
