@@ -660,6 +660,7 @@ void hawkbit_init(struct config *config, GSourceFunc on_install_ready)
 
 typedef struct ClientData_ {
         GMainLoop *loop;
+        gboolean res;
 } ClientData;
 
 static gboolean hawkbit_pull_cb(gpointer user_data)
@@ -725,6 +726,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         g_clear_error(&error);
 
         if (run_once) {
+                data->res = status == 200 ? 0 : 1;
                 g_main_loop_quit(data->loop);
                 return G_SOURCE_REMOVE;
         }
@@ -773,6 +775,8 @@ int hawkbit_start_service_sync()
 #endif
 
         g_main_loop_run(cdata.loop);
+
+        res = cdata.res;
 
 #ifdef WITH_SYSTEMD
         sd_notify(0, "STOPPING=1\nSTATUS=Stopped polling HawkBit for new software.");
