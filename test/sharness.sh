@@ -449,7 +449,7 @@ test_skip_() {
 	esac
 }
 
-: "${SHARNESS_BUILD_DIRECTORY:="$SHARNESS_TEST_DIRECTORY/.."}"
+: "${SHARNESS_BUILD_DIRECTORY:="$SHARNESS_TEST_DIRECTORY/../build"}"
 # Public: Build directory that will be added to PATH. By default, it is set to
 # the parent directory of SHARNESS_TEST_DIRECTORY.
 export SHARNESS_BUILD_DIRECTORY
