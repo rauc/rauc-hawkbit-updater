@@ -792,7 +792,7 @@ finish:
         g_main_loop_unref(cdata.loop);
         g_main_context_unref(ctx);
         if (res < 0)
-                g_error("Failure: %s\n", strerror(-res));
+                g_warning("Failure: %s\n", strerror(-res));
 
         return res;
 }
