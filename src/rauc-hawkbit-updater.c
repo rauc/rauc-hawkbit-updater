@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 
         setup_logging(PROGRAM, log_level, opt_output_systemd);
         hawkbit_init(config, on_new_software_ready_cb);
-        hawkbit_start_service_sync();
+        exit_code = hawkbit_start_service_sync();
 
         config_file_free(config);
 out:

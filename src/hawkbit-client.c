@@ -725,7 +725,7 @@ static gboolean hawkbit_pull_cb(gpointer data)
         return G_SOURCE_CONTINUE;
 }
 
-void hawkbit_start_service_sync()
+int hawkbit_start_service_sync()
 {
         GMainContext *ctx;
         GMainLoop *loop;
@@ -783,4 +783,6 @@ finish:
         g_main_context_unref(ctx);
         if (res < 0)
                 g_error("Failure: %s\n", strerror(-res));
+
+        return res;
 }
