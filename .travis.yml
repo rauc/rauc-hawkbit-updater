@@ -24,3 +24,4 @@ script:
    - make
    - cd -
    - ./uncrustify.sh && git diff --exit-code
+   - cd test && ./rauc-hawkbit-updater.t -v
