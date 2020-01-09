@@ -25,7 +25,7 @@ instruction.
 
 Setup target (device) configuration file:
 
-```shell
+```ini
   [client]
   hawkbit_server            = 127.0.0.1:8080
   ssl                       = false
