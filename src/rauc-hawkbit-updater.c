@@ -118,6 +118,12 @@ int main(int argc, char **argv)
                 goto out;
         }
 
+        if (config_file == NULL) {
+                g_printerr("No configuration file given\n");
+                exit_code = 2;
+                goto out;
+        }
+
         if (!g_file_test(config_file, G_FILE_TEST_EXISTS)) {
                 g_printerr("No such configuration file: %s\n", config_file);
                 exit_code = 3;
@@ -145,7 +151,7 @@ int main(int argc, char **argv)
 
         setup_logging(PROGRAM, log_level, opt_output_systemd);
         hawkbit_init(config, on_new_software_ready_cb);
-        hawkbit_start_service_sync();
+        exit_code = hawkbit_start_service_sync();
 
         config_file_free(config);
 out:
