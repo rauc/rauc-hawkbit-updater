@@ -1,10 +1,10 @@
 RAUC hawkBit Updater
 ====================
 
-[![Build Status](https://travis-ci.com/prevas-dk/rauc-hawkbit-updater.svg?branch=master)](https://travis-ci.com/prevas-dk/rauc-hawkbit-updater)
-[![License](https://img.shields.io/badge/license-LGPLv2.1-blue.svg)](https://raw.githubusercontent.com/prevas-dk/rauc-hawkbit-updater/master/LICENSE)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/prevas-dk/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/prevas-dk/rauc-hawkbit-updater/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/prevas-dk/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/prevas-dk/rauc-hawkbit-updater/context:cpp)
+[![Build Status](https://travis-ci.com/rauc/rauc-hawkbit-updater.svg?branch=master)](https://travis-ci.com/rauc/rauc-hawkbit-updater)
+[![License](https://img.shields.io/badge/license-LGPLv2.1-blue.svg)](https://raw.githubusercontent.com/rauc/rauc-hawkbit-updater/master/LICENSE)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/rauc/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/rauc/rauc-hawkbit-updater/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/rauc/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/rauc/rauc-hawkbit-updater/context:cpp)
 
 The RAUC hawkBit updater is a simple commandline tool / daemon written in C (glib).
 It is a port of the RAUC hawkBit Client written in Python.
