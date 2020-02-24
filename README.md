@@ -33,6 +33,7 @@ Setup target (device) configuration file:
   tenant_id                 = DEFAULT
   target_name               = test-target
   auth_token                = bhVahL1Il1shie2aj2poojeChee6ahShu
+  #gateway_token            = bhVahL1Il1shie2aj2poojeChee6ahShu
   bundle_download_location  = /tmp/bundle.raucb
   retry_wait                = 60 ; 1 min. retry wait
   connect_timeout           = 20 ; 20 secs. connection timeout

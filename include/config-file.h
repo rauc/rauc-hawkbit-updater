@@ -33,7 +33,8 @@ struct config {
         gchar* hawkbit_server;            /**< hawkBit host or IP and port */
         gboolean ssl;                     /**< use https or http */
         gboolean ssl_verify;              /**< verify https certificate */
-        gchar* auth_token;                /**< hawkBit security token */
+        gchar* auth_token;                /**< hawkBit target security token */
+        gchar* gateway_token;             /**< hawkBit gateway security token */
         gchar* tenant_id;                 /**< hawkBit tenant id */
         gchar* controller_id;             /**< hawkBit controller id*/
         gchar* bundle_download_location;  /**< file to download rauc bundle to */

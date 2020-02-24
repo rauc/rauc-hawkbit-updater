@@ -128,6 +128,9 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
         if (hawkbit_config->auth_token) {
                 g_autofree gchar* auth_token = g_strdup_printf("Authorization: TargetToken %s", hawkbit_config->auth_token);
                 headers = curl_slist_append(headers, auth_token);
+        } else if (hawkbit_config->gateway_token) {
+                g_autofree gchar* gateway_token = g_strdup_printf("Authorization: GatewayToken %s", hawkbit_config->gateway_token);
+                headers = curl_slist_append(headers, gateway_token);
         }
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
@@ -230,6 +233,9 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         if (hawkbit_config->auth_token) {
                 g_autofree gchar* auth_token = g_strdup_printf("Authorization: TargetToken %s", hawkbit_config->auth_token);
                 headers = curl_slist_append(headers, auth_token);
+        } else if (hawkbit_config->gateway_token) {
+                g_autofree gchar* gateway_token = g_strdup_printf("Authorization: GatewayToken %s", hawkbit_config->gateway_token);
+                headers = curl_slist_append(headers, gateway_token);
         }
         if (jsonRequestBody) {
                 headers = curl_slist_append(headers, "Content-Type: application/json;charset=UTF-8");
@@ -732,7 +738,12 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                 // sleep as long as specified by hawkbit
                 sleep_time = hawkbit_interval_check_sec;
         } else if (status == 401) {
-                g_critical("Failed to authenticate. Check if auth_token is correct?");
+                if (hawkbit_config->auth_token) {
+                        g_critical("Failed to authenticate. Check if auth_token is correct?");
+                } else if (hawkbit_config->gateway_token) {
+                        g_critical("Failed to authenticate. Check if gateway_token is correct?");
+                }
+
                 sleep_time = hawkbit_config->retry_wait;
         } else {
                 g_debug("Scheduled check for new software failed status code: %d", status);
