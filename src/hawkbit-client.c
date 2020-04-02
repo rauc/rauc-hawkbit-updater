@@ -28,6 +28,8 @@
  * @see https://www.eclipse.org/hawkbit/apis/ddi_api/
  */
 
+#include <errno.h>
+
 #include "hawkbit-client.h"
 
 gboolean volatile force_check_run = FALSE;
@@ -53,13 +55,14 @@ static long last_run_sec = 0;
  * @param[in] path Path
  * @return If error -1 else free space in bytes
  */
-static long get_available_space(const char* path)
+static long get_available_space(const char* path, GError **error)
 {
         struct statvfs stat;
         g_autofree gchar *npath = g_strdup(path);
         char *rpath = dirname(npath);
         if (statvfs(rpath, &stat) != 0) {
                 // error happend, lets quit
+                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Failed to calculate free space: %s", g_strerror(errno));
                 return -1;
         }
         // the available free space is f_bsize * f_bavail
@@ -559,6 +562,7 @@ down_error:
 
 static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
+        GError *ierror = NULL;
         struct artifact *artifact = NULL;
 
         if (action_id) {
@@ -642,8 +646,13 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                   artifact->name, artifact->version, artifact->size, artifact->download_url);
 
         // Check if there is enough free diskspace
-        long freespace = get_available_space(hawkbit_config->bundle_download_location);
-        if (freespace < artifact->size) {
+        long freespace = get_available_space(hawkbit_config->bundle_download_location, &ierror);
+        if (freespace == -1) {
+                feedback(feedback_url, action_id, ierror->message, "failure", "closed", NULL);
+                g_propagate_error(error, ierror);
+                status = -4;
+                goto proc_error;
+        } else if (freespace < artifact->size) {
                 g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %ld",
                                                         artifact->size, freespace);
                 g_debug("%s", msg);
