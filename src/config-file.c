@@ -61,7 +61,7 @@ static gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gch
 static gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar* key, gboolean* value, const gboolean default_value, GError **error)
 {
         g_autofree gchar *val = NULL;
-        val = g_key_file_get_string(key_file, group, key, NULL);
+        val = g_key_file_get_string(key_file, group, key, error);
         if (val == NULL) {
                 *value = default_value;
                 return TRUE;
@@ -81,7 +81,7 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar
 
 static gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar* key, gint* value, const gint default_value, GError **error)
 {
-        gint val = g_key_file_get_integer(key_file, group, key, NULL);
+        gint val = g_key_file_get_integer(key_file, group, key, error);
         if (val == 0) {
                 *value = default_value;
                 return TRUE;
