@@ -1,15 +1,36 @@
 [client]
-hawkbit_server            = 10.10.0.254:8080                    # host or IP and optional port
-ssl                       = false                               # true = HTTPS, false = HTTP
-ssl_verify                = false                               # validate ssl certificate (only use if ssl is true)
-tenant_id                 = DEFAULT                             # Tenant id
-target_name               = test-target                         # Target name (controller id),
-auth_token                = cb115a721af28f781b493fa467819ef5    # Security token.
-bundle_download_location  = /tmp/bundle.raucb                   # Temporay file RAUC bundle should be downloaded to.
-retry_wait                = 60                                  # time in seconds to wait before retrying.
-connect_timeout           = 20                                  # connection timeout in seconds.
-timeout                   = 60                                  # request timeout in seconds.
-log_level                 = message                             # debug, info, message, critical, error, fatal.
+# host or IP and optional port
+hawkbit_server            = 10.10.0.254:8080
+
+# true = HTTPS, false = HTTP
+ssl                       = false
+
+# validate ssl certificate (only use if ssl is true)
+ssl_verify                = false
+
+# Tenant id
+tenant_id                 = DEFAULT
+
+# Target name (controller id)
+target_name               = test-target
+
+# Security token
+auth_token                = cb115a721af28f781b493fa467819ef5
+
+# Temporay file RAUC bundle should be downloaded to
+bundle_download_location  = /tmp/bundle.raucb
+
+# time in seconds to wait before retrying
+retry_wait                = 60
+
+# connection timeout in seconds
+connect_timeout           = 20
+
+# request timeout in seconds
+timeout                   = 60
+
+# debug, info, message, critical, error, fatal
+log_level                 = message
 
 # Every key / value under [device] is sent to HawkBit (target attributes),
 # and can be used in target filter.
