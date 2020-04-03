@@ -211,8 +211,8 @@ struct config* load_config_file(const gchar* config_file, GError** error)
 
         if (config->timeout > 0 && config->connect_timeout > 0 && config->timeout < config->connect_timeout) {
                 g_set_error(error,
-                            1,                   // error domain
-                            5,                   // error code
+                            G_KEY_FILE_ERROR,                   // error domain
+                            G_KEY_FILE_ERROR_INVALID_VALUE,     // error code
                             "timeout should be greater than connect_timeout. Timeout: %ld, Connect timeout: %ld",
                             config->timeout,
                             config->connect_timeout
