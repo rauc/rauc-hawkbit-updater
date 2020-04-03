@@ -106,20 +106,20 @@ static gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar*
         return TRUE;
 }
 
-static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GError *error)
+static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GError **error)
 {
         guint key;
         gsize num_keys;
         gchar **keys, *value;
 
         *hash = g_hash_table_new(g_str_hash, g_str_equal);
-        keys = g_key_file_get_keys(key_file, group, &num_keys, &error);
+        keys = g_key_file_get_keys(key_file, group, &num_keys, error);
         for (key = 0; key < num_keys; key++)
         {
                 value = g_key_file_get_value(key_file,
                                              group,
                                              keys[key],
-                                             &error);
+                                             error);
                 g_hash_table_insert(*hash, keys[key], value);
                 //g_debug("\t\tkey %u/%lu: \t%s => %s\n", key, num_keys - 1, keys[key], value);
         }
@@ -176,7 +176,7 @@ struct config* load_config_file(const gchar* config_file, GError** error)
                 return NULL;
         if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify, DEFAULT_SSL_VERIFY, error))
                 return NULL;
-        if (!get_group(ini_file, "device", &config->device, *error))
+        if (!get_group(ini_file, "device", &config->device, error))
                 return NULL;
 
         if (!get_key_int(ini_file, "client", "connect_timeout", &val_int, DEFAULT_CONNECTTIMEOUT, error))
