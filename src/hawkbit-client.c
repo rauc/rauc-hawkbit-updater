@@ -104,8 +104,10 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
         }
 
         CURL *curl = curl_easy_init();
-        if (!curl)
+        if (!curl) {
+                fclose(fp);
                 return -1;
+        }
 
         struct get_binary gb = {
                 .fp       = fp,
