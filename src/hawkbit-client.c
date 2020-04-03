@@ -99,13 +99,17 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
 {
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
-                g_debug("Failed to open file for download: %s\n", file);
+                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                            "Failed to open file for download: %s", file);
                 return -2;
         }
 
         CURL *curl = curl_easy_init();
-        if (!curl)
+        if (!curl) {
+                g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                            "Unable to start lbcurl easy session");
                 return -1;
+        }
 
         struct get_binary gb = {
                 .fp       = fp,
