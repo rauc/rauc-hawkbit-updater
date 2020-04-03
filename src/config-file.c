@@ -110,20 +110,34 @@ static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **h
 {
         guint key;
         gsize num_keys;
-        gchar **keys, *value;
+        gchar **keys;
 
         *hash = g_hash_table_new(g_str_hash, g_str_equal);
         keys = g_key_file_get_keys(key_file, group, &num_keys, error);
+        if (keys == NULL)
+                return FALSE;
+
+        if (num_keys == 0) {
+                g_set_error(error, G_KEY_FILE_ERROR,
+                            G_KEY_FILE_ERROR_PARSE,
+                            "Group '%s' has no keys set", group);
+                return FALSE;
+        }
+
         for (key = 0; key < num_keys; key++)
         {
-                value = g_key_file_get_value(key_file,
-                                             group,
-                                             keys[key],
-                                             error);
+                gchar *value = g_key_file_get_value(key_file,
+                                                    group,
+                                                    keys[key],
+                                                    error);
+                if (value == NULL)
+                        return FALSE;
+
                 g_hash_table_insert(*hash, keys[key], value);
                 //g_debug("\t\tkey %u/%lu: \t%s => %s\n", key, num_keys - 1, keys[key], value);
         }
-        return (num_keys > 0);
+
+        return TRUE;
 }
 
 static GLogLevelFlags log_level_from_string(const gchar *log_level)
