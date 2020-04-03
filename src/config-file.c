@@ -46,12 +46,16 @@ void config_file_free(struct config *config)
 static gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gchar* key, gchar** value, const gchar* default_value, GError **error)
 {
         gchar *val = NULL;
-        val = g_key_file_get_string(key_file, group, key, error);
+        val = g_key_file_get_string(key_file, group, key, NULL);
         if (val == NULL) {
                 if (default_value != NULL) {
                         *value = g_strdup(default_value);
                         return TRUE;
                 }
+
+                g_set_error(error, G_KEY_FILE_ERROR,
+                            G_KEY_FILE_ERROR_NOT_FOUND,
+                            "Key '%s' not found in group '%s' and no default given", key, group);
                 return FALSE;
         }
         *value = val;
