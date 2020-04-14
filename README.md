@@ -35,16 +35,16 @@ Setup target (device) configuration file:
   auth_token                = bhVahL1Il1shie2aj2poojeChee6ahShu
   #gateway_token            = bhVahL1Il1shie2aj2poojeChee6ahShu
   bundle_download_location  = /tmp/bundle.raucb
-  retry_wait                = 60 ; 1 min. retry wait
-  connect_timeout           = 20 ; 20 secs. connection timeout
-  timeout                   = 60 ; 1 min. timeout
-  log_level                 = debug ; debug, info, message, warning, critical
+  retry_wait                = 60
+  connect_timeout           = 20
+  timeout                   = 60
+  log_level                 = debug
 
   [device]
   product                   = Terminator
   model                     = T-1000
   serialnumber              = 8922673153
-  hw_revision               = 2  ; With working shapeshifting
+  hw_revision               = 2
   key1                      = value
   key2                      = value
 ```
