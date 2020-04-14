@@ -39,6 +39,7 @@ void config_file_free(struct config *config)
         g_free(config->controller_id);
         g_free(config->tenant_id);
         g_free(config->auth_token);
+        g_free(config->gateway_token);
         g_free(config->bundle_download_location);
         g_hash_table_destroy(config->device);
 }
@@ -141,6 +142,8 @@ struct config* load_config_file(const gchar* config_file, GError** error)
         gint val_int;
         g_autofree gchar *val = NULL;
         g_autofree GKeyFile *ini_file = g_key_file_new();
+        gboolean key_auth_token_exists = FALSE;
+        gboolean key_gateway_token_exists = FALSE;
 
         if (!g_key_file_load_from_file(ini_file, config_file, G_KEY_FILE_NONE, error)) {
                 return NULL;
@@ -148,8 +151,16 @@ struct config* load_config_file(const gchar* config_file, GError** error)
 
         if (!get_key_string(ini_file, "client", "hawkbit_server", &config->hawkbit_server, NULL, error))
                 return NULL;
-        if (!get_key_string(ini_file, "client", "auth_token", &config->auth_token, NULL, error))
+
+        key_auth_token_exists = get_key_string(ini_file, "client", "auth_token", &config->auth_token, NULL, NULL);
+        key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token", &config->gateway_token, NULL, NULL);
+        if (!key_auth_token_exists && !key_gateway_token_exists) {
+                g_set_error(error, 1, 4, "Neither auth_token nor gateway_token is set in the config.");
                 return NULL;
+        } else if (key_auth_token_exists && key_gateway_token_exists) {
+                g_warning("Both auth_token and gateway_token are set in the config.");
+        }
+
         if (!get_key_string(ini_file, "client", "target_name", &config->controller_id, NULL, error))
                 return NULL;
         if (!get_key_string(ini_file, "client", "tenant_id", &config->tenant_id, "DEFAULT", error))

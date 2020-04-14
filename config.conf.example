@@ -4,7 +4,9 @@ ssl                       = false                               # true = HTTPS, 
 ssl_verify                = false                               # validate ssl certificate (only use if ssl is true)
 tenant_id                 = DEFAULT                             # Tenant id
 target_name               = test-target                         # Target name (controller id),
-auth_token                = cb115a721af28f781b493fa467819ef5    # Security token.
+auth_token                = cb115a721af28f781b493fa467819ef5    # Target security token.
+# Or gateway_token can be used instead of auth_token
+#gateway_token             = cb115a721af28f781b493fa467819ef5    # Gateway security token.
 bundle_download_location  = /tmp/bundle.raucb                   # Temporay file RAUC bundle should be downloaded to.
 retry_wait                = 60                                  # time in seconds to wait before retrying.
 connect_timeout           = 20                                  # connection timeout in seconds.
