@@ -113,20 +113,24 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  * @param[in]  file           File the software bundle should be written to.
  * @param[in]  filesize       Expected file size
  * @param[out] checksum       Calculated checksum
+ * @param[out] http_code      Return location for the http_code, can be NULL
  * @param[out] error          Error
  */
-static gint get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, GError **error)
+static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, gint *http_code, GError **error)
 {
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
-                g_debug("Failed to open file for download: %s\n", file);
-                return -2;
+                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                            "Failed to open file for download: %s", file);
+                return FALSE;
         }
 
         CURL *curl = curl_easy_init();
         if (!curl) {
                 fclose(fp);
-                return -1;
+                g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                            "Unable to start libcurl easy session");
+                return FALSE;
         }
 
         struct get_binary gb = {
@@ -160,8 +164,8 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         CURLcode res = curl_easy_perform(curl);
-        int http_code = 0;
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        if (http_code)
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, http_code);
         if (res == CURLE_OK) {
                 if (gb.checksum) { // if checksum enabled then return the value
                         checksum->checksum_result = g_strdup(g_checksum_get_string(gb.checksum));
@@ -169,8 +173,8 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
                 }
         } else {
                 g_set_error(error,
-                            1,                    // error domain
-                            http_code,            // error code = HTTP statuscode
+                            G_IO_ERROR,                    // error domain
+                            G_IO_ERROR_FAILED,             // error code
                             "HTTP request failed: %s",     // error message format string
                             curl_easy_strerror(res));
         }
@@ -178,7 +182,7 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
         curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
         fclose(fp);
-        return http_code;
+        return (res == CURLE_OK);
 }
 
 /**
@@ -535,7 +539,7 @@ static gpointer download_thread(gpointer data)
                 .file = hawkbit_config->bundle_download_location,
         };
 
-        GError **error = NULL;
+        GError *error = NULL;
         g_autofree gchar *msg = NULL;
         struct artifact *artifact = data;
         g_message("Start downloading: %s", artifact->download_url);
@@ -545,11 +549,13 @@ static gpointer download_thread(gpointer data)
 
         // Download software bundle (artifact)
         gint64 start_time = g_get_monotonic_time();
-        gint status = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                 artifact->size, &checksum, error);
+        gint status = 0;
+        gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
+                                  artifact->size, &checksum, &status, &error);
         gint64 end_time = g_get_monotonic_time();
-        if (status != 200) {
-                g_autofree gchar *msg = g_strdup_printf("Download failed. Status: %d", status);
+        if (!res) {
+                g_autofree gchar *msg = g_strdup_printf("Download failed: %s Status: %d", error->message, status);
+                g_clear_error(&error);
                 g_critical("%s", msg);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 goto down_error;
@@ -570,7 +576,6 @@ static gpointer download_thread(gpointer data)
                         artifact->sha1);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_critical("%s", msg);
-                g_set_error(error, 1, 25, "%s", msg);
                 status = -3;
                 goto down_error;
         }
