@@ -39,6 +39,7 @@ void config_file_free(struct config *config)
         g_free(config->controller_id);
         g_free(config->tenant_id);
         g_free(config->auth_token);
+        g_free(config->gateway_token);
         g_free(config->bundle_download_location);
         g_hash_table_destroy(config->device);
 }
@@ -46,12 +47,16 @@ void config_file_free(struct config *config)
 static gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gchar* key, gchar** value, const gchar* default_value, GError **error)
 {
         gchar *val = NULL;
-        val = g_key_file_get_string(key_file, group, key, error);
+        val = g_key_file_get_string(key_file, group, key, NULL);
         if (val == NULL) {
                 if (default_value != NULL) {
                         *value = g_strdup(default_value);
                         return TRUE;
                 }
+
+                g_set_error(error, G_KEY_FILE_ERROR,
+                            G_KEY_FILE_ERROR_NOT_FOUND,
+                            "Key '%s' not found in group '%s' and no default given", key, group);
                 return FALSE;
         }
         *value = val;
@@ -76,38 +81,64 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar
                 *value = TRUE;
                 return TRUE;
         }
+
+        g_set_error(error, G_KEY_FILE_ERROR,
+                    G_KEY_FILE_ERROR_INVALID_VALUE,
+                    "Value '%s' cannot be interpreted as a boolean.", val);
+
         return FALSE;
 }
 
 static gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar* key, gint* value, const gint default_value, GError **error)
 {
-        gint val = g_key_file_get_integer(key_file, group, key, NULL);
-        if (val == 0) {
+        GError *ierror = NULL;
+        gint val = g_key_file_get_integer(key_file, group, key, &ierror);
+
+        if (val == 0 && g_error_matches(ierror, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND)) {
+                g_clear_error(&ierror);
                 *value = default_value;
                 return TRUE;
+        }
+        else if (val == 0 && ierror) {
+                g_propagate_error(error, ierror);
+                return FALSE;
         }
         *value = val;
         return TRUE;
 }
 
-static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GError *error)
+static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GError **error)
 {
         guint key;
         gsize num_keys;
-        gchar **keys, *value;
+        gchar **keys;
 
         *hash = g_hash_table_new(g_str_hash, g_str_equal);
-        keys = g_key_file_get_keys(key_file, group, &num_keys, &error);
+        keys = g_key_file_get_keys(key_file, group, &num_keys, error);
+        if (keys == NULL)
+                return FALSE;
+
+        if (num_keys == 0) {
+                g_set_error(error, G_KEY_FILE_ERROR,
+                            G_KEY_FILE_ERROR_PARSE,
+                            "Group '%s' has no keys set", group);
+                return FALSE;
+        }
+
         for (key = 0; key < num_keys; key++)
         {
-                value = g_key_file_get_value(key_file,
-                                             group,
-                                             keys[key],
-                                             &error);
+                gchar *value = g_key_file_get_value(key_file,
+                                                    group,
+                                                    keys[key],
+                                                    error);
+                if (value == NULL)
+                        return FALSE;
+
                 g_hash_table_insert(*hash, keys[key], value);
                 //g_debug("\t\tkey %u/%lu: \t%s => %s\n", key, num_keys - 1, keys[key], value);
         }
-        return (num_keys > 0);
+
+        return TRUE;
 }
 
 static GLogLevelFlags log_level_from_string(const gchar *log_level)
@@ -141,6 +172,8 @@ struct config* load_config_file(const gchar* config_file, GError** error)
         gint val_int;
         g_autofree gchar *val = NULL;
         g_autofree GKeyFile *ini_file = g_key_file_new();
+        gboolean key_auth_token_exists = FALSE;
+        gboolean key_gateway_token_exists = FALSE;
 
         if (!g_key_file_load_from_file(ini_file, config_file, G_KEY_FILE_NONE, error)) {
                 return NULL;
@@ -148,8 +181,16 @@ struct config* load_config_file(const gchar* config_file, GError** error)
 
         if (!get_key_string(ini_file, "client", "hawkbit_server", &config->hawkbit_server, NULL, error))
                 return NULL;
-        if (!get_key_string(ini_file, "client", "auth_token", &config->auth_token, NULL, error))
+
+        key_auth_token_exists = get_key_string(ini_file, "client", "auth_token", &config->auth_token, NULL, NULL);
+        key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token", &config->gateway_token, NULL, NULL);
+        if (!key_auth_token_exists && !key_gateway_token_exists) {
+                g_set_error(error, 1, 4, "Neither auth_token nor gateway_token is set in the config.");
                 return NULL;
+        } else if (key_auth_token_exists && key_gateway_token_exists) {
+                g_warning("Both auth_token and gateway_token are set in the config.");
+        }
+
         if (!get_key_string(ini_file, "client", "target_name", &config->controller_id, NULL, error))
                 return NULL;
         if (!get_key_string(ini_file, "client", "tenant_id", &config->tenant_id, "DEFAULT", error))
@@ -160,7 +201,7 @@ struct config* load_config_file(const gchar* config_file, GError** error)
                 return NULL;
         if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify, DEFAULT_SSL_VERIFY, error))
                 return NULL;
-        if (!get_group(ini_file, "device", &config->device, *error))
+        if (!get_group(ini_file, "device", &config->device, error))
                 return NULL;
 
         if (!get_key_int(ini_file, "client", "connect_timeout", &val_int, DEFAULT_CONNECTTIMEOUT, error))
@@ -181,8 +222,8 @@ struct config* load_config_file(const gchar* config_file, GError** error)
 
         if (config->timeout > 0 && config->connect_timeout > 0 && config->timeout < config->connect_timeout) {
                 g_set_error(error,
-                            1,                   // error domain
-                            5,                   // error code
+                            G_KEY_FILE_ERROR,                   // error domain
+                            G_KEY_FILE_ERROR_INVALID_VALUE,     // error code
                             "timeout should be greater than connect_timeout. Timeout: %ld, Connect timeout: %ld",
                             config->timeout,
                             config->connect_timeout

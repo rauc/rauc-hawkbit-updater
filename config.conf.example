@@ -17,6 +17,9 @@ target_name               = test-target
 # Security token
 auth_token                = cb115a721af28f781b493fa467819ef5
 
+# Or gateway_token can be used instead of auth_token
+#gateway_token             = cb115a721af28f781b493fa467819ef5
+
 # Temporay file RAUC bundle should be downloaded to
 bundle_download_location  = /tmp/bundle.raucb
 

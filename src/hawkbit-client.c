@@ -28,6 +28,28 @@
  * @see https://www.eclipse.org/hawkbit/apis/ddi_api/
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE
+#endif
+#include <string.h>
+#include <time.h>
+#include <errno.h>
+#include <sys/statvfs.h>
+#include <curl/curl.h>
+#include <glib-2.0/glib.h>
+#include <glib-object.h>
+#include <glib/gstdio.h>
+#include <json-glib/json-glib.h>
+#include <libgen.h>
+
+#include "json-helper.h"
+#ifdef WITH_SYSTEMD
+#include "sd-helper.h"
+#endif
+
 #include "hawkbit-client.h"
 
 gboolean volatile force_check_run = FALSE;
@@ -53,13 +75,14 @@ static long last_run_sec = 0;
  * @param[in] path Path
  * @return If error -1 else free space in bytes
  */
-static long get_available_space(const char* path)
+static long get_available_space(const char* path, GError **error)
 {
         struct statvfs stat;
         g_autofree gchar *npath = g_strdup(path);
         char *rpath = dirname(npath);
         if (statvfs(rpath, &stat) != 0) {
                 // error happend, lets quit
+                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Failed to calculate free space: %s", g_strerror(errno));
                 return -1;
         }
         // the available free space is f_bsize * f_bavail
@@ -90,19 +113,25 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  * @param[in]  file           File the software bundle should be written to.
  * @param[in]  filesize       Expected file size
  * @param[out] checksum       Calculated checksum
+ * @param[out] http_code      Return location for the http_code, can be NULL
  * @param[out] error          Error
  */
-static gint get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, GError **error)
+static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, gint *http_code, GError **error)
 {
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
-                g_debug("Failed to open file for download: %s\n", file);
-                return -2;
+                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                            "Failed to open file for download: %s", file);
+                return FALSE;
         }
 
         CURL *curl = curl_easy_init();
-        if (!curl)
-                return -1;
+        if (!curl) {
+                fclose(fp);
+                g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                            "Unable to start libcurl easy session");
+                return FALSE;
+        }
 
         struct get_binary gb = {
                 .fp       = fp,
@@ -128,12 +157,15 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
         if (hawkbit_config->auth_token) {
                 g_autofree gchar* auth_token = g_strdup_printf("Authorization: TargetToken %s", hawkbit_config->auth_token);
                 headers = curl_slist_append(headers, auth_token);
+        } else if (hawkbit_config->gateway_token) {
+                g_autofree gchar* gateway_token = g_strdup_printf("Authorization: GatewayToken %s", hawkbit_config->gateway_token);
+                headers = curl_slist_append(headers, gateway_token);
         }
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         CURLcode res = curl_easy_perform(curl);
-        int http_code = 0;
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        if (http_code)
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, http_code);
         if (res == CURLE_OK) {
                 if (gb.checksum) { // if checksum enabled then return the value
                         checksum->checksum_result = g_strdup(g_checksum_get_string(gb.checksum));
@@ -141,8 +173,8 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
                 }
         } else {
                 g_set_error(error,
-                            1,                    // error domain
-                            http_code,            // error code = HTTP statuscode
+                            G_IO_ERROR,                    // error domain
+                            G_IO_ERROR_FAILED,             // error code
                             "HTTP request failed: %s",     // error message format string
                             curl_easy_strerror(res));
         }
@@ -150,7 +182,7 @@ static gint get_binary(const gchar* download_url, const gchar* file, gint64 file
         curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
         fclose(fp);
-        return http_code;
+        return (res == CURLE_OK);
 }
 
 /**
@@ -230,6 +262,9 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         if (hawkbit_config->auth_token) {
                 g_autofree gchar* auth_token = g_strdup_printf("Authorization: TargetToken %s", hawkbit_config->auth_token);
                 headers = curl_slist_append(headers, auth_token);
+        } else if (hawkbit_config->gateway_token) {
+                g_autofree gchar* gateway_token = g_strdup_printf("Authorization: GatewayToken %s", hawkbit_config->gateway_token);
+                headers = curl_slist_append(headers, gateway_token);
         }
         if (jsonRequestBody) {
                 headers = curl_slist_append(headers, "Content-Type: application/json;charset=UTF-8");
@@ -504,7 +539,7 @@ static gpointer download_thread(gpointer data)
                 .file = hawkbit_config->bundle_download_location,
         };
 
-        GError **error = NULL;
+        GError *error = NULL;
         g_autofree gchar *msg = NULL;
         struct artifact *artifact = data;
         g_message("Start downloading: %s", artifact->download_url);
@@ -514,11 +549,13 @@ static gpointer download_thread(gpointer data)
 
         // Download software bundle (artifact)
         gint64 start_time = g_get_monotonic_time();
-        gint status = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                 artifact->size, &checksum, error);
+        gint status = 0;
+        gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
+                                  artifact->size, &checksum, &status, &error);
         gint64 end_time = g_get_monotonic_time();
-        if (status != 200) {
-                g_autofree gchar *msg = g_strdup_printf("Download failed. Status: %d", status);
+        if (!res) {
+                g_autofree gchar *msg = g_strdup_printf("Download failed: %s Status: %d", error->message, status);
+                g_clear_error(&error);
                 g_critical("%s", msg);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 goto down_error;
@@ -539,7 +576,6 @@ static gpointer download_thread(gpointer data)
                         artifact->sha1);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_critical("%s", msg);
-                g_set_error(error, 1, 25, "%s", msg);
                 status = -3;
                 goto down_error;
         }
@@ -559,6 +595,7 @@ down_error:
 
 static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
+        GError *ierror = NULL;
         struct artifact *artifact = NULL;
 
         if (action_id) {
@@ -642,8 +679,13 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                   artifact->name, artifact->version, artifact->size, artifact->download_url);
 
         // Check if there is enough free diskspace
-        long freespace = get_available_space(hawkbit_config->bundle_download_location);
-        if (freespace < artifact->size) {
+        long freespace = get_available_space(hawkbit_config->bundle_download_location, &ierror);
+        if (freespace == -1) {
+                feedback(feedback_url, action_id, ierror->message, "failure", "closed", NULL);
+                g_propagate_error(error, ierror);
+                status = -4;
+                goto proc_error;
+        } else if (freespace < artifact->size) {
                 g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %ld",
                                                         artifact->size, freespace);
                 g_debug("%s", msg);
@@ -732,7 +774,12 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                 // sleep as long as specified by hawkbit
                 sleep_time = hawkbit_interval_check_sec;
         } else if (status == 401) {
-                g_critical("Failed to authenticate. Check if auth_token is correct?");
+                if (hawkbit_config->auth_token) {
+                        g_critical("Failed to authenticate. Check if auth_token is correct?");
+                } else if (hawkbit_config->gateway_token) {
+                        g_critical("Failed to authenticate. Check if gateway_token is correct?");
+                }
+
                 sleep_time = hawkbit_config->retry_wait;
         } else {
                 g_debug("Scheduled check for new software failed status code: %d", status);

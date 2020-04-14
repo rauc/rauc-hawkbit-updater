@@ -22,25 +22,7 @@
 #ifndef __HAWKBIT_CLIENT_H__
 #define __HAWKBIT_CLIENT_H__
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <string.h>
-#include <time.h>
-#include <errno.h>
-#include <sys/statvfs.h>
-#include <curl/curl.h>
-#include <glib-2.0/glib.h>
-#include <glib-object.h>
-#include <glib/gstdio.h>
-#include <json-glib/json-glib.h>
-#include <libgen.h>
 #include "config-file.h"
-#include "json-helper.h"
-
-#ifdef WITH_SYSTEMD
-#include "sd-helper.h"
-#endif
 
 #define HAWKBIT_USERAGENT                 "rauc-hawkbit-c-agent/1.0"
 #define DEFAULT_CURL_REQUEST_BUFFER_SIZE  512
