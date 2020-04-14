@@ -28,7 +28,27 @@
  * @see https://www.eclipse.org/hawkbit/apis/ddi_api/
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE
+#endif
+#include <string.h>
+#include <time.h>
 #include <errno.h>
+#include <sys/statvfs.h>
+#include <curl/curl.h>
+#include <glib-2.0/glib.h>
+#include <glib-object.h>
+#include <glib/gstdio.h>
+#include <json-glib/json-glib.h>
+#include <libgen.h>
+
+#include "json-helper.h"
+#ifdef WITH_SYSTEMD
+#include "sd-helper.h"
+#endif
 
 #include "hawkbit-client.h"
 
