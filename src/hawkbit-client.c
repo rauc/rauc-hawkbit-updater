@@ -423,6 +423,7 @@ static long json_get_sleeptime(JsonNode *root)
                 strptime(sleeptime_str, "%T", &time);
                 long poll_sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
                 //g_debug("sleep time: %s %ld\n", sleeptime_str, poll_sleep_time);
+                g_free(sleeptime_str);
                 return poll_sleep_time;
         }
         return DEFAULT_SLEEP_TIME_SEC;
