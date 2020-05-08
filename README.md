@@ -39,6 +39,7 @@ Setup target (device) configuration file:
   connect_timeout           = 20
   timeout                   = 60
   log_level                 = debug
+  post_update_reboot        = false
 
   [device]
   product                   = Terminator

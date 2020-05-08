@@ -31,6 +31,7 @@ typedef struct Config_ {
         gchar* hawkbit_server;            /**< hawkBit host or IP and port */
         gboolean ssl;                     /**< use https or http */
         gboolean ssl_verify;              /**< verify https certificate */
+        gboolean post_update_reboot;      /**< reboot system after successful update */
         gchar* auth_token;                /**< hawkBit target security token */
         gchar* gateway_token;             /**< hawkBit gateway security token */
         gchar* tenant_id;                 /**< hawkBit tenant id */
