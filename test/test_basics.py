@@ -50,7 +50,7 @@ def test_config_no_auth_token(adjust_config):
     assert exitcode == 4
     assert out == ''
     assert err.strip() == \
-            "Loading config file failed: Neither 'auth_token' nor 'gateway_token' set"
+            'Loading config file failed: Neither a token nor client certificate are set!'
 
 def test_config_multiple_auth_methods(adjust_config):
     """Test config with auth_token and gateway_token options in client section."""
