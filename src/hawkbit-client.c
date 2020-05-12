@@ -745,6 +745,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         int status = rest_request(GET, get_tasks_url, NULL, &json_response_parser, &error);
         if (status == 200) {
                 if (json_response_parser) {
+                        // json_root is owned by the JsonParser and should never be modified or freed.
                         JsonNode *json_root = json_parser_get_root(json_response_parser);
                         g_debug("Task response: %s", json_to_string(json_root, TRUE));
 
