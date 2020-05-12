@@ -308,6 +308,12 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
         curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
+        if (hawkbit_config->client_cert && hawkbit_config->client_key) {
+                curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
+                curl_easy_setopt(curl, CURLOPT_SSLCERT, hawkbit_config->client_cert);
+                curl_easy_setopt(curl, CURLOPT_SSLKEY, hawkbit_config->client_key);
+        }
+
         // abort if slower than configured download rate during configured time span
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, hawkbit_config->low_speed_time);
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, hawkbit_config->low_speed_rate);
@@ -413,6 +419,13 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         // set up CURL options
         set_default_curl_opts(curl);
         curl_easy_setopt(curl, CURLOPT_URL, url);
+
+        if (hawkbit_config->client_cert && hawkbit_config->client_key) {
+                curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
+                curl_easy_setopt(curl, CURLOPT_SSLCERT, hawkbit_config->client_cert);
+                curl_easy_setopt(curl, CURLOPT_SSLKEY, hawkbit_config->client_key);
+        }
+
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, HTTPMethod_STRING[method]);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, hawkbit_config->timeout);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
