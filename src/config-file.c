@@ -171,7 +171,7 @@ struct config* load_config_file(const gchar* config_file, GError** error)
 
         gint val_int;
         g_autofree gchar *val = NULL;
-        g_autofree GKeyFile *ini_file = g_key_file_new();
+        g_autoptr(GKeyFile) ini_file = g_key_file_new();
         gboolean key_auth_token_exists = FALSE;
         gboolean key_gateway_token_exists = FALSE;
 
