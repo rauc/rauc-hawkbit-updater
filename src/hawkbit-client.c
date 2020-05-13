@@ -417,7 +417,7 @@ static gboolean feedback_progress(const gchar *url, const gchar *id, gint progre
  */
 static long json_get_sleeptime(JsonNode *root)
 {
-        const gchar *sleeptime_str = json_get_string(root, "$.config.polling.sleep");
+        gchar *sleeptime_str = json_get_string(root, "$.config.polling.sleep");
         if (sleeptime_str) {
                 struct tm time;
                 strptime(sleeptime_str, "%T", &time);
