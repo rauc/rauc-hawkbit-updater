@@ -606,7 +606,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         }
 
         // get deployment url
-        gchar *deployment = json_get_string(req_root, "$._links.deploymentBase.href");
+        g_autofree gchar *deployment = json_get_string(req_root, "$._links.deploymentBase.href");
         if (deployment == NULL) {
                 g_set_error(error,1,1,"Failed to parse deployment base response.");
                 return FALSE;
@@ -621,7 +621,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         action_id = g_strdup(groups[1]);
         g_autofree gchar *resource_id = g_strdup(groups[2]);
         g_strfreev(groups);
-        g_free(deployment);
 
         // build urls for deployment resource info
         g_autofree gchar *get_resource_url = build_api_url(
