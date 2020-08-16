@@ -810,7 +810,7 @@ int hawkbit_start_service_sync()
         ctx = g_main_context_new();
         cdata.loop = g_main_loop_new(ctx, FALSE);
 
-        timeout_source = g_timeout_source_new(1000);   // pull every second
+        timeout_source = g_timeout_source_new(hawkbit_config->poll_interval);
         g_source_set_name(timeout_source, "Add timeout");
         g_source_set_callback(timeout_source, (GSourceFunc) hawkbit_pull_cb, &cdata, NULL);
         g_source_attach(timeout_source, ctx);

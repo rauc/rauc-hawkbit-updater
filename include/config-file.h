@@ -38,6 +38,7 @@ struct config {
         gchar* tenant_id;                 /**< hawkBit tenant id */
         gchar* controller_id;             /**< hawkBit controller id*/
         gchar* bundle_download_location;  /**< file to download rauc bundle to */
+        long poll_interval;               /**< poll interval */
         long connect_timeout;             /**< connection timeout */
         long timeout;                     /**< reply timeout */
         int retry_wait;                   /**< wait between retries */

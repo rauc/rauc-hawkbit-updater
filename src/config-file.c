@@ -26,6 +26,7 @@
 
 #include "config-file.h"
 
+static const gint DEFAULT_POLL_INTERVAL   = 1000;   // 1 sec.
 static const gint DEFAULT_CONNECTTIMEOUT  = 20;     // 20 sec.
 static const gint DEFAULT_TIMEOUT         = 60;     // 1 min.
 static const gint DEFAULT_RETRY_WAIT      = 5 * 60; // 5 min.
@@ -204,6 +205,9 @@ struct config* load_config_file(const gchar* config_file, GError** error)
         if (!get_group(ini_file, "device", &config->device, error))
                 return NULL;
 
+        if (!get_key_int(ini_file, "client", "poll_interval", &val_int, DEFAULT_POLL_INTERVAL, error))
+                return NULL;
+        config->poll_interval = val_int;
         if (!get_key_int(ini_file, "client", "connect_timeout", &val_int, DEFAULT_CONNECTTIMEOUT, error))
                 return NULL;
         config->connect_timeout = val_int;
