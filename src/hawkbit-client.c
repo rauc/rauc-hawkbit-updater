@@ -598,6 +598,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         GError *ierror = NULL;
         struct artifact *artifact = NULL;
+        g_autofree gchar *str = NULL;
 
         if (action_id) {
                 g_warning("Deployment is already in progress...");
@@ -638,7 +639,9 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto proc_error;
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
-        g_debug("Deployment response: %s\n", json_to_string(resp_root, TRUE));
+
+        *str = json_to_string(resp_root, TRUE);
+        g_debug("Deployment response: %s\n", str);
 
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks");
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
@@ -747,7 +750,8 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                 if (json_response_parser) {
                         // json_root is owned by the JsonParser and should never be modified or freed.
                         JsonNode *json_root = json_parser_get_root(json_response_parser);
-                        g_debug("Task response: %s", json_to_string(json_root, TRUE));
+                        g_autofree gchar *str = json_to_string(json_root, TRUE);
+                        g_debug("Deployment response: %s\n", str);
 
                         // get hawkbit sleep time (how often should we check for new software)
                         hawkbit_interval_check_sec = json_get_sleeptime(json_root);
