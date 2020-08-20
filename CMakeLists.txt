@@ -97,7 +97,7 @@ set(RAUC_HAWKBIT_SRCS
 )
 
 add_executable( rauc-hawkbit-updater ${RAUC_HAWKBIT_SRCS} )
-set_target_properties(rauc-hawkbit-updater PROPERTIES COMPILE_FLAGS "-Wall -Wformat-nonliteral")
+target_compile_options(rauc-hawkbit-updater PUBLIC -Wall -Wformat-nonliteral)
 
 target_link_libraries( rauc-hawkbit-updater LINK_PUBLIC ${GIO_LIBRARIES}
                        ${JSONGLIB_LIBRARIES} ${CURL_LIBRARIES} ${SYSTEMD_LIBRARIES})
