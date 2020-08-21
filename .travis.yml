@@ -1,6 +1,6 @@
 language: c
 
-dist: xenial
+dist: focal
 
 compiler:
   - clang
@@ -20,7 +20,7 @@ env:
 script:
    - mkdir -p build
    - cd build
-   - cmake $CMAKE_PARAMS .. 
+   - cmake $CMAKE_PARAMS -DQA_BUILD=ON ..
    - make
    - cd -
    - ./uncrustify.sh && git diff --exit-code

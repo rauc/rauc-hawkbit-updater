@@ -640,7 +640,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
 
-        *str = json_to_string(resp_root, TRUE);
+        str = json_to_string(resp_root, TRUE);
         g_debug("Deployment response: %s\n", str);
 
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks");

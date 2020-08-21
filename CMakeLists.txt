@@ -3,6 +3,7 @@ project( rauc-hawkbit-updater )
 
 option(WITH_SYSTEMD "Set to ON to create unit files and enable systemd startup"  OFF)
 option(BUILD_DOC    "Build documentation" OFF)
+option(QA_BUILD     "QA build (pedantic, with fatal errors)" OFF)
 
 if (WITH_SYSTEMD)
 	add_definitions( -DWITH_SYSTEMD )
@@ -97,7 +98,10 @@ set(RAUC_HAWKBIT_SRCS
 )
 
 add_executable( rauc-hawkbit-updater ${RAUC_HAWKBIT_SRCS} )
-set_target_properties(rauc-hawkbit-updater PROPERTIES COMPILE_FLAGS "-Wall -Wformat-nonliteral")
+target_compile_options(rauc-hawkbit-updater PUBLIC -Wall -Wformat-nonliteral)
+if (QA_BUILD)
+  target_compile_options(rauc-hawkbit-updater PUBLIC -Werror -pedantic)
+endif (QA_BUILD)
 
 target_link_libraries( rauc-hawkbit-updater LINK_PUBLIC ${GIO_LIBRARIES}
                        ${JSONGLIB_LIBRARIES} ${CURL_LIBRARIES} ${SYSTEMD_LIBRARIES})

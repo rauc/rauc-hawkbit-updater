@@ -36,7 +36,7 @@
 static gboolean sd_source_prepare(GSource *source, gint *timeout)
 {
         return sd_event_prepare(((struct SDSource *) source)->event) > 0 ? TRUE : FALSE;
-};
+}
 
 /**
  * @brief Callback function: check GSource
@@ -47,7 +47,7 @@ static gboolean sd_source_prepare(GSource *source, gint *timeout)
 static gboolean sd_source_check(GSource *source)
 {
         return sd_event_wait(((struct SDSource *) source)->event, 0) > 0 ? TRUE : FALSE;
-};
+}
 
 /**
  * @brief Callback function: dispatch
@@ -64,7 +64,7 @@ static gboolean sd_source_dispatch(GSource *source,
         return sd_event_dispatch(((struct SDSource *) source)->event) >= 0
                ? G_SOURCE_CONTINUE
                : G_SOURCE_REMOVE;
-};
+}
 
 /**
  * @brief Callback function: finalize GSource
@@ -75,7 +75,7 @@ static gboolean sd_source_dispatch(GSource *source,
 static void sd_source_finalize(GSource *source)
 {
         sd_event_unref(((struct SDSource *) source)->event);
-};
+}
 
 /**
  * @brief Callback function: when source exits
@@ -93,7 +93,7 @@ static int sd_source_on_exit(sd_event_source *source, void *userdata)
         sd_event_source_unref(source);
 
         return 0;
-};
+}
 
 /**
  * @brief Attach GSource to GMainLoop
@@ -114,7 +114,7 @@ int sd_source_attach(GSource *source, GMainLoop *loop)
                                  NULL,
                                  sd_source_on_exit,
                                  loop);
-};
+}
 
 /**
  * @brief Create GSource from a sd_event
@@ -140,4 +140,4 @@ GSource * sd_source_new(sd_event *event)
         }
 
         return s;
-};
+}
