@@ -75,7 +75,7 @@ static long last_run_sec = 0;
  * @param[in] path Path
  * @return If error -1 else free space in bytes
  */
-static long get_available_space(const char* path, GError **error)
+static gint64 get_available_space(const char* path, GError **error)
 {
         struct statvfs stat;
         g_autofree gchar *npath = g_strdup(path);
@@ -85,8 +85,9 @@ static long get_available_space(const char* path, GError **error)
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Failed to calculate free space: %s", g_strerror(errno));
                 return -1;
         }
+
         // the available free space is f_bsize * f_bavail
-        return stat.f_bsize * stat.f_bavail;
+        return (gint64) stat.f_bsize * (gint64) stat.f_bavail;
 }
 
 /**
@@ -683,14 +684,14 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                   artifact->name, artifact->version, artifact->size, artifact->download_url);
 
         // Check if there is enough free diskspace
-        long freespace = get_available_space(hawkbit_config->bundle_download_location, &ierror);
+        gint64 freespace = get_available_space(hawkbit_config->bundle_download_location, &ierror);
         if (freespace == -1) {
                 feedback(feedback_url, action_id, ierror->message, "failure", "closed", NULL);
                 g_propagate_error(error, ierror);
                 status = -4;
                 goto proc_error;
         } else if (freespace < artifact->size) {
-                g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %ld",
+                g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %" G_GINT64_FORMAT,
                                                         artifact->size, freespace);
                 g_debug("%s", msg);
                 // Notify hawkbit that there is not enough free space.
@@ -867,3 +868,4 @@ finish:
 
         return res;
 }
+
