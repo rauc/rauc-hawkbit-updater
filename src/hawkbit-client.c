@@ -449,20 +449,31 @@ static gchar** regex_groups(const gchar* pattern, const gchar *str, GError **err
 
 /**
  * @brief Build API URL
+ *
+ * @param path[in] a printf()-like format string describing the API path
+ * @param ... The arguments to be insterte in path
+ *
+ * @return a newly allocated full API URL
  */
-static gchar* build_api_url(gchar *path)
+__attribute__((__format__(__printf__, 1, 2)))
+static gchar* build_api_url(const gchar *path, ...)
 {
-        return g_strdup_printf("%s://%s%s", hawkbit_config->ssl ? "https" : "http", hawkbit_config->hawkbit_server, path);
+        g_autofree gchar *buffer;
+        va_list args;
+
+        va_start(args, path);
+        buffer = g_strdup_vprintf(path, args);
+        va_end(args);
+
+        return g_strdup_printf("%s://%s%s", hawkbit_config->ssl ? "https" : "http", hawkbit_config->hawkbit_server, buffer);
 }
 
 gboolean hawkbit_progress(const gchar *msg)
 {
         g_autofree gchar *feedback_url = NULL;
-        g_autofree gchar *path = NULL;
         if (action_id) {
-                path = g_strdup_printf("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                                       hawkbit_config->controller_id, action_id);
-                feedback_url = build_api_url(path);
+                feedback_url = build_api_url("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
+                                             hawkbit_config->controller_id, action_id);
                 feedback_progress(feedback_url, action_id, 3, msg, NULL);
         }
         return G_SOURCE_REMOVE;
@@ -472,8 +483,8 @@ static gboolean identify(GError **error)
 {
         g_debug("Identifying ourself to hawkbit server");
         g_autofree gchar *put_config_data_url = build_api_url(
-                g_strdup_printf("/%s/controller/v1/%s/configData", hawkbit_config->tenant_id,
-                                hawkbit_config->controller_id));
+                "/%s/controller/v1/%s/configData", hawkbit_config->tenant_id,
+                hawkbit_config->controller_id);
 
         JsonBuilder *builder = json_builder_new();
         json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device, FALSE);
@@ -514,11 +525,9 @@ gboolean install_complete_cb(gpointer ptr)
 {
         struct on_install_complete_userdata *result = ptr;
         g_autofree gchar *feedback_url = NULL;
-        g_autofree gchar *path = NULL;
         if (action_id) {
-                path = g_strdup_printf("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                                       hawkbit_config->controller_id, action_id);
-                feedback_url = build_api_url(path);
+                feedback_url = build_api_url("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
+                                             hawkbit_config->controller_id, action_id);
                 if (result->install_success) {
                         g_message("Software bundle installed successful.");
                         feedback(feedback_url, action_id, "Software bundle installed successful.", "success", "closed", NULL);
@@ -624,11 +633,11 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // build urls for deployment resource info
         g_autofree gchar *get_resource_url = build_api_url(
-                g_strdup_printf("/%s/controller/v1/%s/deploymentBase/%s?c=%s", hawkbit_config->tenant_id,
-                                hawkbit_config->controller_id, action_id, resource_id));
+                "/%s/controller/v1/%s/deploymentBase/%s?c=%s", hawkbit_config->tenant_id,
+                hawkbit_config->controller_id, action_id, resource_id);
         gchar *feedback_url = build_api_url(
-                g_strdup_printf("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                                hawkbit_config->controller_id, action_id));
+                "/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
+                hawkbit_config->controller_id, action_id);
 
         // get deployment resource
         JsonParser *json_response_parser = NULL;
@@ -738,8 +747,8 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
 
         // build hawkBit get tasks URL
         g_autofree gchar *get_tasks_url = build_api_url(
-                g_strdup_printf("/%s/controller/v1/%s", hawkbit_config->tenant_id,
-                                hawkbit_config->controller_id));
+                "/%s/controller/v1/%s", hawkbit_config->tenant_id,
+                hawkbit_config->controller_id);
         GError *error = NULL;
         JsonParser *json_response_parser = NULL;
 
