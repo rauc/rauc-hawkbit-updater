@@ -635,7 +635,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         int status = rest_request(GET, get_resource_url, NULL, &json_response_parser, error);
         if (status != 200 || json_response_parser == NULL) {
                 g_debug("Failed to get resource from hawkbit server. Status: %d", status);
-                goto proc_error;
+                return FALSE;
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
         g_debug("Deployment response: %s\n", json_to_string(resp_root, TRUE));
