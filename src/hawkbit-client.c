@@ -39,7 +39,7 @@
 #include <errno.h>
 #include <sys/statvfs.h>
 #include <curl/curl.h>
-#include <glib-2.0/glib.h>
+#include <glib.h>
 #include <glib-object.h>
 #include <glib/gstdio.h>
 #include <json-glib/json-glib.h>

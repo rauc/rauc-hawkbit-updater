@@ -23,7 +23,7 @@
 #define __RAUC_INSTALLER_H__
 
 #include <stdio.h>
-#include <glib-2.0/glib.h>
+#include <glib.h>
 #include "rauc-installer-gen.h"
 
 /**
