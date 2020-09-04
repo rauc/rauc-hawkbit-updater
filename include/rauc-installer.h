@@ -22,9 +22,7 @@
 #ifndef __RAUC_INSTALLER_H__
 #define __RAUC_INSTALLER_H__
 
-#include <stdio.h>
 #include <glib.h>
-#include "rauc-installer-gen.h"
 
 /**
  * @brief struct that contains the context of an Rauc installation.
