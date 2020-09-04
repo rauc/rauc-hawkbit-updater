@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <glib.h>
+#include <glib/gprintf.h>
 #include "rauc-installer.h"
 #include "hawkbit-client.h"
 #include "config-file.h"
