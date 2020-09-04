@@ -24,6 +24,7 @@
  */
 
 #include "log.h"
+#include <stddef.h>
 
 static gboolean output_to_systemd = FALSE;
 
