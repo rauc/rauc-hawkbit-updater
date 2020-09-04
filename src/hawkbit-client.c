@@ -44,7 +44,10 @@
 #include <glib/gstdio.h>
 #include <json-glib/json-glib.h>
 #include <libgen.h>
+#include <bits/types/struct_tm.h>
+#include <gio/gio.h>
 
+#include "config-file.h"
 #include "json-helper.h"
 #ifdef WITH_SYSTEMD
 #include "sd-helper.h"
