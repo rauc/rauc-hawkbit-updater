@@ -25,6 +25,9 @@
  */
 
 #include "config-file.h"
+#include <glib/gtypes.h>
+#include <stdlib.h>
+
 
 static const gint DEFAULT_CONNECTTIMEOUT  = 20;     // 20 sec.
 static const gint DEFAULT_TIMEOUT         = 60;     // 1 min.
