@@ -25,7 +25,6 @@
  */
 
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <glib-2.0/glib.h>
 #include "rauc-installer.h"

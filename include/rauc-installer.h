@@ -22,7 +22,6 @@
 #ifndef __RAUC_INSTALLER_H__
 #define __RAUC_INSTALLER_H__
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <glib-2.0/glib.h>
 #include "rauc-installer-gen.h"
