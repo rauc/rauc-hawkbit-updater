@@ -23,6 +23,7 @@
 #define __JSON_HELPER_H__
 
 #include <glib.h>
+#include <glib/gtypes.h>
 #include <json-glib/json-glib.h>
 
 gchar* json_get_string(JsonNode *json_node, const gchar *path);
