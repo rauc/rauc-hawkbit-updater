@@ -24,7 +24,14 @@
  *
  */
 
+#include <gio/gio.h>
+#include <glib-object.h>
+#include <glib/gtypes.h>
+#include <stdio.h>
+#include "gobject/gclosure.h"
 #include "rauc-installer.h"
+#include "rauc-installer-gen.h"
+
 
 /**
  * @brief RAUC DBUS property changed callback

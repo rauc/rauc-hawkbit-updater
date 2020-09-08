@@ -25,6 +25,7 @@
  */
 
 #include "json-helper.h"
+#include <stddef.h>
 
 gchar* json_get_string(JsonNode *json_node, const gchar *path)
 {

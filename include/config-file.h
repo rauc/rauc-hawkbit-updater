@@ -22,9 +22,7 @@
 #ifndef __CONFIG_FILE_H__
 #define __CONFIG_FILE_H__
 
-#include <stdlib.h>
-#include <glib-2.0/glib.h>
-#include <glib/gprintf.h>
+#include <glib.h>
 
 /**
  * @brief struct that contains the Rauc HawkBit configuration.

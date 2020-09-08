@@ -22,8 +22,7 @@
 #ifndef __LOG_H__
 #define __LOG_H__
 
-#include <glib-2.0/glib.h>
-#include <syslog.h>
+#include <glib.h>
 #ifdef WITH_SYSTEMD
 #include <systemd/sd-journal.h>
 #endif

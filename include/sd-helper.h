@@ -22,7 +22,7 @@
 #ifndef __SD_HELPER_H__
 #define __SD_HELPER_H__
 
-#include <glib-2.0/glib.h>
+#include <glib.h>
 #include <systemd/sd-event.h>
 #include <systemd/sd-daemon.h>
 

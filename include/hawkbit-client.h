@@ -22,7 +22,10 @@
 #ifndef __HAWKBIT_CLIENT_H__
 #define __HAWKBIT_CLIENT_H__
 
-#include "config-file.h"
+#include <glib.h>
+#include <glib/gtypes.h>
+#include <stdio.h>
+struct config;
 
 #define HAWKBIT_USERAGENT                 "rauc-hawkbit-c-agent/1.0"
 #define DEFAULT_CURL_REQUEST_BUFFER_SIZE  512
