@@ -119,7 +119,7 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  * @param[out] http_code      Return location for the http_code, can be NULL
  * @param[out] error          Error
  */
-static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, gint *http_code, GError **error)
+static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, glong *http_code, GError **error)
 {
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
@@ -278,7 +278,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
 
         // perform request
         CURLcode res = curl_easy_perform(curl);
-        int http_code = 0;
+        glong http_code = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (res == CURLE_OK && http_code == 200) {
                 if (jsonResponseParser && fetch_buffer.size > 0) {
@@ -287,7 +287,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                                 *jsonResponseParser = parser;
                         } else {
                                 g_object_unref(parser);
-                                g_debug("Failed to parse JSON response body. status: %d\n", http_code);
+                                g_debug("Failed to parse JSON response body. status: %ld\n", http_code);
                         }
                 }
         } else if (res == CURLE_OPERATION_TIMEDOUT) {
@@ -555,12 +555,12 @@ static gpointer download_thread(gpointer data)
 
         // Download software bundle (artifact)
         gint64 start_time = g_get_monotonic_time();
-        gint status = 0;
+        glong status = 0;
         gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
                                   artifact->size, &checksum, &status, &error);
         gint64 end_time = g_get_monotonic_time();
         if (!res) {
-                g_autofree gchar *msg = g_strdup_printf("Download failed: %s Status: %d", error->message, status);
+                g_autofree gchar *msg = g_strdup_printf("Download failed: %s Status: %ld", error->message, status);
                 g_clear_error(&error);
                 g_critical("%s", msg);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
