@@ -141,6 +141,8 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
         };
 
         curl_easy_setopt(curl, CURLOPT_URL, download_url);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8L);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE);
