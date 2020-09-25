@@ -4,3 +4,7 @@ include/*-gen.h
 include/*.gch
 # build
 build/
+
+# Backup files done by uncrustify
+.uncrustify/
+*~
