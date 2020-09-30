@@ -284,7 +284,11 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                 if (jsonResponseParser && fetch_buffer.size > 0) {
                         JsonParser *parser = json_parser_new_immutable();
                         if (json_parser_load_from_data(parser, fetch_buffer.payload, fetch_buffer.size, error)) {
+                                JsonNode *resp_root = json_parser_get_root(parser);
+                                g_autofree gchar *str = json_to_string(resp_root, TRUE);
+                                g_debug("Response body: %s", str);
                                 *jsonResponseParser = parser;
+
                         } else {
                                 g_object_unref(parser);
                                 g_debug("Failed to parse JSON response body. status: %ld\n", http_code);
@@ -305,8 +309,6 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                             "HTTP request failed: %s",
                             curl_easy_strerror(res));
         }
-
-        //g_debug("Response body: %s\n", fetch_buffer.payload);
 
         g_free(fetch_buffer.payload);
         g_free(postdata);
@@ -617,7 +619,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         GError *ierror = NULL;
         struct artifact *artifact = NULL;
-        g_autofree gchar *str = NULL;
 
         if (action_id) {
                 g_warning("Deployment is already in progress...");
@@ -657,9 +658,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 return FALSE;
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
-
-        str = json_to_string(resp_root, TRUE);
-        g_debug("Deployment response: %s\n", str);
 
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks");
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
@@ -769,8 +767,6 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                 if (json_response_parser) {
                         // json_root is owned by the JsonParser and should never be modified or freed.
                         JsonNode *json_root = json_parser_get_root(json_response_parser);
-                        g_autofree gchar *str = json_to_string(json_root, TRUE);
-                        g_debug("Deployment response: %s\n", str);
 
                         // get hawkbit sleep time (how often should we check for new software)
                         data->hawkbit_interval_check_sec = json_get_sleeptime(json_root);
