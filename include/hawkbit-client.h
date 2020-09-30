@@ -29,10 +29,8 @@ struct config;
 
 #define HAWKBIT_USERAGENT                 "rauc-hawkbit-c-agent/1.0"
 #define DEFAULT_CURL_REQUEST_BUFFER_SIZE  512
-#define DEFAULT_SLEEP_TIME_SEC            60 * 60   // 1 hour
 #define DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE 64 * 1024 // 64KB
 
-extern gboolean volatile force_check_run;  /**< force software check */
 extern gboolean run_once;                  /**< only run software check once and exit */
 
 /**

@@ -150,7 +150,6 @@ int main(int argc, char **argv)
 
         if (opt_run_once) {
                 run_once = TRUE;
-                force_check_run = TRUE;
         }
 
         struct config *config = load_config_file(config_file, &error);

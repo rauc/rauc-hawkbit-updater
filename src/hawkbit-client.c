@@ -55,7 +55,6 @@
 
 #include "hawkbit-client.h"
 
-gboolean volatile force_check_run = FALSE;
 gboolean run_once = FALSE;
 
 /**
@@ -68,9 +67,6 @@ static const char *HTTPMethod_STRING[] = {
 static struct config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static gchar * volatile action_id = NULL;
-static long hawkbit_interval_check_sec = DEFAULT_SLEEP_TIME_SEC;
-static long sleep_time = 20;
-static long last_run_sec = 0;
 
 /**
  * @brief Get available free space
@@ -423,16 +419,21 @@ static gboolean feedback_progress(const gchar *url, const gchar *id, gint progre
  */
 static long json_get_sleeptime(JsonNode *root)
 {
-        gchar *sleeptime_str = json_get_string(root, "$.config.polling.sleep");
-        if (sleeptime_str) {
-                struct tm time;
-                strptime(sleeptime_str, "%T", &time);
-                long poll_sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
-                //g_debug("sleep time: %s %ld\n", sleeptime_str, poll_sleep_time);
-                g_free(sleeptime_str);
-                return poll_sleep_time;
+        gchar *sleeptime_str = NULL;
+        struct tm time;
+        long poll_sleep_time;
+
+        sleeptime_str = json_get_string(root, "$.config.polling.sleep");
+        if (!sleeptime_str) {
+                poll_sleep_time = hawkbit_config->retry_wait;
+                goto out;
         }
-        return DEFAULT_SLEEP_TIME_SEC;
+
+        strptime(sleeptime_str, "%T", &time);
+        poll_sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
+out:
+        g_free(sleeptime_str);
+        return poll_sleep_time;
 }
 
 /**
@@ -739,17 +740,18 @@ void hawkbit_init(struct config *config, GSourceFunc on_install_ready)
 typedef struct ClientData_ {
         GMainLoop *loop;
         gboolean res;
+        long hawkbit_interval_check_sec;
+        long last_run_sec;
 } ClientData;
 
 static gboolean hawkbit_pull_cb(gpointer user_data)
 {
         ClientData *data = user_data;
 
-        if (!force_check_run && ++last_run_sec < sleep_time)
+        if (++data->last_run_sec < data->hawkbit_interval_check_sec)
                 return G_SOURCE_CONTINUE;
 
-        force_check_run = FALSE;
-        last_run_sec = 0;
+        data->last_run_sec = 0;
 
         // build hawkBit get tasks URL
         g_autofree gchar *get_tasks_url = build_api_url(
@@ -768,7 +770,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                         g_debug("Deployment response: %s\n", str);
 
                         // get hawkbit sleep time (how often should we check for new software)
-                        hawkbit_interval_check_sec = json_get_sleeptime(json_root);
+                        data->hawkbit_interval_check_sec = json_get_sleeptime(json_root);
 
                         if (json_contains(json_root, "$._links.configData")) {
                                 // hawkBit has asked us to identify ourself
@@ -790,9 +792,6 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
 
                 if (error)
                         g_critical("Error: %s", error->message);
-
-                // sleep as long as specified by hawkbit
-                sleep_time = hawkbit_interval_check_sec;
         } else if (status == 401) {
                 if (hawkbit_config->auth_token) {
                         g_critical("Failed to authenticate. Check if auth_token is correct?");
@@ -800,13 +799,13 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                         g_critical("Failed to authenticate. Check if gateway_token is correct?");
                 }
 
-                sleep_time = hawkbit_config->retry_wait;
+                data->hawkbit_interval_check_sec = hawkbit_config->retry_wait;
         } else {
                 g_debug("Scheduled check for new software failed status code: %d", status);
                 if (error) {
                         g_critical("HTTP Error: %s", error->message);
                 }
-                sleep_time = hawkbit_config->retry_wait;
+                data->hawkbit_interval_check_sec = hawkbit_config->retry_wait;
         }
         g_clear_error(&error);
 
@@ -827,6 +826,8 @@ int hawkbit_start_service_sync()
 
         ctx = g_main_context_new();
         cdata.loop = g_main_loop_new(ctx, FALSE);
+        cdata.hawkbit_interval_check_sec = hawkbit_config->retry_wait;
+        cdata.last_run_sec = hawkbit_config->retry_wait;
 
         timeout_source = g_timeout_source_new(1000);   // pull every second
         g_source_set_name(timeout_source, "Add timeout");
