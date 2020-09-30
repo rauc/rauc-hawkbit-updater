@@ -250,8 +250,11 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         if (jsonRequestBody) {
                 // Convert request into a string
                 JsonGenerator *generator = json_generator_new();
-                json_generator_set_root(generator, json_builder_get_root(jsonRequestBody));
+                JsonNode *req_root = json_builder_get_root(jsonRequestBody);
                 gsize length;
+
+                json_generator_set_root(generator, req_root);
+                json_node_unref(req_root);
                 postdata = json_generator_to_data(generator, &length);
                 g_object_unref(generator);
                 curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata);
