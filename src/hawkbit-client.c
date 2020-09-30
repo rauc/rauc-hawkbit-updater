@@ -254,11 +254,12 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                 gsize length;
 
                 json_generator_set_root(generator, req_root);
-                json_node_unref(req_root);
                 postdata = json_generator_to_data(generator, &length);
                 g_object_unref(generator);
                 curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata);
-                g_debug("Request body: %s\n", postdata);
+                g_autofree gchar *str = json_to_string(req_root, TRUE);
+                g_debug("Request body: %s", str);
+                json_node_unref(req_root);
         }
 
         // Setup request headers
