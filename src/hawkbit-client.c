@@ -67,6 +67,7 @@ static const char *HTTPMethod_STRING[] = {
 static struct config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static gchar * volatile action_id = NULL;
+static GThread *thread_download = NULL;
 
 /**
  * @brief Get available free space
@@ -717,8 +718,13 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto proc_error;
         }
 
+        // unref/free previous download thread by joining it
+        if (thread_download)
+                g_thread_join(thread_download);
+
         // start download thread
-        g_thread_new("downloader", download_thread, (gpointer) artifact);
+        thread_download = g_thread_new("downloader", download_thread,
+                                       (gpointer) artifact);
 
         g_object_unref(json_response_parser);
         return TRUE;
