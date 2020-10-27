@@ -64,7 +64,7 @@ JsonArray* json_get_array(JsonNode *json_node, const gchar *path)
                 if (json_array_get_length(arr) > 0) {
                         JsonNode *node = json_array_get_element(arr, 0);
                         if (JSON_NODE_HOLDS_ARRAY(node)) {
-                                //g_debug("json_get_array: %s\n", json_to_string(result, TRUE));
+                                //g_debug("json_get_array: %s", json_to_string(result, TRUE));
                                 res_arr = json_node_get_array(node);
                         }
                 }

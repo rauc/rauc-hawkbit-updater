@@ -138,7 +138,7 @@ static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **h
                         return FALSE;
 
                 g_hash_table_insert(*hash, keys[key], value);
-                //g_debug("\t\tkey %u/%lu: \t%s => %s\n", key, num_keys - 1, keys[key], value);
+                //g_debug("\t\tkey %u/%lu: \t%s => %s", key, num_keys - 1, keys[key], value);
         }
 
         return TRUE;

@@ -293,7 +293,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
 
                         } else {
                                 g_object_unref(parser);
-                                g_debug("Failed to parse JSON response body. status: %ld\n", http_code);
+                                g_debug("Failed to parse JSON response body. status: %ld", http_code);
                         }
                 }
         } else if (res == CURLE_OPERATION_TIMEDOUT) {
@@ -884,7 +884,7 @@ finish:
         g_main_loop_unref(cdata.loop);
         g_main_context_unref(ctx);
         if (res < 0)
-                g_warning("Failure: %s\n", strerror(-res));
+                g_warning("Failure: %s", strerror(-res));
 
         return res;
 }
