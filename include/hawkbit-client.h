@@ -35,6 +35,14 @@ typedef enum {
         RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
 } RHUHawkbitClientError;
 
+// uses CURLcode as error codes
+#define RHU_HAWKBIT_CLIENT_CURL_ERROR rhu_hawkbit_client_curl_error_quark()
+GQuark rhu_hawkbit_client_curl_error_quark(void);
+
+// uses HTTP codes as error codes
+#define RHU_HAWKBIT_CLIENT_HTTP_ERROR rhu_hawkbit_client_http_error_quark()
+GQuark rhu_hawkbit_client_http_error_quark(void);
+
 #define HAWKBIT_USERAGENT                 "rauc-hawkbit-c-agent/1.0"
 #define DEFAULT_CURL_REQUEST_BUFFER_SIZE  512
 #define DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE 64 * 1024 // 64KB

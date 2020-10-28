@@ -69,10 +69,19 @@ static GSourceFunc software_ready_cb;
 static gchar * volatile action_id = NULL;
 static GThread *thread_download = NULL;
 
-
 GQuark rhu_hawkbit_client_error_quark(void)
 {
         return g_quark_from_static_string("rhu_hawkbit_client_error_quark");
+}
+
+GQuark rhu_hawkbit_client_curl_error_quark(void)
+{
+        return g_quark_from_static_string("rhu_hawkbit_client_curl_error_quark");
+}
+
+GQuark rhu_hawkbit_client_http_error_quark(void)
+{
+        return g_quark_from_static_string("rhu_hawkbit_client_http_error_quark");
 }
 
 /**
@@ -125,6 +134,7 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  */
 static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, gchar **sha1sum, curl_off_t *speed, GError **error)
 {
+        gboolean ret = TRUE;
         glong http_code = 0;
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
@@ -136,7 +146,7 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
         CURL *curl = curl_easy_init();
         if (!curl) {
                 fclose(fp);
-                g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
                             "Unable to start libcurl easy session");
                 return FALSE;
         }
@@ -176,24 +186,26 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, speed);
-        if (res == CURLE_OK) {
-                if (gb.checksum) { // if checksum enabled then return the value
-                        *sha1sum = g_strdup(g_checksum_get_string(gb.checksum));
-                        g_checksum_free(gb.checksum);
-                }
-        } else {
-                g_set_error(error,
-                            G_IO_ERROR,                    // error domain
-                            G_IO_ERROR_FAILED,             // error code
-                            "HTTP request failed: %s (%ld)",     // error message format string
-                            curl_easy_strerror(res),
-                            http_code);
+
+        if (res != CURLE_OK) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, res, "%s",
+                            curl_easy_strerror(res));
+                ret = FALSE;
+        } else if (http_code != 200) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
+                            "HTTP request failed: %ld", http_code);
+                ret = FALSE;
+        }
+
+        if (ret && gb.checksum) { // if checksum enabled then return the value
+                *sha1sum = g_strdup(g_checksum_get_string(gb.checksum));
+                g_checksum_free(gb.checksum);
         }
 
         curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
         fclose(fp);
-        return (res == CURLE_OK);
+        return ret;
 }
 
 /**
@@ -232,9 +244,13 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
 {
         gchar *postdata = NULL;
         struct rest_payload fetch_buffer;
-
+        glong http_code = 0;
         CURL *curl = curl_easy_init();
-        if (!curl) return -1;
+        if (!curl) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
+                            "Unable to start libcurl easy session");
+                return -1;
+        }
 
         // init response buffer
         fetch_buffer.payload = g_malloc0(DEFAULT_CURL_REQUEST_BUFFER_SIZE);
@@ -288,7 +304,6 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
 
         // perform request
         CURLcode res = curl_easy_perform(curl);
-        glong http_code = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (res == CURLE_OK && http_code == 200) {
                 if (jsonResponseParser && fetch_buffer.size > 0) {
@@ -304,20 +319,14 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                                 g_debug("Failed to parse JSON response body. status: %ld", http_code);
                         }
                 }
-        } else if (res == CURLE_OPERATION_TIMEDOUT) {
-                // libcurl was able to complete a TCP connection to the origin server, but did not receive a timely HTTP response.
-                http_code = 524;
-                g_set_error(error,
-                            1,                    // error domain
-                            http_code,
-                            "HTTP request timed out: %s",
+        }
+        if (res != CURLE_OK) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, res, "%s",
                             curl_easy_strerror(res));
-        } else {
-                g_set_error(error,
-                            1,                    // error domain
-                            http_code,
-                            "HTTP request failed: %s",
-                            curl_easy_strerror(res));
+        } else if (http_code != 200) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
+                            "HTTP request failed: %ld; server response: %s", http_code,
+                            fetch_buffer.payload);
         }
 
         g_free(fetch_buffer.payload);
@@ -767,7 +776,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
 
                 if (error)
                         g_critical("Error: %s", error->message);
-        } else if (status == 401) {
+        } else if (g_error_matches(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 401)) {
                 if (hawkbit_config->auth_token) {
                         g_critical("Failed to authenticate. Check if auth_token is correct?");
                 } else if (hawkbit_config->gateway_token) {
