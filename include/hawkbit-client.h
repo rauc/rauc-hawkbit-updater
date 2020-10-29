@@ -64,6 +64,14 @@ enum HTTPMethod {
 };
 
 /**
+ * @brief struct that contains the context of an HawkBit action.
+ */
+struct HawkbitAction {
+        gchar *id;                    /**< HawkBit action id */
+        GMutex mutex;                 /**< mutex used for accessing all other members */
+};
+
+/**
  * @brief struct containing the payload and size of REST body.
  */
 typedef struct RestPayload_ {

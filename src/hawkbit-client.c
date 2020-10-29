@@ -68,7 +68,7 @@ static const char *HTTPMethod_STRING[] = {
 
 static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
-static gchar * volatile action_id = NULL;
+static struct HawkbitAction *active_action = NULL;
 static GThread *thread_download = NULL;
 
 GQuark rhu_hawkbit_client_error_quark(void)
@@ -84,6 +84,21 @@ GQuark rhu_hawkbit_client_curl_error_quark(void)
 GQuark rhu_hawkbit_client_http_error_quark(void)
 {
         return g_quark_from_static_string("rhu_hawkbit_client_http_error_quark");
+}
+
+/**
+ * @brief Create and initialize an HawkbitAction.
+ *
+ * @return Pointer to initialized HawkbitAction..
+ */
+static struct HawkbitAction *action_new(void)
+{
+        struct HawkbitAction *action = g_new0(struct HawkbitAction, 1);
+
+        g_mutex_init(&action->mutex);
+        action->id = NULL;
+
+        return action;
 }
 
 /**
@@ -632,13 +647,14 @@ gboolean hawkbit_progress(const gchar *msg)
 
         g_return_val_if_fail(msg, FALSE);
 
-        if (!action_id)
-                return G_SOURCE_REMOVE;
+        g_mutex_lock(&active_action->mutex);
 
-        feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
+        feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
 
-        if (!feedback_progress(feedback_url, action_id, msg, &error))
+        if (!feedback_progress(feedback_url, active_action->id, msg, &error))
                 g_warning("%s", error->message);
+
+        g_mutex_unlock(&active_action->mutex);
 
         return G_SOURCE_REMOVE;
 }
@@ -668,15 +684,16 @@ static gboolean identify(GError **error)
 }
 
 /**
- * @brief Resets the global action_id to NULL, indicating no action in progress, and deletes RAUC
- * bundle at config's bundle_download_location.
+ * @brief Resets the global active_action->id to NULL, indicating no action in progress, and
+ * deletes RAUC bundle at config's bundle_download_location.
+ * Must be called under locked active_action->mutex.
  */
 static void process_deployment_cleanup()
 {
-        gpointer ptr = action_id;
+        g_assert_false(g_mutex_trylock(&active_action->mutex));
 
-        action_id = NULL;
-        g_free(ptr);
+        g_free(active_action->id);
+        active_action->id = NULL;
 
         if (!g_file_test(hawkbit_config->bundle_download_location, G_FILE_TEST_IS_REGULAR))
                 return;
@@ -694,12 +711,11 @@ gboolean install_complete_cb(gpointer ptr)
 
         g_return_val_if_fail(ptr, FALSE);
 
-        if (!action_id)
-                return G_SOURCE_REMOVE;
+        g_mutex_lock(&active_action->mutex);
 
-        feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
+        feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
         res = feedback(
-                feedback_url, action_id,
+                feedback_url, active_action->id,
                 result->install_success ? "Software bundle installed successfully."
                 : "Failed to install software bundle.",
                 result->install_success ? "success" : "failure",
@@ -709,6 +725,7 @@ gboolean install_complete_cb(gpointer ptr)
                 g_warning("%s", error->message);
 
         process_deployment_cleanup();
+        g_mutex_unlock(&active_action->mutex);
 
         if (result->install_success && hawkbit_config->post_update_reboot) {
                 sync();
@@ -752,10 +769,12 @@ static gpointer download_thread(gpointer data)
         // notify hawkbit that download is complete
         msg = g_strdup_printf("Download complete. %.2f MB/s",
                               (double)speed/(1024*1024));
-        if (!feedback_progress(artifact->feedback_url, action_id, msg, &error)) {
+        g_mutex_lock(&active_action->mutex);
+        if (!feedback_progress(artifact->feedback_url, active_action->id, msg, &error)) {
                 g_warning("%s", error->message);
                 g_clear_error(&error);
         }
+        g_mutex_unlock(&active_action->mutex);
 
         // validate checksum
         if (g_strcmp0(artifact->sha1, sha1sum)) {
@@ -765,27 +784,34 @@ static gpointer download_thread(gpointer data)
                 goto report_err;
         }
 
-        if (!feedback_progress(artifact->feedback_url, action_id, "File checksum OK.", &error)) {
+        g_mutex_lock(&active_action->mutex);
+        if (!feedback_progress(artifact->feedback_url, active_action->id, "File checksum OK.",
+                               &error)) {
                 g_warning("%s", error->message);
                 g_clear_error(&error);
         }
+
+        g_mutex_unlock(&active_action->mutex);
 
         software_ready_cb(&userdata);
 
         return NULL;
 
 report_err:
-        if (!feedback(artifact->feedback_url, action_id, error->message, "failure", "closed",
-                      &feedback_error))
+        g_mutex_trylock(&active_action->mutex);
+        if (!feedback(artifact->feedback_url, active_action->id, error->message, "failure",
+                      "closed", &feedback_error))
                 g_warning("%s", feedback_error->message);
 
         process_deployment_cleanup();
+        g_mutex_unlock(&active_action->mutex);
 
         return NULL;
 }
 
 /**
  * @brief Process hawkBit deployment described by req_root.
+ *        Must be called under locked active_action->mutex.
  *
  * @param[in]  req_root JsonNode* describing the deployment to process
  * @param[out] error    Error
@@ -802,11 +828,12 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         g_return_val_if_fail(req_root, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+        g_assert_false(g_mutex_trylock(&active_action->mutex));
 
-        if (action_id) {
+        if (active_action->id) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
                             RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
-                            "Deployment %s is already in progress.", action_id);
+                            "Deployment %s is already in progress.", active_action->id);
                 // no need to tell hawkBit about this
                 return FALSE;
         }
@@ -822,11 +849,12 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         resp_root = json_parser_get_root(json_response_parser);
 
-        action_id = json_get_string(resp_root, "$.id", error);
-        if (!action_id)
-                return FALSE;
+        // remember deployment's action id
+        active_action->id = json_get_string(resp_root, "$.id", error);
+        if (!active_action->id)
+                goto error;
 
-        feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
+        feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
 
         json_chunks = json_get_array(resp_root, "$.deployment.chunks", error);
         if (!json_chunks)
@@ -897,7 +925,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         return TRUE;
 
 proc_error:
-        feedback(feedback_url, action_id, (*error)->message, "failure", "closed", NULL);
+        feedback(feedback_url, active_action->id, (*error)->message, "failure", "closed", NULL);
 
 error:
         // clean up failed deployment
@@ -983,7 +1011,9 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         }
         if (json_contains(json_root, "$._links.deploymentBase")) {
                 // hawkBit has a new deployment for us
+                g_mutex_lock(&active_action->mutex);
                 res = process_deployment(json_root, &error);
+                g_mutex_unlock(&active_action->mutex);
                 if (!res) {
                         if (g_error_matches(error, RHU_HAWKBIT_CLIENT_ERROR,
                                             RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS))
@@ -1019,6 +1049,8 @@ int hawkbit_start_service_sync()
 #ifdef WITH_SYSTEMD
         g_autoptr(sd_event) event = NULL;
 #endif
+
+        active_action = action_new();
 
         ctx = g_main_context_new();
         cdata.loop = g_main_loop_new(ctx, FALSE);
