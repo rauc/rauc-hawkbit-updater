@@ -69,6 +69,12 @@ static GSourceFunc software_ready_cb;
 static gchar * volatile action_id = NULL;
 static GThread *thread_download = NULL;
 
+
+GQuark rhu_hawkbit_client_error_quark(void)
+{
+        return g_quark_from_static_string("rhu_hawkbit_client_error_quark");
+}
+
 /**
  * @brief Get available free space
  *
@@ -597,7 +603,9 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         struct artifact *artifact = NULL;
 
         if (action_id) {
-                g_warning("Deployment is already in progress...");
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
+                            RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
+                            "Deployment %s is already in progress.", action_id);
                 return FALSE;
         }
 

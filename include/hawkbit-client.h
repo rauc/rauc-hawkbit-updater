@@ -28,6 +28,13 @@
 
 #include "config-file.h"
 
+#define RHU_HAWKBIT_CLIENT_ERROR rhu_hawkbit_client_error_quark()
+GQuark rhu_hawkbit_client_error_quark(void);
+
+typedef enum {
+        RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
+} RHUHawkbitClientError;
+
 #define HAWKBIT_USERAGENT                 "rauc-hawkbit-c-agent/1.0"
 #define DEFAULT_CURL_REQUEST_BUFFER_SIZE  512
 #define DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE 64 * 1024 // 64KB
