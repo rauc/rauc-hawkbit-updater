@@ -55,7 +55,6 @@
 
 #include "hawkbit-client.h"
 
-gboolean volatile force_check_run = FALSE;
 gboolean run_once = FALSE;
 
 /**
@@ -68,9 +67,7 @@ static const char *HTTPMethod_STRING[] = {
 static struct config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static gchar * volatile action_id = NULL;
-static long hawkbit_interval_check_sec = DEFAULT_SLEEP_TIME_SEC;
-static long sleep_time = 20;
-static long last_run_sec = 0;
+static GThread *thread_download = NULL;
 
 /**
  * @brief Get available free space
@@ -254,12 +251,16 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         if (jsonRequestBody) {
                 // Convert request into a string
                 JsonGenerator *generator = json_generator_new();
-                json_generator_set_root(generator, json_builder_get_root(jsonRequestBody));
+                JsonNode *req_root = json_builder_get_root(jsonRequestBody);
                 gsize length;
+
+                json_generator_set_root(generator, req_root);
                 postdata = json_generator_to_data(generator, &length);
                 g_object_unref(generator);
                 curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata);
-                g_debug("Request body: %s\n", postdata);
+                g_autofree gchar *str = json_to_string(req_root, TRUE);
+                g_debug("Request body: %s", str);
+                json_node_unref(req_root);
         }
 
         // Setup request headers
@@ -285,10 +286,14 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                 if (jsonResponseParser && fetch_buffer.size > 0) {
                         JsonParser *parser = json_parser_new_immutable();
                         if (json_parser_load_from_data(parser, fetch_buffer.payload, fetch_buffer.size, error)) {
+                                JsonNode *resp_root = json_parser_get_root(parser);
+                                g_autofree gchar *str = json_to_string(resp_root, TRUE);
+                                g_debug("Response body: %s", str);
                                 *jsonResponseParser = parser;
+
                         } else {
                                 g_object_unref(parser);
-                                g_debug("Failed to parse JSON response body. status: %ld\n", http_code);
+                                g_debug("Failed to parse JSON response body. status: %ld", http_code);
                         }
                 }
         } else if (res == CURLE_OPERATION_TIMEDOUT) {
@@ -306,8 +311,6 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                             "HTTP request failed: %s",
                             curl_easy_strerror(res));
         }
-
-        //g_debug("Response body: %s\n", fetch_buffer.payload);
 
         g_free(fetch_buffer.payload);
         g_free(postdata);
@@ -423,16 +426,21 @@ static gboolean feedback_progress(const gchar *url, const gchar *id, gint progre
  */
 static long json_get_sleeptime(JsonNode *root)
 {
-        gchar *sleeptime_str = json_get_string(root, "$.config.polling.sleep");
-        if (sleeptime_str) {
-                struct tm time;
-                strptime(sleeptime_str, "%T", &time);
-                long poll_sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
-                //g_debug("sleep time: %s %ld\n", sleeptime_str, poll_sleep_time);
-                g_free(sleeptime_str);
-                return poll_sleep_time;
+        gchar *sleeptime_str = NULL;
+        struct tm time;
+        long poll_sleep_time;
+
+        sleeptime_str = json_get_string(root, "$.config.polling.sleep");
+        if (!sleeptime_str) {
+                poll_sleep_time = hawkbit_config->retry_wait;
+                goto out;
         }
-        return DEFAULT_SLEEP_TIME_SEC;
+
+        strptime(sleeptime_str, "%T", &time);
+        poll_sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
+out:
+        g_free(sleeptime_str);
+        return poll_sleep_time;
 }
 
 /**
@@ -613,7 +621,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         GError *ierror = NULL;
         struct artifact *artifact = NULL;
-        g_autofree gchar *str = NULL;
 
         if (action_id) {
                 g_warning("Deployment is already in progress...");
@@ -653,9 +660,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 return FALSE;
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
-
-        str = json_to_string(resp_root, TRUE);
-        g_debug("Deployment response: %s\n", str);
 
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks");
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
@@ -714,8 +718,13 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto proc_error;
         }
 
+        // unref/free previous download thread by joining it
+        if (thread_download)
+                g_thread_join(thread_download);
+
         // start download thread
-        g_thread_new("downloader", download_thread, (gpointer) artifact);
+        thread_download = g_thread_new("downloader", download_thread,
+                                       (gpointer) artifact);
 
         g_object_unref(json_response_parser);
         return TRUE;
@@ -739,17 +748,18 @@ void hawkbit_init(struct config *config, GSourceFunc on_install_ready)
 typedef struct ClientData_ {
         GMainLoop *loop;
         gboolean res;
+        long hawkbit_interval_check_sec;
+        long last_run_sec;
 } ClientData;
 
 static gboolean hawkbit_pull_cb(gpointer user_data)
 {
         ClientData *data = user_data;
 
-        if (!force_check_run && ++last_run_sec < sleep_time)
+        if (++data->last_run_sec < data->hawkbit_interval_check_sec)
                 return G_SOURCE_CONTINUE;
 
-        force_check_run = FALSE;
-        last_run_sec = 0;
+        data->last_run_sec = 0;
 
         // build hawkBit get tasks URL
         g_autofree gchar *get_tasks_url = build_api_url(
@@ -764,11 +774,9 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                 if (json_response_parser) {
                         // json_root is owned by the JsonParser and should never be modified or freed.
                         JsonNode *json_root = json_parser_get_root(json_response_parser);
-                        g_autofree gchar *str = json_to_string(json_root, TRUE);
-                        g_debug("Deployment response: %s\n", str);
 
                         // get hawkbit sleep time (how often should we check for new software)
-                        hawkbit_interval_check_sec = json_get_sleeptime(json_root);
+                        data->hawkbit_interval_check_sec = json_get_sleeptime(json_root);
 
                         if (json_contains(json_root, "$._links.configData")) {
                                 // hawkBit has asked us to identify ourself
@@ -790,9 +798,6 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
 
                 if (error)
                         g_critical("Error: %s", error->message);
-
-                // sleep as long as specified by hawkbit
-                sleep_time = hawkbit_interval_check_sec;
         } else if (status == 401) {
                 if (hawkbit_config->auth_token) {
                         g_critical("Failed to authenticate. Check if auth_token is correct?");
@@ -800,13 +805,13 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                         g_critical("Failed to authenticate. Check if gateway_token is correct?");
                 }
 
-                sleep_time = hawkbit_config->retry_wait;
+                data->hawkbit_interval_check_sec = hawkbit_config->retry_wait;
         } else {
                 g_debug("Scheduled check for new software failed status code: %d", status);
                 if (error) {
                         g_critical("HTTP Error: %s", error->message);
                 }
-                sleep_time = hawkbit_config->retry_wait;
+                data->hawkbit_interval_check_sec = hawkbit_config->retry_wait;
         }
         g_clear_error(&error);
 
@@ -827,6 +832,8 @@ int hawkbit_start_service_sync()
 
         ctx = g_main_context_new();
         cdata.loop = g_main_loop_new(ctx, FALSE);
+        cdata.hawkbit_interval_check_sec = hawkbit_config->retry_wait;
+        cdata.last_run_sec = hawkbit_config->retry_wait;
 
         timeout_source = g_timeout_source_new(1000);   // pull every second
         g_source_set_name(timeout_source, "Add timeout");
@@ -877,7 +884,7 @@ finish:
         g_main_loop_unref(cdata.loop);
         g_main_context_unref(ctx);
         if (res < 0)
-                g_warning("Failure: %s\n", strerror(-res));
+                g_warning("Failure: %s", strerror(-res));
 
         return res;
 }

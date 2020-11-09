@@ -32,6 +32,7 @@
 #include "rauc-installer.h"
 #include "rauc-installer-gen.h"
 
+static GThread *thread_install = NULL;
 
 /**
  * @brief RAUC DBUS property changed callback
@@ -205,5 +206,11 @@ void rauc_install(const gchar *bundle, GSourceFunc on_install_notify, GSourceFun
         context->loop_context = loop_context;
         context->status_result = 2;
 
-        g_thread_new("installer", install_loop_thread, (gpointer) context);
+        // unref/free previous install thread by joining it
+        if (thread_install)
+                g_thread_join(thread_install);
+
+        // start install thread
+        thread_install = g_thread_new("installer", install_loop_thread,
+                                      (gpointer) context);
 }
