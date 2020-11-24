@@ -616,18 +616,28 @@ gboolean hawkbit_progress(const gchar *msg)
         return G_SOURCE_REMOVE;
 }
 
+/**
+ * @brief Provide meta information that will allow the hawkBit to identify the device on a hardware
+ * level.
+ *
+ * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_put_tenant_controller_v1_controllerid_configdata
+ *
+ * @param[out] error Error
+ * @return TRUE if identification succeeded, FALSE otherwise (error set)
+ */
 static gboolean identify(GError **error)
 {
-        gboolean res;
+        g_autofree gchar *put_config_data_url = NULL;
+        g_autoptr(JsonBuilder) builder = NULL;
 
-        g_debug("Identifying ourself to hawkbit server");
-        g_autofree gchar *put_config_data_url = build_api_url("configData");
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        JsonBuilder *builder = json_build_status(NULL, NULL, "success", "closed", hawkbit_config->device);
+        g_debug("Providing meta information to hawkbit server");
+        put_config_data_url = build_api_url("configData");
 
-        res = rest_request(PUT, put_config_data_url, builder, NULL, error);
-        g_object_unref(builder);
-        return res;
+        builder = json_build_status(NULL, NULL, "success", "closed", hawkbit_config->device);
+
+        return rest_request(PUT, put_config_data_url, builder, NULL, error);
 }
 
 static void process_artifact_cleanup(struct artifact *artifact)
