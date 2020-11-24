@@ -87,24 +87,31 @@ GQuark rhu_hawkbit_client_http_error_quark(void)
 }
 
 /**
- * @brief Get available free space
+ * @brief Get available free space of a mounted file system.
  *
- * @param[in] path Path
- * @return If error -1 else free space in bytes
+ * @param[in]  path       Absolute Path of a disk device node containing a mounted file system
+ * @param[out] free_space Pointer to goffset containing the free space in bytes
+ * @return TRUE if free space calculation succeeded, FALSE otherwise
  */
-static goffset get_available_space(const char* path, GError **error)
+static gboolean get_available_space(const char *path, goffset *free_space, GError **error)
 {
         struct statvfs stat;
         g_autofree gchar *npath = g_strdup(path);
-        char *rpath = dirname(npath);
-        if (statvfs(rpath, &stat) != 0) {
-                // error happend, lets quit
-                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Failed to calculate free space: %s", g_strerror(errno));
-                return -1;
+        const char *rpath = dirname(npath);
+
+        g_return_val_if_fail(path, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        if (statvfs(rpath, &stat)) {
+                int err = errno;
+                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                            "Failed to calculate free space for %s: %s", path, g_strerror(err));
+                return FALSE;
         }
 
         // the available free space is f_bsize * f_bavail
-        return (goffset) stat.f_bsize * (goffset) stat.f_bavail;
+        *free_space = (goffset) stat.f_bsize * (goffset) stat.f_bavail;
+        return TRUE;
 }
 
 /**
@@ -656,6 +663,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         GError *ierror = NULL;
         struct artifact *artifact = NULL;
+        goffset freespace;
         gboolean res;
 
         if (action_id) {
@@ -735,16 +743,18 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                   artifact->name, artifact->version, artifact->size, artifact->download_url);
 
         // Check if there is enough free diskspace
-        goffset freespace = get_available_space(hawkbit_config->bundle_download_location, &ierror);
-        if (freespace == -1) {
+        res = get_available_space(hawkbit_config->bundle_download_location, &freespace, &ierror);
+        if (!res) {
                 feedback(feedback_url, action_id, ierror->message, "failure", "closed", NULL);
                 g_propagate_error(error, ierror);
                 goto proc_error;
-        } else if (freespace < artifact->size) {
+        }
+
+        if (freespace < artifact->size) {
+                // Notify hawkbit that there is not enough free space.
                 g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %" G_GOFFSET_FORMAT,
                                                         artifact->size, freespace);
                 g_debug("%s", msg);
-                // Notify hawkbit that there is not enough free space.
                 feedback(feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_set_error(error, 1, 23, "%s", msg);
                 goto proc_error;
