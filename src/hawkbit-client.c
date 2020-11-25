@@ -113,11 +113,11 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  * @param[in]  file           File the software bundle should be written to.
  * @param[in]  filesize       Expected file size
  * @param[out] checksum       Calculated checksum
- * @param[out] http_code      Return location for the http_code, can be NULL
  * @param[out] error          Error
  */
-static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, glong *http_code, GError **error)
+static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, GError **error)
 {
+        glong http_code = 0;
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
@@ -166,8 +166,7 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         CURLcode res = curl_easy_perform(curl);
-        if (http_code)
-                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, http_code);
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (res == CURLE_OK) {
                 if (gb.checksum) { // if checksum enabled then return the value
                         checksum->checksum_result = g_strdup(g_checksum_get_string(gb.checksum));
@@ -177,8 +176,9 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
                 g_set_error(error,
                             G_IO_ERROR,                    // error domain
                             G_IO_ERROR_FAILED,             // error code
-                            "HTTP request failed: %s",     // error message format string
-                            curl_easy_strerror(res));
+                            "HTTP request failed: %s (%ld)",     // error message format string
+                            curl_easy_strerror(res),
+                            http_code);
         }
 
         curl_easy_cleanup(curl);
@@ -559,12 +559,11 @@ static gpointer download_thread(gpointer data)
 
         // Download software bundle (artifact)
         gint64 start_time = g_get_monotonic_time();
-        glong status = 0;
         gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                  artifact->size, &checksum, &status, &error);
+                                  artifact->size, &checksum, &error);
         gint64 end_time = g_get_monotonic_time();
         if (!res) {
-                g_autofree gchar *msg = g_strdup_printf("Download failed: %s Status: %ld", error->message, status);
+                g_autofree gchar *msg = g_strdup_printf("Download failed: %s", error->message);
                 g_clear_error(&error);
                 g_critical("%s", msg);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
@@ -586,7 +585,6 @@ static gpointer download_thread(gpointer data)
                         artifact->sha1);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_critical("%s", msg);
-                status = -3;
                 goto down_error;
         }
         g_message("File checksum OK.");
