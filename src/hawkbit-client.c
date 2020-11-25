@@ -322,7 +322,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
  * @brief Build JSON status request.
  * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_post_tenant_controller_v1_controllerid_deploymentbase_actionid_feedback
  */
-static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detail, const gchar *result, const gchar *execution, GHashTable *data, gint progress)
+static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detail, const gchar *result, const gchar *execution, GHashTable *data)
 {
         GHashTableIter iter;
         gpointer key, value;
@@ -350,19 +350,6 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
         json_builder_begin_object(builder);
         json_builder_set_member_name(builder, "result");
         json_builder_begin_object(builder);
-
-        if (g_strcmp0(execution, "proceeding") == 0) {
-                json_builder_set_member_name(builder, "progress");
-                json_builder_begin_object(builder);
-
-                json_builder_set_member_name(builder, "of");
-                json_builder_add_int_value(builder, 1);
-
-                json_builder_set_member_name(builder, "cnt");
-                json_builder_add_int_value(builder, 3);
-
-                json_builder_end_object(builder);
-        }
 
         json_builder_set_member_name(builder, "finished");
         json_builder_add_string_value(builder, result);
@@ -398,7 +385,7 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
 static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *execution, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
-        json_build_status(builder, id, detail, finished, execution, NULL, 0);
+        json_build_status(builder, id, detail, finished, execution, NULL);
 
         int status = rest_request(POST, url, builder, NULL, error);
         g_debug("Feedback status: %d, URL: %s", status, url);
@@ -409,10 +396,10 @@ static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, 
 /**
  * @brief Send progress feedback to hawkBit.
  */
-static gboolean feedback_progress(const gchar *url, const gchar *id, gint progress, const gchar *detail, GError **error)
+static gboolean feedback_progress(const gchar *url, const gchar *id, const gchar *detail, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
-        json_build_status(builder, id, detail, "none", "proceeding", NULL, progress);
+        json_build_status(builder, id, detail, "none", "proceeding", NULL);
 
         int status = rest_request(POST, url, builder, NULL, error);
         g_debug("Feedback progress status: %d, URL: %s", status, url);
@@ -487,7 +474,7 @@ gboolean hawkbit_progress(const gchar *msg)
         if (action_id) {
                 feedback_url = build_api_url("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
                                              hawkbit_config->controller_id, action_id);
-                feedback_progress(feedback_url, action_id, 3, msg, NULL);
+                feedback_progress(feedback_url, action_id, msg, NULL);
         }
         return G_SOURCE_REMOVE;
 }
@@ -500,7 +487,7 @@ static gboolean identify(GError **error)
                 hawkbit_config->controller_id);
 
         JsonBuilder *builder = json_builder_new();
-        json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device, FALSE);
+        json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device);
 
         gint status = rest_request(PUT, put_config_data_url, builder, NULL, error);
         g_object_unref(builder);
@@ -587,7 +574,7 @@ static gpointer download_thread(gpointer data)
         // notify hawkbit that download is complete
         msg = g_strdup_printf("Download complete. %.2f MB/s",
                               (artifact->size / ((double)(end_time - start_time) / 1000000)) / (1024 * 1024));
-        feedback_progress(artifact->feedback_url, action_id, 1, msg, NULL);
+        feedback_progress(artifact->feedback_url, action_id, msg, NULL);
         g_message("%s", msg);
 
         // validate checksum
@@ -603,7 +590,7 @@ static gpointer download_thread(gpointer data)
                 goto down_error;
         }
         g_message("File checksum OK.");
-        feedback_progress(artifact->feedback_url, action_id, 2, "File checksum OK.", NULL);
+        feedback_progress(artifact->feedback_url, action_id, "File checksum OK.", NULL);
         g_free(checksum.checksum_result);
         process_artifact_cleanup(artifact);
 
