@@ -601,10 +601,18 @@ static gchar* build_api_url(const gchar *path, ...)
 gboolean hawkbit_progress(const gchar *msg)
 {
         g_autofree gchar *feedback_url = NULL;
-        if (action_id) {
-                feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
-                feedback_progress(feedback_url, action_id, msg, NULL);
-        }
+        g_autoptr(GError) error = NULL;
+
+        g_return_val_if_fail(msg, FALSE);
+
+        if (!action_id)
+                return G_SOURCE_REMOVE;
+
+        feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
+
+        if (!feedback_progress(feedback_url, action_id, msg, &error))
+                g_warning("%s", error->message);
+
         return G_SOURCE_REMOVE;
 }
 

@@ -110,6 +110,14 @@ struct on_install_complete_userdata {
 
 void hawkbit_init(Config *config, GSourceFunc on_install_ready);
 int hawkbit_start_service_sync();
+
+/**
+ * @brief Callback for install thread, sends msg as progress feedback to
+ *        hawkBit.
+ *
+ * @param[in] msg Progress message
+ * @return G_SOURCE_REMOVE is always returned
+ */
 gboolean hawkbit_progress(const gchar *msg);
 gboolean install_complete_cb(gpointer ptr);
 
