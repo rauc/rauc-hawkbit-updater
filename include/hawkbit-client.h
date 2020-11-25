@@ -110,6 +110,12 @@ struct on_install_complete_userdata {
 };
 
 void hawkbit_init(Config *config, GSourceFunc on_install_ready);
+
+/**
+ * @brief Sets up timeout and event sources, initializes and runs main loop.
+ *
+ * @return numeric return code, to be returned by main()
+ */
 int hawkbit_start_service_sync();
 
 /**

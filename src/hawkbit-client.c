@@ -985,29 +985,31 @@ out:
 
 int hawkbit_start_service_sync()
 {
-        GMainContext *ctx;
+        g_autoptr(GMainContext) ctx = NULL;
         ClientData cdata;
-        GSource *timeout_source = NULL;
+        g_autoptr(GSource) timeout_source = NULL;
+        g_autoptr(GSource) event_source = NULL;
         int res = 0;
+#ifdef WITH_SYSTEMD
+        g_autoptr(sd_event) event = NULL;
+#endif
 
         ctx = g_main_context_new();
         cdata.loop = g_main_loop_new(ctx, FALSE);
         cdata.hawkbit_interval_check_sec = hawkbit_config->retry_wait;
         cdata.last_run_sec = hawkbit_config->retry_wait;
 
-        timeout_source = g_timeout_source_new(1000);   // pull every second
+        // pull every second
+        timeout_source = g_timeout_source_new(1000);
         g_source_set_name(timeout_source, "Add timeout");
         g_source_set_callback(timeout_source, (GSourceFunc) hawkbit_pull_cb, &cdata, NULL);
         g_source_attach(timeout_source, ctx);
-        g_source_unref(timeout_source);
 
 #ifdef WITH_SYSTEMD
-        GSource *event_source = NULL;
-        sd_event *event = NULL;
         res = sd_event_default(&event);
         if (res < 0)
                 goto finish;
-        // Enable automatic service watchdog support
+        // enable automatic service watchdog support
         res = sd_event_set_watchdog(event, TRUE);
         if (res < 0)
                 goto finish;
@@ -1036,13 +1038,10 @@ int hawkbit_start_service_sync()
 
 #ifdef WITH_SYSTEMD
 finish:
-        g_source_unref(event_source);
         g_source_destroy(event_source);
         sd_event_set_watchdog(event, FALSE);
-        event = sd_event_unref(event);
 #endif
         g_main_loop_unref(cdata.loop);
-        g_main_context_unref(ctx);
         if (res < 0)
                 g_warning("%s", strerror(-res));
 
