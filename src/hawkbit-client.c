@@ -784,10 +784,24 @@ typedef struct ClientData_ {
         long last_run_sec;
 } ClientData;
 
+/**
+ * @brief Callback for main loop, should run regularly, polls controller base poll resource and
+ * triggers appropriate actions.
+ *
+ * @param[in] user_data ClientData*
+ * @return TRUE if polling controller base resource and running appropriate actions succeeded,
+ *         FALSE otherwise
+ */
 static gboolean hawkbit_pull_cb(gpointer user_data)
 {
         ClientData *data = user_data;
-        gboolean res;
+        gboolean res = FALSE;
+        g_autoptr(GError) error = NULL;
+        g_autofree gchar *get_tasks_url = NULL;
+        g_autoptr(JsonParser) json_response_parser = NULL;
+        JsonNode *json_root = NULL;
+
+        g_return_val_if_fail(user_data, FALSE);
 
         if (++data->last_run_sec < data->hawkbit_interval_check_sec)
                 return G_SOURCE_CONTINUE;
@@ -795,62 +809,64 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         data->last_run_sec = 0;
 
         // build hawkBit get tasks URL
-        g_autofree gchar *get_tasks_url = build_api_url(NULL);
-        GError *error = NULL;
-        JsonParser *json_response_parser = NULL;
+        get_tasks_url = build_api_url(NULL);
 
         g_message("Checking for new software...");
         res = rest_request(GET, get_tasks_url, NULL, &json_response_parser, &error);
-        if (res) {
-                if (json_response_parser) {
-                        // json_root is owned by the JsonParser and should never be modified or freed.
-                        JsonNode *json_root = json_parser_get_root(json_response_parser);
-
-                        // get hawkbit sleep time (how often should we check for new software)
-                        data->hawkbit_interval_check_sec = json_get_sleeptime(json_root);
-
-                        if (json_contains(json_root, "$._links.configData")) {
-                                // hawkBit has asked us to identify ourself
-                                identify(&error);
-                        }
-                        if (json_contains(json_root, "$._links.deploymentBase")) {
-                                // hawkBit has a new deployment for us
-                                process_deployment(json_root, &error);
-                        } else {
-                                g_message("No new software.");
-                        }
-                        if (json_contains(json_root, "$._links.cancelAction")) {
-                                //TODO: implement me
-                                g_warning("cancel action not supported");
-                        }
-
-                        g_object_unref(json_response_parser);
-                }
-
-                if (error)
-                        g_critical("Error: %s", error->message);
-        } else if (g_error_matches(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 401)) {
-                if (hawkbit_config->auth_token) {
-                        g_critical("Failed to authenticate. Check if auth_token is correct?");
-                } else if (hawkbit_config->gateway_token) {
-                        g_critical("Failed to authenticate. Check if gateway_token is correct?");
+        if (!res) {
+                if (g_error_matches(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 401)) {
+                        if (hawkbit_config->auth_token)
+                                g_critical("Failed to authenticate. Check if auth_token is correct?");
+                        if (hawkbit_config->gateway_token)
+                                g_critical("Failed to authenticate. Check if gateway_token is correct?");
+                } else {
+                        g_warning("Scheduled check for new software failed: %s (%d)",
+                                  error->message, error->code);
                 }
 
                 data->hawkbit_interval_check_sec = hawkbit_config->retry_wait;
-        } else {
-                g_debug("Scheduled check for new software failed status code: %d", error->code);
-                if (error) {
-                        g_critical("HTTP Error: %s", error->message);
-                }
-                data->hawkbit_interval_check_sec = hawkbit_config->retry_wait;
+                goto out;
         }
-        g_clear_error(&error);
 
+        // owned by the JsonParser and should never be modified or freed
+        json_root = json_parser_get_root(json_response_parser);
+
+        // get hawkbit sleep time (how often should we check for new software)
+        data->hawkbit_interval_check_sec = json_get_sleeptime(json_root);
+
+        if (json_contains(json_root, "$._links.configData")) {
+                // hawkBit has asked us to identify ourselves
+                res = identify(&error);
+                if (!res) {
+                        g_warning("%s", error->message);
+                        g_clear_error(&error);
+                }
+        }
+        if (json_contains(json_root, "$._links.deploymentBase")) {
+                // hawkBit has a new deployment for us
+                res = process_deployment(json_root, &error);
+                if (!res) {
+                        if (g_error_matches(error, RHU_HAWKBIT_CLIENT_ERROR,
+                                            RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS))
+                                g_debug("%s", error->message);
+                        else
+                                g_warning("%s", error->message);
+                }
+        } else {
+                g_message("No new software.");
+        }
+        if (json_contains(json_root, "$._links.cancelAction")) {
+                //TODO: implement me
+                g_warning("cancel action not supported");
+        }
+
+out:
         if (run_once) {
                 data->res = res ? 0 : 1;
                 g_main_loop_quit(data->loop);
                 return G_SOURCE_REMOVE;
         }
+
         return G_SOURCE_CONTINUE;
 }
 
@@ -915,7 +931,7 @@ finish:
         g_main_loop_unref(cdata.loop);
         g_main_context_unref(ctx);
         if (res < 0)
-                g_warning("Failure: %s", strerror(-res));
+                g_warning("%s", strerror(-res));
 
         return res;
 }
