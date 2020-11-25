@@ -562,18 +562,22 @@ static void process_artifact_cleanup(struct artifact *artifact)
         g_free(artifact);
 }
 
+/**
+ * @brief Resets the global action_id to NULL, indicating no action in progress, and deletes RAUC
+ * bundle at config's bundle_download_location.
+ */
 static void process_deployment_cleanup()
 {
-        //g_clear_pointer(action_id, g_free);
         gpointer ptr = action_id;
+
         action_id = NULL;
         g_free(ptr);
 
-        if (g_file_test(hawkbit_config->bundle_download_location, G_FILE_TEST_EXISTS)) {
-                if (g_remove(hawkbit_config->bundle_download_location) != 0) {
-                        g_debug("Failed to delete file: %s", hawkbit_config->bundle_download_location);
-                }
-        }
+        if (!g_file_test(hawkbit_config->bundle_download_location, G_FILE_TEST_IS_REGULAR))
+                return;
+
+        if (g_remove(hawkbit_config->bundle_download_location))
+                g_warning("Failed to delete file: %s", hawkbit_config->bundle_download_location);
 }
 
 gboolean install_complete_cb(gpointer ptr)
