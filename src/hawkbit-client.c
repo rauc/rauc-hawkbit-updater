@@ -672,27 +672,35 @@ static void process_deployment_cleanup()
 
 gboolean install_complete_cb(gpointer ptr)
 {
+        gboolean res = FALSE;
+        g_autoptr(GError) error = NULL;
         struct on_install_complete_userdata *result = ptr;
         g_autofree gchar *feedback_url = NULL;
-        if (action_id) {
-                feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
-                if (result->install_success) {
-                        g_message("Software bundle installed successful.");
-                        feedback(feedback_url, action_id, "Software bundle installed successful.", "success", "closed", NULL);
-                        if (hawkbit_config->post_update_reboot) {
-                                process_deployment_cleanup();
-                                sync();
-                                if (reboot(RB_AUTOBOOT) < 0) {
-                                        g_critical("Failed to reboot: %s", g_strerror(errno));
-                                }
-                        }
-                } else {
-                        g_critical("Failed to install software bundle.");
-                        feedback(feedback_url, action_id, "Failed to install software bundle.", "failure", "closed", NULL);
-                }
 
-                process_deployment_cleanup();
+        g_return_val_if_fail(ptr, FALSE);
+
+        if (!action_id)
+                return G_SOURCE_REMOVE;
+
+        feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
+        res = feedback(
+                feedback_url, action_id,
+                result->install_success ? "Software bundle installed successfully."
+                : "Failed to install software bundle.",
+                result->install_success ? "success" : "failure",
+                "closed", &error);
+
+        if (!res)
+                g_warning("%s", error->message);
+
+        process_deployment_cleanup();
+
+        if (result->install_success && hawkbit_config->post_update_reboot) {
+                sync();
+                if (reboot(RB_AUTOBOOT) < 0)
+                        g_critical("Failed to reboot: %s", g_strerror(errno));
         }
+
         return G_SOURCE_REMOVE;
 }
 

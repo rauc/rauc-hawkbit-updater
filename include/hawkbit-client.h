@@ -119,6 +119,13 @@ int hawkbit_start_service_sync();
  * @return G_SOURCE_REMOVE is always returned
  */
 gboolean hawkbit_progress(const gchar *msg);
+
+/**
+ * @brief Callback for install thread, sends installation feedback to hawkBit.
+ *
+ * @param[in] ptr on_install_complete_userdata* containing set install_success
+ * @return G_SOURCE_REMOVE is always returned
+ */
 gboolean install_complete_cb(gpointer ptr);
 
 /**
