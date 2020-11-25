@@ -582,7 +582,7 @@ out:
 __attribute__((__format__(__printf__, 1, 2)))
 static gchar* build_api_url(const gchar *path, ...)
 {
-        g_autofree gchar *buffer;
+        g_autofree gchar *buffer = NULL;
         va_list args;
 
         va_start(args, path);
