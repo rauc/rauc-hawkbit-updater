@@ -55,21 +55,44 @@ static gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gch
         return TRUE;
 }
 
-static gboolean get_key_bool(GKeyFile *key_file, const gchar* group, const gchar* key, gboolean* value, const gboolean default_value, GError **error)
+/**
+ * @brief Get gboolean value from key_file for key in group, default_value must be specified,
+ * returned in case key not found in group.
+ *
+ * @param[in]  key_file      GKeyFile to look value up
+ * @param[in]  group         A group name
+ * @param[in]  key           A key
+ * @param[out] value         Output gboolean value
+ * @param[in]  default_value Return this value in case no value found
+ * @param[out] error         Error
+ * @return FALSE on error (error is set), TRUE otherwise. Note that TRUE is returned if key in
+ *         group is not found, value is set to default_value in this case.
+ */
+static gboolean get_key_bool(GKeyFile *key_file, const gchar *group, const gchar *key,
+                             gboolean *value, const gboolean default_value, GError **error)
 {
         g_autofree gchar *val = NULL;
+
+        g_return_val_if_fail(key_file, FALSE);
+        g_return_val_if_fail(group, FALSE);
+        g_return_val_if_fail(key, FALSE);
+        g_return_val_if_fail(value, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
         val = g_key_file_get_string(key_file, group, key, NULL);
-        if (val == NULL) {
+        if (!val) {
                 *value = default_value;
                 return TRUE;
         }
-        gboolean val_false = (g_strcmp0(val, "0") == 0 || g_ascii_strcasecmp(val, "no") == 0 || g_ascii_strcasecmp(val, "false") == 0);
-        if (val_false) {
+
+        if (g_strcmp0(val, "0") == 0 || g_ascii_strcasecmp(val, "no") == 0 ||
+            g_ascii_strcasecmp(val, "false") == 0) {
                 *value = FALSE;
                 return TRUE;
         }
-        gboolean val_true = (g_strcmp0(val, "1") == 0 || g_ascii_strcasecmp(val, "yes") == 0 || g_ascii_strcasecmp(val, "true") == 0);
-        if (val_true) {
+
+        if (g_strcmp0(val, "1") == 0 || g_ascii_strcasecmp(val, "yes") == 0 ||
+            g_ascii_strcasecmp(val, "true") == 0) {
                 *value = TRUE;
                 return TRUE;
         }
