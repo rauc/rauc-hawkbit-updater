@@ -36,22 +36,42 @@ static const gboolean DEFAULT_SSL         = TRUE;
 static const gboolean DEFAULT_SSL_VERIFY  = TRUE;
 static const gchar * DEFAULT_LOG_LEVEL    = "message";
 
-static gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gchar* key, gchar** value, const gchar* default_value, GError **error)
+/**
+ * @brief Get string value from key_file for key in group, optional default_value can be specified
+ * that will be used in case key is not found in group.
+ *
+ * @param[in]  key_file      GKeyFile to look value up
+ * @param[in]  group         A group name
+ * @param[in]  key           A key
+ * @param[out] value         Output string value
+ * @param[in]  default_value String value to return in case no value found, or NULL (not found
+ *                           leads to error)
+ * @param[out] error         Error
+ * @return TRUE if found, TRUE if not found and default_value given, FALSE otherwise (error is set)
+ */
+static gboolean get_key_string(GKeyFile *key_file, const gchar *group, const gchar *key,
+                               gchar **value, const gchar *default_value, GError **error)
 {
-        gchar *val = NULL;
-        val = g_key_file_get_string(key_file, group, key, NULL);
-        if (val == NULL) {
-                if (default_value != NULL) {
+        g_autofree gchar *val = NULL;
+
+        g_return_val_if_fail(key_file, FALSE);
+        g_return_val_if_fail(group, FALSE);
+        g_return_val_if_fail(key, FALSE);
+        g_return_val_if_fail(value && *value == NULL, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        val = g_key_file_get_string(key_file, group, key, error);
+        if (!val) {
+                if (default_value) {
                         *value = g_strdup(default_value);
+                        g_clear_error(error);
                         return TRUE;
                 }
 
-                g_set_error(error, G_KEY_FILE_ERROR,
-                            G_KEY_FILE_ERROR_NOT_FOUND,
-                            "Key '%s' not found in group '%s' and no default given", key, group);
                 return FALSE;
         }
-        *value = val;
+
+        *value = g_steal_pointer(&val);
         return TRUE;
 }
 
