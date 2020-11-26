@@ -124,20 +124,42 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar *group, const gchar
         return FALSE;
 }
 
-static gboolean get_key_int(GKeyFile *key_file, const gchar* group, const gchar* key, gint* value, const gint default_value, GError **error)
+/**
+ * @brief Get integer value from key_file for key in group, default_value must be specified,
+ * returned in case key not found in group.
+ *
+ * @param[in]  key_file      GKeyFile to look value up
+ * @param[in]  group         A group name
+ * @param[in]  key           A key
+ * @param[out] value         Output integer value
+ * @param[in]  default_value Return this value in case no value found
+ * @param[out] error         Error
+ * @return FALSE on error (error is set), TRUE otherwise. Note that TRUE is returned if key in
+ *         group is not found, value is set to default_value in this case.
+ */
+static gboolean get_key_int(GKeyFile *key_file, const gchar *group, const gchar *key, gint *value,
+                            const gint default_value, GError **error)
 {
         GError *ierror = NULL;
-        gint val = g_key_file_get_integer(key_file, group, key, &ierror);
+        gint val;
 
-        if (val == 0 && g_error_matches(ierror, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND)) {
+        g_return_val_if_fail(key_file, FALSE);
+        g_return_val_if_fail(group, FALSE);
+        g_return_val_if_fail(key, FALSE);
+        g_return_val_if_fail(value, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        val = g_key_file_get_integer(key_file, group, key, &ierror);
+
+        if (g_error_matches(ierror, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND)) {
                 g_clear_error(&ierror);
                 *value = default_value;
                 return TRUE;
-        }
-        else if (val == 0 && ierror) {
+        } else if (ierror) {
                 g_propagate_error(error, ierror);
                 return FALSE;
         }
+
         *value = val;
         return TRUE;
 }
