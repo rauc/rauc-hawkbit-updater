@@ -65,10 +65,10 @@ enum HTTPMethod {
 /**
  * @brief struct containing the payload and size of REST body.
  */
-struct rest_payload {
+typedef struct RestPayload_ {
         gchar *payload;               /**< string representation of payload */
         size_t size;                  /**< size of payload */
-};
+} RestPayload;
 
 /**
  * @brief struct containing Curl write callback context.
@@ -112,5 +112,14 @@ void hawkbit_init(Config *config, GSourceFunc on_install_ready);
 int hawkbit_start_service_sync();
 gboolean hawkbit_progress(const gchar *msg);
 gboolean install_complete_cb(gpointer ptr);
+
+/**
+ * @brief Frees the memory allocated by a RestPayload
+ *
+ * @param[in] payload RestPayload to free
+ */
+void rest_payload_free(RestPayload *payload);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free)
 
 #endif // __HAWKBIT_CLIENT_H__

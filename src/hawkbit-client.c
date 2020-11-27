@@ -213,7 +213,7 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
  */
 static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data)
 {
-        struct rest_payload *p = (struct rest_payload *) data;
+        RestPayload *p = (RestPayload *) data;
         size_t real_size = size * nmemb;
 
         p->payload = (gchar *) g_realloc(p->payload, p->size + real_size + 1);
@@ -243,7 +243,7 @@ static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data
 static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonRequestBody, JsonParser** jsonResponseParser, GError** error)
 {
         gchar *postdata = NULL;
-        struct rest_payload fetch_buffer;
+        RestPayload *fetch_buffer = g_new0(RestPayload, 1);
         glong http_code = 0;
         CURL *curl = curl_easy_init();
         if (!curl) {
@@ -253,13 +253,13 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         }
 
         // init response buffer
-        fetch_buffer.payload = g_malloc0(DEFAULT_CURL_REQUEST_BUFFER_SIZE);
-        if (fetch_buffer.payload == NULL) {
+        fetch_buffer->payload = g_malloc0(DEFAULT_CURL_REQUEST_BUFFER_SIZE);
+        if (fetch_buffer->payload == NULL) {
                 g_debug("Failed to expand buffer");
                 curl_easy_cleanup(curl);
                 return -1;
         }
-        fetch_buffer.size = 0;
+        fetch_buffer->size = 0;
 
         // setup CURL options
         curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -268,7 +268,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, hawkbit_config->timeout);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*) &fetch_buffer);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_buffer);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
 
@@ -306,9 +306,9 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (res == CURLE_OK && http_code == 200) {
-                if (jsonResponseParser && fetch_buffer.size > 0) {
+                if (jsonResponseParser && fetch_buffer->size > 0) {
                         JsonParser *parser = json_parser_new_immutable();
-                        if (json_parser_load_from_data(parser, fetch_buffer.payload, fetch_buffer.size, error)) {
+                        if (json_parser_load_from_data(parser, fetch_buffer->payload, fetch_buffer->size, error)) {
                                 JsonNode *resp_root = json_parser_get_root(parser);
                                 g_autofree gchar *str = json_to_string(resp_root, TRUE);
                                 g_debug("Response body: %s", str);
@@ -326,10 +326,10 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         } else if (http_code != 200) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld; server response: %s", http_code,
-                            fetch_buffer.payload);
+                            fetch_buffer->payload);
         }
 
-        g_free(fetch_buffer.payload);
+        rest_payload_free(fetch_buffer);
         g_free(postdata);
         curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
@@ -873,4 +873,13 @@ finish:
                 g_warning("Failure: %s", strerror(-res));
 
         return res;
+}
+
+void rest_payload_free(RestPayload *payload)
+{
+        if (!payload)
+                return;
+
+        g_free(payload->payload);
+        g_free(payload);
 }
