@@ -504,7 +504,6 @@ static void process_artifact_cleanup(struct artifact *artifact)
         g_free(artifact->download_url);
         g_free(artifact->feedback_url);
         g_free(artifact->sha1);
-        g_free(artifact->md5);
         g_free(artifact);
 }
 
@@ -667,7 +666,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         artifact->name = json_get_string(json_chunk, "$.name", NULL);
         artifact->size = json_get_int(json_artifact, "$.size", NULL);
         artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1", NULL);
-        artifact->md5 = json_get_string(json_artifact, "$.hashes.md5", NULL);
         artifact->feedback_url = feedback_url;
         // favour https download
         artifact->download_url = json_get_string(json_artifact, "$._links.download.href", NULL);

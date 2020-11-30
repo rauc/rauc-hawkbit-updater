@@ -74,7 +74,6 @@ struct artifact {
         gchar* download_url;          /**< download URL of software bundle file */
         gchar* feedback_url;          /**< URL status feedback should be sent to */
         gchar* sha1;                  /**< sha1 checksum of software bundle file */
-        gchar* md5;                   /**< md5 checksum of software bundle file */
 };
 
 /**
