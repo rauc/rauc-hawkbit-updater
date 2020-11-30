@@ -65,14 +65,6 @@ struct get_binary {
 };
 
 /**
- * @brief struct containing the checksum of downloaded file.
- */
-struct get_binary_checksum {
-        gchar *checksum_result;       /**< checksum as string */
-        GChecksumType checksum_type;  /**< checksum type. See also https://developer.gnome.org/glib/stable/glib-Data-Checksums.html#GChecksumType */
-};
-
-/**
  * @brief struct containing
  */
 struct artifact {

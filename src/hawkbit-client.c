@@ -112,10 +112,11 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  * @param[in]  download_url   URL to Software bundle
  * @param[in]  file           File the software bundle should be written to.
  * @param[in]  filesize       Expected file size
- * @param[out] checksum       Calculated checksum
+ * @param[out] sha1sum        Return location for calculated checksum or NULL
+ * @param[out] speed          Average download speed
  * @param[out] error          Error
  */
-static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, GError **error)
+static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, gchar **sha1sum, GError **error)
 {
         glong http_code = 0;
         FILE *fp = fopen(file, "wb");
@@ -137,7 +138,7 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
                 .fp       = fp,
                 .filesize = filesize,
                 .written  = 0,
-                .checksum = (checksum != NULL ? g_checksum_new(checksum->checksum_type) : NULL)
+                .checksum = (sha1sum != NULL ? g_checksum_new(G_CHECKSUM_SHA1) : NULL)
         };
 
         curl_easy_setopt(curl, CURLOPT_URL, download_url);
@@ -169,7 +170,7 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (res == CURLE_OK) {
                 if (gb.checksum) { // if checksum enabled then return the value
-                        checksum->checksum_result = g_strdup(g_checksum_get_string(gb.checksum));
+                        *sha1sum = g_strdup(g_checksum_get_string(gb.checksum));
                         g_checksum_free(gb.checksum);
                 }
         } else {
@@ -555,12 +556,12 @@ static gpointer download_thread(gpointer data)
         g_message("Start downloading: %s", artifact->download_url);
 
         // setup checksum
-        struct get_binary_checksum checksum = { .checksum_result = NULL, .checksum_type = G_CHECKSUM_SHA1 };
+        g_autofree gchar *sha1sum = NULL;
 
         // Download software bundle (artifact)
         gint64 start_time = g_get_monotonic_time();
         gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                  artifact->size, &checksum, &error);
+                                  artifact->size, &sha1sum, &error);
         gint64 end_time = g_get_monotonic_time();
         if (!res) {
                 g_autofree gchar *msg = g_strdup_printf("Download failed: %s", error->message);
@@ -577,11 +578,11 @@ static gpointer download_thread(gpointer data)
         g_message("%s", msg);
 
         // validate checksum
-        if (g_strcmp0(artifact->sha1, checksum.checksum_result)) {
+        if (g_strcmp0(artifact->sha1, sha1sum)) {
                 g_autofree gchar *msg = g_strdup_printf(
                         "Software: %s V%s. Invalid checksum: %s expected %s",
                         artifact->name, artifact->version,
-                        checksum.checksum_result,
+                        sha1sum,
                         artifact->sha1);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_critical("%s", msg);
@@ -589,13 +590,11 @@ static gpointer download_thread(gpointer data)
         }
         g_message("File checksum OK.");
         feedback_progress(artifact->feedback_url, action_id, "File checksum OK.", NULL);
-        g_free(checksum.checksum_result);
         process_artifact_cleanup(artifact);
 
         software_ready_cb(&userdata);
         return NULL;
 down_error:
-        g_free(checksum.checksum_result);
         process_artifact_cleanup(artifact);
         process_deployment_cleanup();
         return NULL;
