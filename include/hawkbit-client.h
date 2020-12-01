@@ -109,6 +109,14 @@ struct on_install_complete_userdata {
         gboolean install_success;               /**< status of installation */
 };
 
+/**
+ * @brief Pass config, callback for installation ready and initialize libcurl.
+ *        Intended to be called from program's main().
+ *
+ * @param[in] config Config* to make global
+ * @param[in] on_install_ready GSourceFunc to call after artifact download, to
+ *                             trigger RAUC installation
+ */
 void hawkbit_init(Config *config, GSourceFunc on_install_ready);
 
 /**

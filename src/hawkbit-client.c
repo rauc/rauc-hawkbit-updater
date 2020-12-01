@@ -885,6 +885,8 @@ error:
 
 void hawkbit_init(Config *config, GSourceFunc on_install_ready)
 {
+        g_return_if_fail(config);
+
         hawkbit_config = config;
         software_ready_cb = on_install_ready;
         curl_global_init(CURL_GLOBAL_ALL);
