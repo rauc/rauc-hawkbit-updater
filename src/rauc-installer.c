@@ -37,18 +37,20 @@ static GThread *thread_install = NULL;
 /**
  * @brief RAUC DBUS property changed callback
  *
- * @see https://github.com/rauc/rauc/blob/master/src/rauc-installer.xml
+ * @see https://github.com/rauc/rauc/blob/master/src/de.pengutronix.rauc.Installer.xml
  */
 static void on_installer_status(GDBusProxy *proxy, GVariant *changed,
-                                const gchar* const *invalidated,
-                                gpointer data)
+                                const gchar* const *invalidated, gpointer data)
 {
         struct install_context *context = data;
-        gint32 percentage, depth;
-        const gchar *message = NULL;
+        gint32 percentage;
+        g_autofree gchar *message = NULL;
+
+        g_return_if_fail(changed);
+        g_return_if_fail(context);
 
         if (invalidated && invalidated[0]) {
-                g_printerr("RAUC DBUS service disappeared\n");
+                g_warning("RAUC DBUS service disappeared");
                 g_mutex_lock(&context->status_mutex);
                 context->status_result = 2;
                 g_mutex_unlock(&context->status_mutex);
@@ -57,19 +59,26 @@ static void on_installer_status(GDBusProxy *proxy, GVariant *changed,
         }
 
         if (context->notify_event) {
+                gboolean status_received = FALSE;
+
                 g_mutex_lock(&context->status_mutex);
-                if (g_variant_lookup(changed, "Operation", "s", &message)) {
-                        g_queue_push_tail(&context->status_messages, g_strdup(message));
-                } else if (g_variant_lookup(changed, "Progress", "(isi)", &percentage, &message, &depth)) {
-                        g_queue_push_tail(&context->status_messages, g_strdup_printf("%3"G_GINT32_FORMAT "%% %s", percentage, message));
-                } else if (g_variant_lookup(changed, "LastError", "s", &message) && message[0] != '\0') {
-                        g_queue_push_tail(&context->status_messages, g_strdup_printf("LastError: %s", message));
-                }
+                if (g_variant_lookup(changed, "Operation", "s", &message))
+                        g_queue_push_tail(&context->status_messages, g_steal_pointer(&message));
+                else if (g_variant_lookup(changed, "Progress", "(isi)", &percentage, &message,
+                                          NULL))
+                        g_queue_push_tail(&context->status_messages,
+                                          g_strdup_printf("%3" G_GINT32_FORMAT "%% %s", percentage,
+                                                          message));
+                else if (g_variant_lookup(changed, "LastError", "s", &message) && message[0] != 0)
+                        g_queue_push_tail(&context->status_messages,
+                                          g_strdup_printf("LastError: %s", message));
+
+                status_received = !g_queue_is_empty(&context->status_messages);
                 g_mutex_unlock(&context->status_mutex);
 
-                if (!g_queue_is_empty(&context->status_messages)) {
-                        g_main_context_invoke(context->loop_context, context->notify_event, context);
-                }
+                if (status_received)
+                        g_main_context_invoke(context->loop_context, context->notify_event,
+                                              context);
         }
 }
 
