@@ -126,8 +126,9 @@ static struct install_context *install_context_new(void)
  */
 static void install_context_free(struct install_context *context)
 {
-        if (context == NULL)
+        if (!context)
                 return;
+
         g_free(context->bundle);
         g_mutex_clear(&context->status_mutex);
         g_main_context_unref(context->loop_context);
