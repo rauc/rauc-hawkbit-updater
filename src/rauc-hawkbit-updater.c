@@ -62,25 +62,29 @@ static GSourceFunc notify_hawkbit_install_complete;
 
 
 /**
- * @brief RAUC callback when new progress.
+ * @brief GSourceFunc callback for install thread, consumes RAUC progress messages, logs them and
+ * passes them on to notify_hawkbit_install_progress().
+ *
+ * @param[in] data install_context pointer allowing access to received status messages
+ * @return G_SOURCE_REMOVE is always returned
  */
 static gboolean on_rauc_install_progress_cb(gpointer data)
 {
         struct install_context *context = data;
 
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
         g_mutex_lock(&context->status_mutex);
         while (!g_queue_is_empty(&context->status_messages)) {
-                gchar *msg = g_queue_pop_head(&context->status_messages);
+                g_autofree gchar *msg = g_queue_pop_head(&context->status_messages);
                 g_message("Installing: %s : %s", context->bundle, msg);
                 // notify hawkbit server about progress
                 notify_hawkbit_install_progress(msg);
-                g_free(msg);
         }
         g_mutex_unlock(&context->status_mutex);
 
         return G_SOURCE_REMOVE;
 }
-
 
 /**
  * @brief RAUC callback when install is complete.
