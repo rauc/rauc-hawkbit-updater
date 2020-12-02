@@ -85,20 +85,20 @@ static void on_installer_status(GDBusProxy *proxy, GVariant *changed,
 /**
  * @brief RAUC DBUS complete signal callback
  *
- * @see https://github.com/rauc/rauc/blob/master/src/rauc-installer.xml
+ * @see https://github.com/rauc/rauc/blob/master/src/de.pengutronix.rauc.Installer.xml
  */
-static void on_installer_completed(GDBusProxy *proxy, gint result,
-                                   gpointer data)
+static void on_installer_completed(GDBusProxy *proxy, gint result, gpointer data)
 {
         struct install_context *context = data;
+
+        g_return_if_fail(context);
 
         g_mutex_lock(&context->status_mutex);
         context->status_result = result;
         g_mutex_unlock(&context->status_mutex);
 
-        if (result >= 0) {
+        if (result >= 0)
                 g_main_loop_quit(context->mainloop);
-        }
 }
 
 /**
