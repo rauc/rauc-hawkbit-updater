@@ -199,18 +199,15 @@ notify_complete:
         return NULL;
 }
 
-/**
- * @brief RAUC install bundle
- *
- * @param[in] bundle RAUC bundle file (.raucb) to install.
- * @param[in] on_install_notify Callback function to be called with status info during installation.
- * @param[in] on_install_complete Callback function to be called with the result of the installation.
- */
-void rauc_install(const gchar *bundle, GSourceFunc on_install_notify, GSourceFunc on_install_complete)
+void rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
+                  GSourceFunc on_install_complete)
 {
-        GMainContext *loop_context = g_main_context_new();
-        struct install_context *context;
+        GMainContext *loop_context = NULL;
+        struct install_context *context = NULL;
 
+        g_return_if_fail(bundle);
+
+        loop_context = g_main_context_new();
         context = install_context_new();
         context->bundle = g_strdup(bundle);
         context->notify_event = on_install_notify;
@@ -224,6 +221,5 @@ void rauc_install(const gchar *bundle, GSourceFunc on_install_notify, GSourceFun
                 g_thread_join(thread_install);
 
         // start install thread
-        thread_install = g_thread_new("installer", install_loop_thread,
-                                      (gpointer) context);
+        thread_install = g_thread_new("installer", install_loop_thread, (gpointer) context);
 }
