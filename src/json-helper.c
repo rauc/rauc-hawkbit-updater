@@ -27,6 +27,48 @@
 #include "json-helper.h"
 #include <stddef.h>
 
+
+/**
+ * @brief Get the first JsonNode element matching path in json_node.
+ *
+ * @param[in]  json_node JsonNode to query
+ * @param[in]  path      Query path
+ * @param[out] error     Error
+ * @return JsonNode*, matching JsonNode element (must be freed), NULL on error
+ */
+static JsonNode* json_get_first_matching_element(JsonNode *json_node, const gchar *path,
+                                                 GError **error)
+{
+        g_autoptr(JsonNode) match = NULL, node = NULL;
+        JsonArray *arr = NULL;
+
+        g_return_val_if_fail(json_node, NULL);
+        g_return_val_if_fail(path, NULL);
+        g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+        match = json_path_query(path, json_node, error);
+        if (!match)
+                return NULL;
+
+        arr = json_node_get_array(match);
+        if (!arr) {
+                g_set_error(error, JSON_PARSER_ERROR, JSON_PARSER_ERROR_PARSE,
+                            "Failed to retrieve array from node for path %s", path);
+                return NULL;
+        }
+
+        if (json_array_get_length(arr) > 0)
+                node = json_array_dup_element(arr, 0);
+
+        if (!node) {
+                g_set_error(error, JSON_PARSER_ERROR, JSON_PARSER_ERROR_PARSE,
+                            "Failed to retrieve element from array for path %s", path);
+                return NULL;
+        }
+
+        return g_steal_pointer(&node);
+}
+
 gchar* json_get_string(JsonNode *json_node, const gchar *path)
 {
         char *res_str = NULL;
