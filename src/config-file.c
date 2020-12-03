@@ -164,37 +164,49 @@ static gboolean get_key_int(GKeyFile *key_file, const gchar *group, const gchar 
         return TRUE;
 }
 
-static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash, GError **error)
+/**
+ * @brief Get GHashTable containing keys/values from group in key_file.
+ *
+ * @param[in]  key_file GKeyFile to look value up
+ * @param[in]  group    A group name
+ * @param[out] hash     Output GHashTable
+ * @param[out] error    Error
+ * @return TRUE on keys/values stored successfully, FALSE on empty group/value or on other errors
+ *         (error set)
+ */
+static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **hash,
+                          GError **error)
 {
+        g_autoptr(GHashTable) tmp_hash = NULL;
         guint key;
         gsize num_keys;
-        gchar **keys;
+        g_auto(GStrv) keys = NULL;
 
-        *hash = g_hash_table_new(g_str_hash, g_str_equal);
+        g_return_val_if_fail(key_file, FALSE);
+        g_return_val_if_fail(group, FALSE);
+        g_return_val_if_fail(hash && *hash == NULL, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        tmp_hash = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
         keys = g_key_file_get_keys(key_file, group, &num_keys, error);
-        if (keys == NULL)
+        if (!keys)
                 return FALSE;
 
-        if (num_keys == 0) {
-                g_set_error(error, G_KEY_FILE_ERROR,
-                            G_KEY_FILE_ERROR_PARSE,
+        if (!num_keys) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_PARSE,
                             "Group '%s' has no keys set", group);
                 return FALSE;
         }
 
-        for (key = 0; key < num_keys; key++)
-        {
-                gchar *value = g_key_file_get_value(key_file,
-                                                    group,
-                                                    keys[key],
-                                                    error);
-                if (value == NULL)
+        for (key = 0; key < num_keys; key++) {
+                g_autofree gchar *value = g_key_file_get_value(key_file, group, keys[key], error);
+                if (!value)
                         return FALSE;
 
-                g_hash_table_insert(*hash, keys[key], value);
-                //g_debug("\t\tkey %u/%lu: \t%s => %s", key, num_keys - 1, keys[key], value);
+                g_hash_table_insert(tmp_hash, g_strdup(keys[key]), g_steal_pointer(&value));
         }
 
+        *hash = g_steal_pointer(&tmp_hash);
         return TRUE;
 }
 
