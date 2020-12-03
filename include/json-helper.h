@@ -56,6 +56,13 @@ gint64 json_get_int(JsonNode *json_node, const gchar *path, GError **error);
  */
 JsonArray* json_get_array(JsonNode *json_node, const gchar *path, GError **error);
 
+/**
+ * @brief Check if the given path matches an element in json_node.
+ *
+ * @param[in] json_node JsonNode to evaluate expression on
+ * @param[in] path      JSONPath expression
+ * @return gboolean, TRUE if path matches an element, FALSE otherwise
+ */
 gboolean json_contains(JsonNode *root, gchar *key);
 
 #endif // __JSON_HELPER_H__

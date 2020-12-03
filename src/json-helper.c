@@ -142,10 +142,23 @@ JsonArray* json_get_array(JsonNode *json_node, const gchar *path, GError **error
         return g_steal_pointer(&res_arr);
 }
 
-gboolean json_contains(JsonNode *root, gchar *key)
+gboolean json_contains(JsonNode *json_node, gchar *path)
 {
-        JsonNode *node = json_path_query(key, root, NULL);
-        gboolean result = (node != NULL && json_array_get_length(json_node_get_array(node)) > 0);
-        json_node_unref(node);
-        return result;
+        g_autoptr(GError) error = NULL;
+        g_autoptr(JsonNode) node = NULL;
+
+        g_return_val_if_fail(json_node, FALSE);
+        g_return_val_if_fail(path, FALSE);
+
+        node = json_path_query(path, json_node, &error);
+        if (!node) {
+                // failed to compile expression to JSONPath
+                g_warning("%s", error->message);
+                return FALSE;
+        }
+
+        if (json_array_get_length(json_node_get_array(node)) > 0)
+                return TRUE;
+
+        return FALSE;
 }
