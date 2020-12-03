@@ -430,7 +430,7 @@ static long json_get_sleeptime(JsonNode *root)
         struct tm time;
         long poll_sleep_time;
 
-        sleeptime_str = json_get_string(root, "$.config.polling.sleep");
+        sleeptime_str = json_get_string(root, "$.config.polling.sleep", NULL);
         if (!sleeptime_str) {
                 poll_sleep_time = hawkbit_config->retry_wait;
                 goto out;
@@ -628,7 +628,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         }
 
         // get deployment url
-        g_autofree gchar *deployment = json_get_string(req_root, "$._links.deploymentBase.href");
+        g_autofree gchar *deployment = json_get_string(req_root, "$._links.deploymentBase.href", NULL);
         if (deployment == NULL) {
                 g_set_error(error,1,1,"Failed to parse deployment base response.");
                 return FALSE;
@@ -680,16 +680,16 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // get artifact information
         artifact = g_new0(struct artifact, 1);
-        artifact->version = json_get_string(json_chunk, "$.version");
-        artifact->name = json_get_string(json_chunk, "$.name");
+        artifact->version = json_get_string(json_chunk, "$.version", NULL);
+        artifact->name = json_get_string(json_chunk, "$.name", NULL);
         artifact->size = json_get_int(json_artifact, "$.size");
-        artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1");
-        artifact->md5 = json_get_string(json_artifact, "$.hashes.md5");
+        artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1", NULL);
+        artifact->md5 = json_get_string(json_artifact, "$.hashes.md5", NULL);
         artifact->feedback_url = feedback_url;
         // favour https download
-        artifact->download_url = json_get_string(json_artifact, "$._links.download.href");
+        artifact->download_url = json_get_string(json_artifact, "$._links.download.href", NULL);
         if (artifact->download_url == NULL)
-                artifact->download_url = json_get_string(json_artifact, "$._links.download-http.href");
+                artifact->download_url = json_get_string(json_artifact, "$._links.download-http.href", NULL);
 
         if (artifact->download_url == NULL) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
