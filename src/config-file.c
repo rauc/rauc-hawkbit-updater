@@ -210,8 +210,16 @@ static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **h
         return TRUE;
 }
 
+/**
+ * @brief Get GLogLevelFlags for error string.
+ *
+ * @param[in]  log_level Log level string
+ * @return GLogLevelFlags matching error string, else default log level (message)
+ */
 static GLogLevelFlags log_level_from_string(const gchar *log_level)
 {
+        g_return_val_if_fail(log_level, 0);
+
         if (g_strcmp0(log_level, "error") == 0) {
                 return G_LOG_LEVEL_ERROR;
         } else if (g_strcmp0(log_level, "critical") == 0) {
@@ -227,8 +235,11 @@ static GLogLevelFlags log_level_from_string(const gchar *log_level)
                        G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE |
                        G_LOG_LEVEL_INFO;
         } else if (g_strcmp0(log_level, "debug") == 0) {
-                return G_LOG_LEVEL_MASK;
+                return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL |
+                       G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE |
+                       G_LOG_LEVEL_INFO | G_LOG_LEVEL_DEBUG;
         } else {
+                g_warning("Invalid log level given, defaulting to level \"message\"");
                 return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL |
                        G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE;
         }
