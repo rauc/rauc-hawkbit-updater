@@ -682,7 +682,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         artifact = g_new0(struct artifact, 1);
         artifact->version = json_get_string(json_chunk, "$.version", NULL);
         artifact->name = json_get_string(json_chunk, "$.name", NULL);
-        artifact->size = json_get_int(json_artifact, "$.size");
+        artifact->size = json_get_int(json_artifact, "$.size", NULL);
         artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1", NULL);
         artifact->md5 = json_get_string(json_artifact, "$.hashes.md5", NULL);
         artifact->feedback_url = feedback_url;

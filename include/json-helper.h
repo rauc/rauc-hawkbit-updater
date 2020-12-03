@@ -35,7 +35,16 @@
  * @return gchar*, string value (must be freed), NULL on error (error set)
  */
 gchar* json_get_string(JsonNode *json_node, const gchar *path, GError **error);
-gint64 json_get_int(JsonNode *json_node, const gchar *path);
+
+/**
+ * @brief Get the integer inside the first JsonNode element matching path in json_node.
+ *
+ * @param[in]  json_node JsonNode to evaluate expression on
+ * @param[in]  path      JSONPath expression
+ * @param[out] error     Error
+ * @return gint64, integer value, 0 on error (error set)
+ */
+gint64 json_get_int(JsonNode *json_node, const gchar *path, GError **error);
 JsonArray* json_get_array(JsonNode *json_node, const gchar *path);
 gboolean json_contains(JsonNode *root, gchar *key);
 

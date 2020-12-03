@@ -92,18 +92,25 @@ gchar* json_get_string(JsonNode *json_node, const gchar *path, GError **error)
         return g_steal_pointer(&res_str);
 }
 
-gint64 json_get_int(JsonNode *json_node, const gchar *path)
+gint64 json_get_int(JsonNode *json_node, const gchar *path, GError **error)
 {
-        gint64 res_int = -1;
-        JsonNode *result = json_path_query(path, json_node, NULL);
-        if (result) {
-                JsonArray *results = json_node_get_array(result);
-                if (json_array_get_length( results ) > 0) {
-                        res_int = json_array_get_int_element(results, 0);
-                }
+        g_autoptr(JsonNode) result = NULL;
+
+        g_return_val_if_fail(json_node, 0);
+        g_return_val_if_fail(path, 0);
+        g_return_val_if_fail(error == NULL || *error == NULL, 0);
+
+        result = json_get_first_matching_element(json_node, path, error);
+        if (!result)
+                return 0;
+
+        if (!JSON_NODE_HOLDS_VALUE(result)) {
+                g_set_error(error, JSON_PARSER_ERROR, JSON_PARSER_ERROR_PARSE,
+                            "Failed to retrieve value from node for path %s", path);
+                return 0;
         }
-        json_node_unref(result);
-        return res_int;
+
+        return json_node_get_int(result);
 }
 
 JsonArray* json_get_array(JsonNode *json_node, const gchar *path)
