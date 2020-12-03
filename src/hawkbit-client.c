@@ -551,24 +551,27 @@ static gboolean feedback_progress(const gchar *url, const gchar *id, const gchar
 
 /**
  * @brief Get polling sleep time from hawkBit JSON response.
+ *
+ * @param[in] root JsonNode* with hawkBit response
+ * @return time to sleep in seconds, either from JSON or (if not found) from config's retry_wait
  */
 static long json_get_sleeptime(JsonNode *root)
 {
-        gchar *sleeptime_str = NULL;
+        g_autofree gchar *sleeptime_str = NULL;
+        g_autoptr(GError) error = NULL;
         struct tm time;
-        long poll_sleep_time;
 
-        sleeptime_str = json_get_string(root, "$.config.polling.sleep", NULL);
+        g_return_val_if_fail(root, 0L);
+
+        sleeptime_str = json_get_string(root, "$.config.polling.sleep", &error);
         if (!sleeptime_str) {
-                poll_sleep_time = hawkbit_config->retry_wait;
-                goto out;
+                g_warning("Polling sleep time not found: %s. Using fallback: %ds",
+                          error->message, hawkbit_config->retry_wait);
+                return hawkbit_config->retry_wait;
         }
 
         strptime(sleeptime_str, "%T", &time);
-        poll_sleep_time = (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
-out:
-        g_free(sleeptime_str);
-        return poll_sleep_time;
+        return (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
 }
 
 /**
