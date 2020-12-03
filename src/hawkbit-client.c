@@ -621,7 +621,9 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         // get deployment url
         g_autofree gchar *deployment = json_get_string(req_root, "$._links.deploymentBase.href", NULL);
         if (deployment == NULL) {
-                g_set_error(error,1,1,"Failed to parse deployment base response.");
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
+                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
+                            "Failed to parse deployment base response.");
                 return FALSE;
         }
 
@@ -645,7 +647,9 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks", NULL);
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error(error,1,20,"Failed to parse deployment resource.");
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
+                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
+                            "Failed to parse deployment resource.");
                 goto proc_error;
         }
 
@@ -654,7 +658,9 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         JsonArray *json_artifacts = json_get_array(json_chunk, "$.artifacts", NULL);
         if (json_artifacts == NULL || json_array_get_length(json_artifacts) == 0) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error(error,1,21,"Failed to parse deployment resource.");
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
+                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
+                            "Failed to parse deployment resource.");
                 goto proc_error;
         }
         JsonNode *json_artifact = json_array_get_element(json_artifacts, 0);
@@ -673,7 +679,9 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         if (artifact->download_url == NULL) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error(error,1,22,"Failed to parse deployment resource.");
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
+                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
+                            "Failed to parse deployment resource.");
                 goto proc_error;
         }
 
