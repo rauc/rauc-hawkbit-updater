@@ -113,22 +113,33 @@ gint64 json_get_int(JsonNode *json_node, const gchar *path, GError **error)
         return json_node_get_int(result);
 }
 
-JsonArray* json_get_array(JsonNode *json_node, const gchar *path)
+JsonArray* json_get_array(JsonNode *json_node, const gchar *path, GError **error)
 {
-        JsonArray *res_arr = NULL;
-        JsonNode *result = json_path_query(path, json_node, NULL);
-        if (result) {
-                JsonArray *arr = json_node_get_array(result);
-                if (json_array_get_length(arr) > 0) {
-                        JsonNode *node = json_array_get_element(arr, 0);
-                        if (JSON_NODE_HOLDS_ARRAY(node)) {
-                                //g_debug("json_get_array: %s", json_to_string(result, TRUE));
-                                res_arr = json_node_get_array(node);
-                        }
-                }
+        g_autoptr(JsonArray) res_arr = NULL;
+        g_autoptr(JsonNode) result = NULL;
+
+        g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+        g_return_val_if_fail(json_node, NULL);
+        g_return_val_if_fail(path, NULL);
+
+        result = json_get_first_matching_element(json_node, path, error);
+        if (!result)
+                return NULL;
+
+        if (!JSON_NODE_HOLDS_ARRAY(result)) {
+                g_set_error(error, JSON_PARSER_ERROR, JSON_PARSER_ERROR_PARSE,
+                            "Failed to retrieve value from node for path %s", path);
+                return NULL;
         }
-        json_node_unref(result);
-        return res_arr;
+
+        res_arr = json_node_dup_array(result);
+        if (!res_arr || !json_array_get_length(res_arr)) {
+                g_set_error(error, JSON_PARSER_ERROR, JSON_PARSER_ERROR_PARSE,
+                            "Empty JSON array for path %s", path);
+                return NULL;
+        }
+
+        return g_steal_pointer(&res_arr);
 }
 
 gboolean json_contains(JsonNode *root, gchar *key)

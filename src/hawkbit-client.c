@@ -661,7 +661,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
 
-        JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks");
+        JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks", NULL);
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
                 g_set_error(error,1,20,"Failed to parse deployment resource.");
@@ -670,7 +670,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // Downloading multiple chunks not supported. Only first chunk is downloaded (RAUC bundle)
         JsonNode *json_chunk = json_array_get_element(json_chunks, 0);
-        JsonArray *json_artifacts = json_get_array(json_chunk, "$.artifacts");
+        JsonArray *json_artifacts = json_get_array(json_chunk, "$.artifacts", NULL);
         if (json_artifacts == NULL || json_array_get_length(json_artifacts) == 0) {
                 feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
                 g_set_error(error,1,21,"Failed to parse deployment resource.");
