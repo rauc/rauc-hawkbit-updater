@@ -36,17 +36,6 @@ static const gboolean DEFAULT_SSL         = TRUE;
 static const gboolean DEFAULT_SSL_VERIFY  = TRUE;
 static const gchar * DEFAULT_LOG_LEVEL    = "message";
 
-void config_file_free(struct config *config)
-{
-        g_free(config->hawkbit_server);
-        g_free(config->controller_id);
-        g_free(config->tenant_id);
-        g_free(config->auth_token);
-        g_free(config->gateway_token);
-        g_free(config->bundle_download_location);
-        g_hash_table_destroy(config->device);
-}
-
 static gboolean get_key_string(GKeyFile *key_file, const gchar* group, const gchar* key, gchar** value, const gchar* default_value, GError **error)
 {
         gchar *val = NULL;
@@ -168,9 +157,9 @@ static GLogLevelFlags log_level_from_string(const gchar *log_level)
         }
 }
 
-struct config* load_config_file(const gchar* config_file, GError** error)
+Config* load_config_file(const gchar* config_file, GError** error)
 {
-        struct config *config = g_new0(struct config, 1);
+        Config *config = g_new0(Config, 1);
 
         gint val_int;
         g_autofree gchar *val = NULL;
@@ -235,4 +224,20 @@ struct config* load_config_file(const gchar* config_file, GError** error)
         }
 
         return config;
+}
+
+void config_file_free(Config *config)
+{
+        if (!config)
+                return;
+
+        g_free(config->hawkbit_server);
+        g_free(config->controller_id);
+        g_free(config->tenant_id);
+        g_free(config->auth_token);
+        g_free(config->gateway_token);
+        g_free(config->bundle_download_location);
+        if (config->device)
+                g_hash_table_destroy(config->device);
+        g_free(config);
 }

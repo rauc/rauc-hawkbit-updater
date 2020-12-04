@@ -152,7 +152,7 @@ int main(int argc, char **argv)
                 run_once = TRUE;
         }
 
-        struct config *config = load_config_file(config_file, &error);
+        Config *config = load_config_file(config_file, &error);
         if (config == NULL) {
                 g_printerr("Loading config file failed: %s\n", error->message);
                 g_error_free(error);

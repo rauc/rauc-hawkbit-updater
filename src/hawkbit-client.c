@@ -47,7 +47,6 @@
 #include <bits/types/struct_tm.h>
 #include <gio/gio.h>
 
-#include "config-file.h"
 #include "json-helper.h"
 #ifdef WITH_SYSTEMD
 #include "sd-helper.h"
@@ -64,7 +63,7 @@ static const char *HTTPMethod_STRING[] = {
         "GET", "HEAD", "PUT", "POST", "PATCH", "DELETE"
 };
 
-static struct config *hawkbit_config = NULL;
+static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static gchar * volatile action_id = NULL;
 static GThread *thread_download = NULL;
@@ -738,7 +737,7 @@ proc_error:
 }
 
 
-void hawkbit_init(struct config *config, GSourceFunc on_install_ready)
+void hawkbit_init(Config *config, GSourceFunc on_install_ready)
 {
         hawkbit_config = config;
         software_ready_cb = on_install_ready;
