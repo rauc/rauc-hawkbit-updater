@@ -525,17 +525,27 @@ static gboolean feedback(const gchar *url, const gchar *id, const gchar *detail,
 }
 
 /**
- * @brief Send progress feedback to hawkBit.
+ * @brief Send progress feedback to hawkBit (finished=none, execution=proceeding).
+ *
+ * @param[in]  url    hawkBit URL used for request
+ * @param[in]  id     hawkBit action ID
+ * @param[in]  detail Detail message
+ * @param[out] error  Error
+ * @return TRUE if feedback was sent successfully, FALSE otherwise (error set)
  */
-static gboolean feedback_progress(const gchar *url, const gchar *id, const gchar *detail, GError **error)
+static gboolean feedback_progress(const gchar *url, const gchar *id, const gchar *detail,
+                                  GError **error)
 {
-        JsonBuilder *builder = NULL;
-        gboolean res;
+        gboolean res = FALSE;
 
-        builder = json_build_status(id, detail, "none", "proceeding", NULL);
+        g_return_val_if_fail(url, FALSE);
+        g_return_val_if_fail(id, FALSE);
+        g_return_val_if_fail(detail, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        res = rest_request(POST, url, builder, NULL, error);
-        g_object_unref(builder);
+        res = feedback(url, id, detail, "none", "proceeding", error);
+        g_prefix_error(error, "Progress feedback: ");
+
         return res;
 }
 
