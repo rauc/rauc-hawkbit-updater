@@ -488,16 +488,39 @@ static JsonBuilder* json_build_status(const gchar *id, const gchar *detail, cons
 
 /**
  * @brief Send feedback to hawkBit.
+ *
+ * @param[in]  url        hawkBit URL used for request
+ * @param[in]  id         hawkBit action ID
+ * @param[in]  detail     Detail message
+ * @param[in]  finished   hawkBit status of the result
+ * @param[in]  execution  hawkBit status of the action execution
+ * @param[out] error      Error
+ * @return TRUE if feedback was sent successfully, FALSE otherwise (error set)
  */
-static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *execution, GError **error)
+static gboolean feedback(const gchar *url, const gchar *id, const gchar *detail,
+                         const gchar *finished, const gchar *execution, GError **error)
 {
-        JsonBuilder *builder = NULL;
-        gboolean res;
+        g_autoptr(JsonBuilder) builder = NULL;
+        gboolean res = FALSE;
+
+        g_return_val_if_fail(url, FALSE);
+        g_return_val_if_fail(id, FALSE);
+        g_return_val_if_fail(detail, FALSE);
+        g_return_val_if_fail(finished, FALSE);
+        g_return_val_if_fail(execution, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        if (!g_strcmp0(finished, "failure"))
+                g_warning("%s", detail);
+        else
+                g_message("%s", detail);
 
         builder = json_build_status(id, detail, finished, execution, NULL);
 
         res = rest_request(POST, url, builder, NULL, error);
-        g_object_unref(builder);
+        if (!res)
+                g_prefix_error(error, "Failed to report \"%s\" feedback: ", detail);
+
         return res;
 }
 
