@@ -640,18 +640,6 @@ static gboolean identify(GError **error)
         return rest_request(PUT, put_config_data_url, builder, NULL, error);
 }
 
-static void process_artifact_cleanup(struct artifact *artifact)
-{
-        if (artifact == NULL)
-                return;
-        g_free(artifact->name);
-        g_free(artifact->version);
-        g_free(artifact->download_url);
-        g_free(artifact->feedback_url);
-        g_free(artifact->sha1);
-        g_free(artifact);
-}
-
 /**
  * @brief Resets the global action_id to NULL, indicating no action in progress, and deletes RAUC
  * bundle at config's bundle_download_location.
@@ -714,7 +702,7 @@ static gpointer download_thread(gpointer data)
 
         GError *error = NULL;
         g_autofree gchar *msg = NULL;
-        struct artifact *artifact = data;
+        Artifact *artifact = data;
         curl_off_t speed;
         g_message("Start downloading: %s", artifact->download_url);
 
@@ -751,12 +739,12 @@ static gpointer download_thread(gpointer data)
         }
         g_message("File checksum OK.");
         feedback_progress(artifact->feedback_url, action_id, "File checksum OK.", NULL);
-        process_artifact_cleanup(artifact);
+        artifact_free(artifact);
 
         software_ready_cb(&userdata);
         return NULL;
 down_error:
-        process_artifact_cleanup(artifact);
+        artifact_free(artifact);
         process_deployment_cleanup();
         return NULL;
 }
@@ -770,7 +758,7 @@ down_error:
  */
 static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
-        struct artifact *artifact = NULL;
+        g_autoptr(Artifact) artifact = NULL;
         g_autofree gchar *deployment = NULL, *feedback_url = NULL;
         g_autoptr(JsonParser) json_response_parser = NULL;
         g_autoptr(JsonArray) json_chunks = NULL, json_artifacts = NULL;
@@ -818,7 +806,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         json_artifact = json_array_get_element(json_artifacts, 0);
 
         // get artifact information
-        artifact = g_new0(struct artifact, 1);
+        artifact = g_new0(Artifact, 1);
         artifact->version = json_get_string(json_chunk, "$.version", error);
         if (!artifact->version)
                 goto proc_error;
@@ -869,7 +857,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // start download thread
         thread_download = g_thread_new("downloader", download_thread,
-                                       (gpointer) artifact);
+                                       (gpointer) g_steal_pointer(&artifact));
 
         return TRUE;
 
@@ -878,7 +866,6 @@ proc_error:
 
 error:
         // clean up failed deployment
-        process_artifact_cleanup(artifact);
         process_deployment_cleanup();
 
         return FALSE;
@@ -1049,6 +1036,19 @@ finish:
                 g_warning("%s", strerror(-res));
 
         return res;
+}
+
+void artifact_free(Artifact *artifact)
+{
+        if (!artifact)
+                return;
+
+        g_free(artifact->name);
+        g_free(artifact->version);
+        g_free(artifact->download_url);
+        g_free(artifact->feedback_url);
+        g_free(artifact->sha1);
+        g_free(artifact);
 }
 
 void rest_payload_free(RestPayload *payload)

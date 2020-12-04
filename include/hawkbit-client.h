@@ -83,14 +83,14 @@ typedef struct BinaryPayload_ {
 /**
  * @brief struct containing
  */
-struct artifact {
-        gchar* name;                  /**< name of software */
-        gchar* version;               /**< software version */
+typedef struct Artifact_ {
+        gchar *name;                  /**< name of software */
+        gchar *version;               /**< software version */
         gint64 size;                  /**< size of software bundle file */
-        gchar* download_url;          /**< download URL of software bundle file */
-        gchar* feedback_url;          /**< URL status feedback should be sent to */
-        gchar* sha1;                  /**< sha1 checksum of software bundle file */
-};
+        gchar *download_url;          /**< download URL of software bundle file */
+        gchar *feedback_url;          /**< URL status feedback should be sent to */
+        gchar *sha1;                  /**< sha1 checksum of software bundle file */
+} Artifact;
 
 /**
  * @brief struct containing the new downloaded file.
@@ -142,7 +142,15 @@ void rest_payload_free(RestPayload *payload);
  */
 void binary_payload_free(BinaryPayload *payload);
 
+/**
+ * @brief Frees the memory allocated by an Artifact
+ *
+ * @param[in] artifact Artifact to free
+ */
+void artifact_free(Artifact *artifact);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(BinaryPayload, binary_payload_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free)
 
 #endif // __HAWKBIT_CLIENT_H__
