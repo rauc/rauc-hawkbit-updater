@@ -109,11 +109,17 @@ static gboolean on_rauc_install_complete_cb(gpointer data)
 }
 
 /**
- * @brief hawkbit callback when new software is available.
+ * @brief GSourceFunc callback for download thread, triggers RAUC installation.
+ *
+ * @param[in] data on_new_software_userdata pointer
+ * @return G_SOURCE_REMOVE is always returned
  */
 static gboolean on_new_software_ready_cb(gpointer data)
 {
         struct on_new_software_userdata *userdata = data;
+
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
         notify_hawkbit_install_progress = userdata->install_progress_callback;
         notify_hawkbit_install_complete = userdata->install_complete_callback;
         rauc_install(userdata->file, on_rauc_install_progress_cb, on_rauc_install_complete_cb);
