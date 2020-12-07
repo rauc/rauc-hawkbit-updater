@@ -87,16 +87,22 @@ static gboolean on_rauc_install_progress_cb(gpointer data)
 }
 
 /**
- * @brief RAUC callback when install is complete.
+ * @brief GSourceFunc callback for install thread, consumes RAUC installation status result
+ *        (on complete) and passes it on to notify_hawkbit_install_complete().
+ *
+ * @param[in] data install_context pointer allowing access to received status result
+ * @return G_SOURCE_REMOVE is always returned
  */
 static gboolean on_rauc_install_complete_cb(gpointer data)
 {
         struct install_context *context = data;
+        struct on_install_complete_userdata userdata;
 
-        struct on_install_complete_userdata userdata = {
-                .install_success = (context->status_result == 0)
-        };
-        // lets notify hawkbit with install result
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
+        userdata.install_success = (context->status_result == 0);
+
+        // notify hawkbit about install result
         notify_hawkbit_install_complete(&userdata);
 
         return G_SOURCE_REMOVE;
