@@ -73,12 +73,12 @@ typedef struct RestPayload_ {
 /**
  * @brief struct containing Curl write callback context.
  */
-struct get_binary {
+typedef struct BinaryPayload_ {
         FILE *fp;                     /**< filepointer to download file */
         gint64 filesize;              /**< expected file size of download file */
         gint64 written;               /**< number of bytes written to download file */
         GChecksum *checksum;          /**< checksum of download file */
-};
+} BinaryPayload;
 
 /**
  * @brief struct containing
@@ -120,6 +120,14 @@ gboolean install_complete_cb(gpointer ptr);
  */
 void rest_payload_free(RestPayload *payload);
 
+/**
+ * @brief Frees the memory allocated by a BinaryPayload
+ *
+ * @param[in] payload BinaryPayload to free
+ */
+void binary_payload_free(BinaryPayload *payload);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(BinaryPayload, binary_payload_free)
 
 #endif // __HAWKBIT_CLIENT_H__

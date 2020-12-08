@@ -120,7 +120,8 @@ static gboolean get_available_space(const char *path, goffset *free_space, GErro
  *
  * @see   https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
  */
-static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct get_binary *data)
+static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb,
+                                    BinaryPayload *data)
 {
         size_t written = fwrite(ptr, size, nmemb, data->fp);
         data->written += written;
@@ -161,40 +162,50 @@ static gboolean add_curl_header(struct curl_slist **headers, const char *string,
 }
 
 /**
- * @brief download software bundle to file.
+ * @brief Download download_url to file.
  *
- * @param[in]  download_url   URL to Software bundle
- * @param[in]  file           File the software bundle should be written to.
- * @param[in]  filesize       Expected file size
- * @param[out] sha1sum        Return location for calculated checksum or NULL
- * @param[out] speed          Average download speed
- * @param[out] error          Error
+ * @param[in]  download_url URL to download from
+ * @param[in]  file         Download destination
+ * @param[in]  filesize     Expected file size in bytes
+ * @param[out] sha1sum      Calculated checksum or NULL
+ * @param[out] speed        Average download speed
+ * @param[out] error        Error
+ * @return TRUE if download succeeded, FALSE otherwise (error set)
  */
-static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, gchar **sha1sum, curl_off_t *speed, GError **error)
+static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 filesize,
+                           gchar **sha1sum, curl_off_t *speed, GError **error)
 {
-        gboolean ret = TRUE;
+        g_autoptr(CURL) curl = NULL;
+        g_autoptr(BinaryPayload) payload = NULL;
+        CURLcode curl_code;
         glong http_code = 0;
-        FILE *fp = fopen(file, "wb");
-        if (fp == NULL) {
+        struct curl_slist *headers = NULL;
+        g_autofree gchar *token = NULL;
+
+        g_return_val_if_fail(download_url, FALSE);
+        g_return_val_if_fail(file, FALSE);
+        g_return_val_if_fail(sha1sum == NULL || *sha1sum == NULL, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        payload = g_new0(BinaryPayload, 1);
+        payload->filesize = filesize;
+        payload->fp = g_fopen(file, "wb");
+        if (!payload->fp) {
+                int err = errno;
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
-                            "Failed to open file for download: %s", file);
+                            "Failed to open %s for download: %s", file, g_strerror(err));
                 return FALSE;
         }
 
-        CURL *curl = curl_easy_init();
+        curl = curl_easy_init();
         if (!curl) {
-                fclose(fp);
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
                             "Unable to start libcurl easy session");
                 return FALSE;
         }
 
-        struct get_binary gb = {
-                .fp       = fp,
-                .filesize = filesize,
-                .written  = 0,
-                .checksum = (sha1sum != NULL ? g_checksum_new(G_CHECKSUM_SHA1) : NULL)
-        };
+        if (sha1sum)
+                payload->checksum = g_checksum_new(G_CHECKSUM_SHA1);
 
         curl_easy_setopt(curl, CURLOPT_URL, download_url);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -203,47 +214,52 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_to_file_cb);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &gb);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, payload);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
-        /* abort if slower than 100 bytes/sec during 60 seconds */
+
+        // abort if slower than 100 bytes/sec during 60 seconds
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 100L);
-        // Setup request headers
-        struct curl_slist *headers = NULL;
-        headers = curl_slist_append(headers, "Accept: application/octet-stream");
-        if (hawkbit_config->auth_token) {
-                g_autofree gchar* auth_token = g_strdup_printf("Authorization: TargetToken %s", hawkbit_config->auth_token);
-                headers = curl_slist_append(headers, auth_token);
-        } else if (hawkbit_config->gateway_token) {
-                g_autofree gchar* gateway_token = g_strdup_printf("Authorization: GatewayToken %s", hawkbit_config->gateway_token);
-                headers = curl_slist_append(headers, gateway_token);
-        }
+
+        // set up request headers
+        if (!add_curl_header(&headers, "Accept: application/octet-stream", error))
+                return FALSE;
+
+        if (hawkbit_config->auth_token)
+                token = g_strdup_printf("Authorization: TargetToken %s",
+                                        hawkbit_config->auth_token);
+        else if (hawkbit_config->gateway_token)
+                token = g_strdup_printf("Authorization: GatewayToken %s",
+                                        hawkbit_config->gateway_token);
+        if (token)
+                if (!add_curl_header(&headers, token, error))
+                        return FALSE;
+
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-        CURLcode res = curl_easy_perform(curl);
+        // perform transfer
+        curl_code = curl_easy_perform(curl);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, speed);
+        curl_slist_free_all(headers);
 
-        if (res != CURLE_OK) {
-                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, res, "%s",
-                            curl_easy_strerror(res));
-                ret = FALSE;
-        } else if (http_code != 200) {
+        if (curl_code != CURLE_OK) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, curl_code, "%s",
+                            curl_easy_strerror(curl_code));
+                return FALSE;
+        }
+        if (http_code != 200) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld", http_code);
-                ret = FALSE;
+                return FALSE;
         }
 
-        if (ret && gb.checksum) { // if checksum enabled then return the value
-                *sha1sum = g_strdup(g_checksum_get_string(gb.checksum));
-                g_checksum_free(gb.checksum);
-        }
+        // if checksum enabled then return the value
+        if (payload->checksum)
+                *sha1sum = g_strdup(g_checksum_get_string(payload->checksum));
 
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
-        fclose(fp);
-        return ret;
+        return TRUE;
 }
 
 /**
@@ -959,5 +975,16 @@ void rest_payload_free(RestPayload *payload)
                 return;
 
         g_free(payload->payload);
+        g_free(payload);
+}
+
+void binary_payload_free(BinaryPayload *payload)
+{
+        if (!payload)
+                return;
+
+        if (payload->fp)
+                fclose(payload->fp);
+        g_checksum_free(payload->checksum);
         g_free(payload);
 }
