@@ -32,6 +32,7 @@ static gboolean output_to_systemd = FALSE;
  * @brief convert GLogLevelFlags to string
  *
  * @param[in] level Log level that should be returned as string.
+ * @return log level string
  */
 static const gchar *log_level_to_string(GLogLevelFlags level)
 {
@@ -94,13 +95,13 @@ static void log_handler_cb(const gchar    *log_domain,
                            const gchar    *message,
                            gpointer user_data)
 {
+        const gchar *log_level_str;
 #ifdef WITH_SYSTEMD
         if (output_to_systemd) {
                 int log_level_int = log_level_to_int(log_level & G_LOG_LEVEL_MASK);
                 sd_journal_print(log_level_int, "%s", message);
         } else {
 #endif
-        const gchar *log_level_str;
         log_level_str = log_level_to_string(log_level & G_LOG_LEVEL_MASK);
         if (log_level <= G_LOG_LEVEL_WARNING) {
                 g_printerr("%s: %s\n", log_level_str, message);
@@ -112,13 +113,6 @@ static void log_handler_cb(const gchar    *log_domain,
 #endif
 }
 
-/**
- * @brief     Setup Glib log handler
- *
- * @param[in] domain Log domain
- * @param[in] level  Log level
- * @param[in] p_output_to_systemd output to systemd journal
- */
 void setup_logging(const gchar *domain, GLogLevelFlags level, gboolean p_output_to_systemd)
 {
         output_to_systemd = p_output_to_systemd;
