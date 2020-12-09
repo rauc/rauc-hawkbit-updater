@@ -409,21 +409,36 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
 }
 
 /**
- * @brief Build JSON status request.
+ * @brief Build hawkBit JSON request.
+ *
  * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_post_tenant_controller_v1_controllerid_deploymentbase_actionid_feedback
+ *
+ * @param[in] id         hawkBit action ID or NULL (configData usecase)
+ * @param[in] detail     Detail message or NULL (configData usecase)
+ * @param[in] finished   hawkBit status of the result
+ * @param[in] execution  hawkBit status of the action execution
+ * @param[in] attributes hawkBit controller attributes or NULL (feedback usecase)
+ * @return JsonBuilder* with built hawkBit request
  */
-static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detail, const gchar *result, const gchar *execution, GHashTable *data)
+static JsonBuilder* json_build_status(const gchar *id, const gchar *detail, const gchar *finished,
+                                      const gchar *execution, GHashTable *attributes)
 {
         GHashTableIter iter;
         gpointer key, value;
-
-        // Get current time in UTC
+        g_autoptr(JsonBuilder) builder = NULL;
         time_t current_time;
         struct tm time_info;
         char timeString[16];
+
+        g_return_val_if_fail(finished, NULL);
+        g_return_val_if_fail(execution, NULL);
+
+        // get current time in UTC
         time(&current_time);
         gmtime_r(&current_time, &time_info);
         strftime(timeString, sizeof(timeString), "%Y%m%dT%H%M%S", &time_info);
+
+        builder = json_builder_new();
 
         // build json status
         json_builder_begin_object(builder);
@@ -442,7 +457,7 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
         json_builder_begin_object(builder);
 
         json_builder_set_member_name(builder, "finished");
-        json_builder_add_string_value(builder, result);
+        json_builder_add_string_value(builder, finished);
         json_builder_end_object(builder);
 
         json_builder_set_member_name(builder, "execution");
@@ -456,10 +471,10 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
         }
         json_builder_end_object(builder);
 
-        if (data) {
+        if (attributes) {
                 json_builder_set_member_name(builder, "data");
                 json_builder_begin_object(builder);
-                g_hash_table_iter_init(&iter, data);
+                g_hash_table_iter_init(&iter, attributes);
                 while (g_hash_table_iter_next(&iter, &key, &value)) {
                         json_builder_set_member_name(builder, key);
                         json_builder_add_string_value(builder, value);
@@ -467,6 +482,8 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
                 json_builder_end_object(builder);
         }
         json_builder_end_object(builder);
+
+        return g_steal_pointer(&builder);
 }
 
 /**
@@ -474,10 +491,10 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
  */
 static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *execution, GError **error)
 {
-        JsonBuilder *builder = json_builder_new();
+        JsonBuilder *builder = NULL;
         gboolean res;
 
-        json_build_status(builder, id, detail, finished, execution, NULL);
+        builder = json_build_status(id, detail, finished, execution, NULL);
 
         res = rest_request(POST, url, builder, NULL, error);
         g_object_unref(builder);
@@ -489,10 +506,10 @@ static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, 
  */
 static gboolean feedback_progress(const gchar *url, const gchar *id, const gchar *detail, GError **error)
 {
-        JsonBuilder *builder = json_builder_new();
+        JsonBuilder *builder = NULL;
         gboolean res;
 
-        json_build_status(builder, id, detail, "none", "proceeding", NULL);
+        builder = json_build_status(id, detail, "none", "proceeding", NULL);
 
         res = rest_request(POST, url, builder, NULL, error);
         g_object_unref(builder);
@@ -565,8 +582,7 @@ static gboolean identify(GError **error)
         g_debug("Identifying ourself to hawkbit server");
         g_autofree gchar *put_config_data_url = build_api_url("configData");
 
-        JsonBuilder *builder = json_builder_new();
-        json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device);
+        JsonBuilder *builder = json_build_status(NULL, NULL, "success", "closed", hawkbit_config->device);
 
         res = rest_request(PUT, put_config_data_url, builder, NULL, error);
         g_object_unref(builder);
