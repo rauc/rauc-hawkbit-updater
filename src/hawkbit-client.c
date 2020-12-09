@@ -659,106 +659,107 @@ down_error:
         return NULL;
 }
 
+/**
+ * @brief Process hawkBit deployment described by req_root.
+ *
+ * @param[in]  req_root JsonNode* describing the deployment to process
+ * @param[out] error    Error
+ * @return TRUE if processing deployment succeeded, FALSE otherwise (error set)
+ */
 static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
-        GError *ierror = NULL;
         struct artifact *artifact = NULL;
+        g_autofree gchar *deployment = NULL, *feedback_url = NULL;
+        g_autoptr(JsonParser) json_response_parser = NULL;
+        g_autoptr(JsonArray) json_chunks = NULL, json_artifacts = NULL;
+        JsonNode *resp_root = NULL, *json_chunk = NULL, *json_artifact = NULL;
         goffset freespace;
-        gboolean res;
+
+        g_return_val_if_fail(req_root, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
         if (action_id) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
                             RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
                             "Deployment %s is already in progress.", action_id);
+                // no need to tell hawkBit about this
                 return FALSE;
         }
 
-        // get deployment url
-        g_autofree gchar *deployment = json_get_string(req_root, "$._links.deploymentBase.href", NULL);
-        if (deployment == NULL) {
-                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
-                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
-                            "Failed to parse deployment base response.");
-                return FALSE;
-        }
+        // get deployment URL
+        deployment = json_get_string(req_root, "$._links.deploymentBase.href", error);
+        if (!deployment)
+                goto error;
 
         // get deployment resource
-        JsonParser *json_response_parser = NULL;
-        res = rest_request(GET, deployment, NULL, &json_response_parser, error);
-        if (!res)
+        if (!rest_request(GET, deployment, NULL, &json_response_parser, error))
+                goto error;
+
+        resp_root = json_parser_get_root(json_response_parser);
+
+        action_id = json_get_string(resp_root, "$.id", error);
+        if (!action_id)
                 return FALSE;
 
-        JsonNode *resp_root = json_parser_get_root(json_response_parser);
+        feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
 
-        action_id = json_get_string(resp_root, "$.id", NULL);
-        if (!action_id) {
-                g_set_error(error,1,1,"Failed to parse deployment base response.");
-                return FALSE;
-        }
-
-        gchar *feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
-
-        JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks", NULL);
-        if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
-                feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
-                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
-                            "Failed to parse deployment resource.");
+        json_chunks = json_get_array(resp_root, "$.deployment.chunks", error);
+        if (!json_chunks)
                 goto proc_error;
-        }
 
-        // Downloading multiple chunks not supported. Only first chunk is downloaded (RAUC bundle)
-        JsonNode *json_chunk = json_array_get_element(json_chunks, 0);
-        JsonArray *json_artifacts = json_get_array(json_chunk, "$.artifacts", NULL);
-        if (json_artifacts == NULL || json_array_get_length(json_artifacts) == 0) {
-                feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
-                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
-                            "Failed to parse deployment resource.");
+        // downloading multiple chunks not supported, only first chunk is downloaded (RAUC bundle)
+        json_chunk = json_array_get_element(json_chunks, 0);
+        json_artifacts = json_get_array(json_chunk, "$.artifacts", error);
+        if (!json_artifacts)
                 goto proc_error;
-        }
-        JsonNode *json_artifact = json_array_get_element(json_artifacts, 0);
+
+        json_artifact = json_array_get_element(json_artifacts, 0);
 
         // get artifact information
         artifact = g_new0(struct artifact, 1);
-        artifact->version = json_get_string(json_chunk, "$.version", NULL);
-        artifact->name = json_get_string(json_chunk, "$.name", NULL);
-        artifact->size = json_get_int(json_artifact, "$.size", NULL);
-        artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1", NULL);
-        artifact->feedback_url = feedback_url;
+        artifact->version = json_get_string(json_chunk, "$.version", error);
+        if (!artifact->version)
+                goto proc_error;
+
+        artifact->name = json_get_string(json_chunk, "$.name", error);
+        if (!artifact->name)
+                goto proc_error;
+
+        artifact->size = json_get_int(json_artifact, "$.size", error);
+        if (!artifact->size && error)
+                goto proc_error;
+
+        artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1", error);
+        if (!artifact->sha1)
+                goto proc_error;
+
         // favour https download
         artifact->download_url = json_get_string(json_artifact, "$._links.download.href", NULL);
-        if (artifact->download_url == NULL)
-                artifact->download_url = json_get_string(json_artifact, "$._links.download-http.href", NULL);
+        if (!artifact->download_url)
+                artifact->download_url = json_get_string(
+                        json_artifact, "$._links.download-http.href", error);
 
-        if (artifact->download_url == NULL) {
-                feedback(feedback_url, action_id, "Failed to parse deployment resource.", "failure", "closed", NULL);
-                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
-                            RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
-                            "Failed to parse deployment resource.");
+        if (!artifact->download_url) {
+                g_prefix_error(error, "\"$._links.download{-http,}.href\": ");
                 goto proc_error;
         }
 
-        g_message("New software ready for download. (Name: %s, Version: %s, Size: %" G_GINT64_FORMAT ", URL: %s)",
+        g_message("New software ready for download (Name: %s, Version: %s, Size: %" G_GINT64_FORMAT " bytes, URL: %s)",
                   artifact->name, artifact->version, artifact->size, artifact->download_url);
 
-        // Check if there is enough free diskspace
-        res = get_available_space(hawkbit_config->bundle_download_location, &freespace, &ierror);
-        if (!res) {
-                feedback(feedback_url, action_id, ierror->message, "failure", "closed", NULL);
-                g_propagate_error(error, ierror);
+        // check if there is enough free diskspace
+        if (!get_available_space(hawkbit_config->bundle_download_location, &freespace, error))
+                goto proc_error;
+
+        if (freespace < artifact->size) {
+                // notify hawkbit that there is not enough free space
+                g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_NOSPC,
+                            "File size %" G_GINT64_FORMAT " exceeds available space %" G_GOFFSET_FORMAT,
+                            artifact->size, freespace);
                 goto proc_error;
         }
 
-        if (freespace < artifact->size) {
-                // Notify hawkbit that there is not enough free space.
-                g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %" G_GOFFSET_FORMAT,
-                                                        artifact->size, freespace);
-                g_debug("%s", msg);
-                feedback(feedback_url, action_id, msg, "failure", "closed", NULL);
-                g_set_error(error, 1, 23, "%s", msg);
-                goto proc_error;
-        }
+        artifact->feedback_url = g_steal_pointer(&feedback_url);
 
         // unref/free previous download thread by joining it
         if (thread_download)
@@ -768,14 +769,16 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         thread_download = g_thread_new("downloader", download_thread,
                                        (gpointer) artifact);
 
-        g_object_unref(json_response_parser);
         return TRUE;
 
 proc_error:
-        g_object_unref(json_response_parser);
-        // Lets cleanup processing deployment failed
+        feedback(feedback_url, action_id, (*error)->message, "failure", "closed", NULL);
+
+error:
+        // clean up failed deployment
         process_artifact_cleanup(artifact);
         process_deployment_cleanup();
+
         return FALSE;
 }
 
