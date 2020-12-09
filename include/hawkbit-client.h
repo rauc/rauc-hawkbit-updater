@@ -34,6 +34,7 @@ GQuark rhu_hawkbit_client_error_quark(void);
 typedef enum {
         RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
         RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
+        RHU_HAWKBIT_CLIENT_ERROR_DOWNLOAD,
 } RHUHawkbitClientError;
 
 // uses CURLcode as error codes

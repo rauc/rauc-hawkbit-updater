@@ -692,6 +692,13 @@ gboolean install_complete_cb(gpointer ptr)
         return G_SOURCE_REMOVE;
 }
 
+/**
+ * @brief Thread to download given Artifact, verfiy its checksum, send hawkBit
+ * feedback and call software_ready_cb() callback on success.
+ *
+ * @param[in] data Artifact* to process
+ * @return NULL is always returned
+ */
 static gpointer download_thread(gpointer data)
 {
         struct on_new_software_userdata userdata = {
@@ -699,53 +706,54 @@ static gpointer download_thread(gpointer data)
                 .install_complete_callback = install_complete_cb,
                 .file = hawkbit_config->bundle_download_location,
         };
-
-        GError *error = NULL;
-        g_autofree gchar *msg = NULL;
-        Artifact *artifact = data;
+        g_autoptr(GError) error = NULL, feedback_error = NULL;
+        g_autofree gchar *msg = NULL, *sha1sum = NULL;
+        g_autoptr(Artifact) artifact = data;
         curl_off_t speed;
+
+        g_return_val_if_fail(data, NULL);
+
         g_message("Start downloading: %s", artifact->download_url);
 
-        // setup checksum
-        g_autofree gchar *sha1sum = NULL;
-
         // Download software bundle (artifact)
-        gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                  artifact->size, &sha1sum, &speed, &error);
-        if (!res) {
-                g_autofree gchar *msg = g_strdup_printf("Download failed: %s", error->message);
-                g_clear_error(&error);
-                g_critical("%s", msg);
-                feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
-                goto down_error;
+        if (!get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
+                        artifact->size, &sha1sum, &speed, &error)) {
+                g_prefix_error(&error, "Download failed: ");
+                goto report_err;
         }
 
         // notify hawkbit that download is complete
         msg = g_strdup_printf("Download complete. %.2f MB/s",
                               (double)speed/(1024*1024));
-        feedback_progress(artifact->feedback_url, action_id, msg, NULL);
-        g_message("%s", msg);
+        if (!feedback_progress(artifact->feedback_url, action_id, msg, &error)) {
+                g_warning("%s", error->message);
+                g_clear_error(&error);
+        }
 
         // validate checksum
         if (g_strcmp0(artifact->sha1, sha1sum)) {
-                g_autofree gchar *msg = g_strdup_printf(
-                        "Software: %s V%s. Invalid checksum: %s expected %s",
-                        artifact->name, artifact->version,
-                        sha1sum,
-                        artifact->sha1);
-                feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
-                g_critical("%s", msg);
-                goto down_error;
+                g_set_error(&error, RHU_HAWKBIT_CLIENT_ERROR, RHU_HAWKBIT_CLIENT_ERROR_DOWNLOAD,
+                            "Software: %s V%s. Invalid checksum: %s expected %s", artifact->name,
+                            artifact->version, sha1sum, artifact->sha1);
+                goto report_err;
         }
-        g_message("File checksum OK.");
-        feedback_progress(artifact->feedback_url, action_id, "File checksum OK.", NULL);
-        artifact_free(artifact);
+
+        if (!feedback_progress(artifact->feedback_url, action_id, "File checksum OK.", &error)) {
+                g_warning("%s", error->message);
+                g_clear_error(&error);
+        }
 
         software_ready_cb(&userdata);
+
         return NULL;
-down_error:
-        artifact_free(artifact);
+
+report_err:
+        if (!feedback(artifact->feedback_url, action_id, error->message, "failure", "closed",
+                      &feedback_error))
+                g_warning("%s", feedback_error->message);
+
         process_deployment_cleanup();
+
         return NULL;
 }
 
