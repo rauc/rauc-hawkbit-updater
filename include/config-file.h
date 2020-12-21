@@ -36,13 +36,20 @@ typedef struct Config_ {
         gchar* tenant_id;                 /**< hawkBit tenant id */
         gchar* controller_id;             /**< hawkBit controller id*/
         gchar* bundle_download_location;  /**< file to download rauc bundle to */
-        long connect_timeout;             /**< connection timeout */
-        long timeout;                     /**< reply timeout */
+        int connect_timeout;              /**< connection timeout */
+        int timeout;                      /**< reply timeout */
         int retry_wait;                   /**< wait between retries */
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
 } Config;
 
+/**
+ * @brief Get Config for config_file.
+ *
+ * @param[in]  config_file String value containing path to config file
+ * @param[out] error       Error
+ * @return Config on success, NULL otherwise (error is set)
+ */
 Config* load_config_file(const gchar *config_file, GError **error);
 
 /**

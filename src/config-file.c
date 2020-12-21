@@ -34,7 +34,7 @@ static const gint DEFAULT_TIMEOUT         = 60;     // 1 min.
 static const gint DEFAULT_RETRY_WAIT      = 5 * 60; // 5 min.
 static const gboolean DEFAULT_SSL         = TRUE;
 static const gboolean DEFAULT_SSL_VERIFY  = TRUE;
-static const gchar * DEFAULT_LOG_LEVEL    = "message";
+static const gchar* DEFAULT_LOG_LEVEL     = "message";
 
 /**
  * @brief Get string value from key_file for key in group, optional default_value can be specified
@@ -245,73 +245,77 @@ static GLogLevelFlags log_level_from_string(const gchar *log_level)
         }
 }
 
-Config* load_config_file(const gchar* config_file, GError** error)
+Config* load_config_file(const gchar *config_file, GError **error)
 {
-        Config *config = g_new0(Config, 1);
-
-        gint val_int;
+        g_autoptr(Config) config = NULL;
         g_autofree gchar *val = NULL;
-        g_autoptr(GKeyFile) ini_file = g_key_file_new();
+        g_autoptr(GKeyFile) ini_file = NULL;
         gboolean key_auth_token_exists = FALSE;
         gboolean key_gateway_token_exists = FALSE;
 
-        if (!g_key_file_load_from_file(ini_file, config_file, G_KEY_FILE_NONE, error)) {
+        g_return_val_if_fail(config_file, NULL);
+        g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+        config = g_new0(Config, 1);
+        ini_file = g_key_file_new();
+
+        if (!g_key_file_load_from_file(ini_file, config_file, G_KEY_FILE_NONE, error))
+                return NULL;
+
+        if (!get_key_string(ini_file, "client", "hawkbit_server", &config->hawkbit_server, NULL,
+                            error))
+                return NULL;
+
+        key_auth_token_exists = get_key_string(ini_file, "client", "auth_token",
+                                               &config->auth_token, NULL, NULL);
+        key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token",
+                                                  &config->gateway_token, NULL, NULL);
+        if (!key_auth_token_exists && !key_gateway_token_exists) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                            "Neither auth_token nor gateway_token is set in the config.");
                 return NULL;
         }
-
-        if (!get_key_string(ini_file, "client", "hawkbit_server", &config->hawkbit_server, NULL, error))
-                return NULL;
-
-        key_auth_token_exists = get_key_string(ini_file, "client", "auth_token", &config->auth_token, NULL, NULL);
-        key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token", &config->gateway_token, NULL, NULL);
-        if (!key_auth_token_exists && !key_gateway_token_exists) {
-                g_set_error(error, 1, 4, "Neither auth_token nor gateway_token is set in the config.");
-                return NULL;
-        } else if (key_auth_token_exists && key_gateway_token_exists) {
+        if (key_auth_token_exists && key_gateway_token_exists) {
                 g_warning("Both auth_token and gateway_token are set in the config.");
         }
 
-        if (!get_key_string(ini_file, "client", "target_name", &config->controller_id, NULL, error))
+        if (!get_key_string(ini_file, "client", "target_name", &config->controller_id, NULL,
+                            error))
                 return NULL;
         if (!get_key_string(ini_file, "client", "tenant_id", &config->tenant_id, "DEFAULT", error))
                 return NULL;
-        if (!get_key_string(ini_file, "client", "bundle_download_location", &config->bundle_download_location, NULL, error))
+        if (!get_key_string(ini_file, "client", "bundle_download_location",
+                            &config->bundle_download_location, NULL, error))
                 return NULL;
         if (!get_key_bool(ini_file, "client", "ssl", &config->ssl, DEFAULT_SSL, error))
                 return NULL;
-        if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify, DEFAULT_SSL_VERIFY, error))
+        if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify,
+                          DEFAULT_SSL_VERIFY, error))
                 return NULL;
         if (!get_group(ini_file, "device", &config->device, error))
                 return NULL;
-
-        if (!get_key_int(ini_file, "client", "connect_timeout", &val_int, DEFAULT_CONNECTTIMEOUT, error))
+        if (!get_key_int(ini_file, "client", "connect_timeout", &config->connect_timeout,
+                         DEFAULT_CONNECTTIMEOUT, error))
                 return NULL;
-        config->connect_timeout = val_int;
-
-        if (!get_key_int(ini_file, "client", "timeout", &val_int, DEFAULT_TIMEOUT, error))
+        if (!get_key_int(ini_file, "client", "timeout", &config->timeout, DEFAULT_TIMEOUT, error))
                 return NULL;
-        config->timeout = val_int;
-
-        if (!get_key_int(ini_file, "client", "retry_wait", &val_int, DEFAULT_RETRY_WAIT, error))
+        if (!get_key_int(ini_file, "client", "retry_wait", &config->retry_wait, DEFAULT_RETRY_WAIT,
+                         error))
                 return NULL;
-        config->retry_wait = val_int;
-
         if (!get_key_string(ini_file, "client", "log_level", &val, DEFAULT_LOG_LEVEL, error))
                 return NULL;
         config->log_level = log_level_from_string(val);
 
-        if (config->timeout > 0 && config->connect_timeout > 0 && config->timeout < config->connect_timeout) {
+        if (config->timeout > 0 && config->connect_timeout > 0 &&
+            config->timeout < config->connect_timeout) {
                 g_set_error(error,
-                            G_KEY_FILE_ERROR,                   // error domain
-                            G_KEY_FILE_ERROR_INVALID_VALUE,     // error code
-                            "timeout should be greater than connect_timeout. Timeout: %ld, Connect timeout: %ld",
-                            config->timeout,
-                            config->connect_timeout
-                            );
+                            G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                            "timeout (%d) must be greater than connect_timeout (%d)",
+                            config->timeout, config->connect_timeout);
                 return NULL;
         }
 
-        return config;
+        return g_steal_pointer(&config);
 }
 
 void config_file_free(Config *config)
