@@ -276,7 +276,9 @@ Config* load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         }
         if (key_auth_token_exists && key_gateway_token_exists) {
-                g_warning("Both auth_token and gateway_token are set in the config.");
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                            "Both auth_token and gateway_token are set in the config.");
+                return NULL;
         }
 
         if (!get_key_string(ini_file, "client", "target_name", &config->controller_id, NULL,

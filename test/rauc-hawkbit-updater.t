@@ -70,10 +70,8 @@ test_expect_success "rauc-hawkbit-updater register and check (both security toke
   $SHARNESS_TEST_DIRECTORY/create_test_target &&
   cp $SHARNESS_TEST_DIRECTORY/test-config-both-security-tokens.conf . &&
   sed -i s/TEST_TOKEN/$INVALID_TOKEN/g test-config-both-security-tokens.conf &&
-  echo '\n** (rauc-hawkbit-updater:3783): WARNING **: 18:00:55.091: Both auth_token and gateway_token are set in the config.\nMESSAGE: Checking for new software...\nCRITICAL: Failed to authenticate. Check if auth_token is correct?' \
-    | sed 's#^\\*\\* \(.*\): WARNING \\*\\*:\( .*:\)\?#\\*\\* \(\): WARNING \\*\\*: :#' > expected_out &&
-  test_expect_code 1 rauc-hawkbit-updater -r -c $SHARNESS_TEST_DIRECTORY/test-config-both-security-tokens.conf 2>&1 \
-    | sed 's#^\\*\\* \(.*\): WARNING \\*\\*:\( .*:\)\?#\\*\\* \(\): WARNING \\*\\*: :#' > actual_out &&
+  echo 'Loading config file failed: Both auth_token and gateway_token are set in the config.' > expected_out &&
+  test_expect_code 4 rauc-hawkbit-updater -r -c $SHARNESS_TEST_DIRECTORY/test-config-both-security-tokens.conf > actual_out 2>&1 &&
   test_cmp expected_out actual_out
 "
 
