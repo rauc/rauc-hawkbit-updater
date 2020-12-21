@@ -129,66 +129,48 @@ static gboolean on_new_software_ready_cb(gpointer data)
 
 int main(int argc, char **argv)
 {
-        GError *error = NULL;
-        GOptionContext *context;
-        gint exit_code = 0;
-        gchar **args;
+        g_autoptr(GError) error = NULL;
+        g_autoptr(GOptionContext) context = NULL;
+        g_auto(GStrv) args = NULL;
         GLogLevelFlags log_level;
+        g_autoptr(Config) config = NULL;
 
-        // Lets support unicode filenames
         args = g_strdupv(argv);
 
         context = g_option_context_new("");
         g_option_context_add_main_entries(context, entries, NULL);
         if (!g_option_context_parse_strv(context, &args, &error)) {
                 g_printerr("option parsing failed: %s\n", error->message);
-                g_error_free(error);
-                exit_code = 1;
-                goto out;
+                return 1;
         }
 
         if (opt_version) {
                 g_printf("Version %.1f\n", VERSION);
-                goto out;
+                return 0;
         }
 
-        if (config_file == NULL) {
+        if (!config_file) {
                 g_printerr("No configuration file given\n");
-                exit_code = 2;
-                goto out;
+                return 2;
         }
 
         if (!g_file_test(config_file, G_FILE_TEST_EXISTS)) {
                 g_printerr("No such configuration file: %s\n", config_file);
-                exit_code = 3;
-                goto out;
+                return 3;
         }
 
-        if (opt_run_once) {
-                run_once = TRUE;
-        }
+        run_once = opt_run_once;
 
-        Config *config = load_config_file(config_file, &error);
-        if (config == NULL) {
+        config = load_config_file(config_file, &error);
+        if (!config) {
                 g_printerr("Loading config file failed: %s\n", error->message);
-                g_error_free(error);
-                exit_code = 4;
-                goto out;
+                return 4;
         }
 
-        if (opt_debug) {
-                log_level = G_LOG_LEVEL_MASK;
-        } else {
-                log_level = config->log_level;
-        }
+        log_level = (opt_debug) ? G_LOG_LEVEL_MASK : config->log_level;
 
         setup_logging(PROGRAM, log_level, opt_output_systemd);
         hawkbit_init(config, on_new_software_ready_cb);
-        exit_code = hawkbit_start_service_sync();
 
-        config_file_free(config);
-out:
-        g_option_context_free(context);
-        g_strfreev(args);
-        return exit_code;
+        return hawkbit_start_service_sync();
 }
