@@ -115,20 +115,27 @@ static gboolean get_available_space(const char *path, goffset *free_space, GErro
 }
 
 /**
- * @brief Curl callback used for writting software bundle file
- *        and calculate hawkbit checksum.
+ * @brief Curl callback writing RAUC bundle file data to BinaryPayload*->fp (expected opened
+ * writable) tracking written data and calculating hawkbit checksum.
  *
  * @see   https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
  */
-static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb,
-                                    BinaryPayload *data)
+static size_t curl_write_to_file_cb(const void *content, size_t size, size_t nmemb, void *data)
 {
-        size_t written = fwrite(ptr, size, nmemb, data->fp);
-        data->written += written;
-        if (data->checksum) {
-                g_checksum_update(data->checksum, ptr, written);
-        }
-        //g_debug("Bytes downloaded: %ld, (%3.f %%)", data->written, ((double) data->written / data->size * 100));
+        BinaryPayload *p = NULL;
+        size_t written;
+
+        g_return_val_if_fail(content, 0);
+        g_return_val_if_fail(data, 0);
+
+        p = (BinaryPayload *) data;
+
+        written = fwrite(content, size, nmemb, p->fp);
+        p->written += written;
+
+        if (p->checksum)
+                g_checksum_update(p->checksum, content, written);
+
         return written;
 }
 
