@@ -240,18 +240,20 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
 }
 
 /**
- * @brief Curl callback used for writting rest response to buffer.
+ * @brief Curl callback writing REST response to RestPayload*->payload buffer.
+ *
+ * @see   https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
  */
-static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data)
+static size_t curl_write_cb(const void *content, size_t size, size_t nmemb, void *data)
 {
-        RestPayload *p = (RestPayload *) data;
+        RestPayload *p = NULL;
         size_t real_size = size * nmemb;
 
+        g_return_val_if_fail(content, 0);
+        g_return_val_if_fail(data, 0);
+
+        p = (RestPayload *) data;
         p->payload = (gchar *) g_realloc(p->payload, p->size + real_size + 1);
-        if (p->payload == NULL) {
-                g_debug("Failed to expand buffer");
-                return -1;
-        }
 
         // copy content to buffer
         memcpy(&(p->payload[p->size]), content, real_size);
