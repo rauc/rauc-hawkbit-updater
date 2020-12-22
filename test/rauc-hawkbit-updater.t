@@ -45,7 +45,7 @@ test_expect_success "rauc-hawkbit-updater register and check (invalid gateway to
   $SHARNESS_TEST_DIRECTORY/create_test_target &&
   cp $SHARNESS_TEST_DIRECTORY/test-config-gateway-token-only.conf . &&
   sed -i s/TEST_TOKEN/$INVALID_TOKEN/g test-config-gateway-token-only.conf &&
-  echo 'MESSAGE: Checking for new software...\nCRITICAL: Failed to authenticate. Check if gateway_token is correct?' > expected_out &&
+  echo 'MESSAGE: Checking for new software...\nWARNING: Failed to authenticate. Check if gateway_token is correct?' > expected_out &&
   test_expect_code 1 rauc-hawkbit-updater -r -c $SHARNESS_TEST_DIRECTORY/test-config-gateway-token-only.conf > actual_out 2>&1 &&
   test_cmp expected_out actual_out
 "
@@ -54,7 +54,7 @@ test_expect_success "rauc-hawkbit-updater register and check (invalid auth token
   $SHARNESS_TEST_DIRECTORY/create_test_target &&
   cp $SHARNESS_TEST_DIRECTORY/test-config-auth-token-only.conf . &&
   sed -i s/TEST_TOKEN/$INVALID_TOKEN/g test-config-auth-token-only.conf &&
-  echo 'MESSAGE: Checking for new software...\nCRITICAL: Failed to authenticate. Check if auth_token is correct?' > expected_out &&
+  echo 'MESSAGE: Checking for new software...\nWARNING: Failed to authenticate. Check if auth_token is correct?' > expected_out &&
   test_expect_code 1 rauc-hawkbit-updater -r -c $SHARNESS_TEST_DIRECTORY/test-config-auth-token-only.conf > actual_out 2>&1 &&
   test_cmp expected_out actual_out
 "

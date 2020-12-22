@@ -816,9 +816,9 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         if (!res) {
                 if (g_error_matches(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 401)) {
                         if (hawkbit_config->auth_token)
-                                g_critical("Failed to authenticate. Check if auth_token is correct?");
+                                g_warning("Failed to authenticate. Check if auth_token is correct?");
                         if (hawkbit_config->gateway_token)
-                                g_critical("Failed to authenticate. Check if gateway_token is correct?");
+                                g_warning("Failed to authenticate. Check if gateway_token is correct?");
                 } else {
                         g_warning("Scheduled check for new software failed: %s (%d)",
                                   error->message, error->code);
