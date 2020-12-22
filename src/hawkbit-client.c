@@ -169,6 +169,49 @@ static gboolean add_curl_header(struct curl_slist **headers, const char *string,
 }
 
 /**
+ * @brief Add hawkBit authorization header to Curl headers.
+ *
+ * @param[out] headers curl_slist** of already set headers
+ * @param[out] error   Error
+ * @return TRUE if authorization method set in config and header was added successfully, TRUE if no
+ *         authorization method set, FALSE otherwise (error set)
+ */
+static gboolean set_auth_curl_header(struct curl_slist **headers, GError **error)
+{
+        gboolean res = TRUE;
+        g_autofree gchar *token = NULL;
+
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        if (hawkbit_config->auth_token)
+                token = g_strdup_printf("Authorization: TargetToken %s",
+                                        hawkbit_config->auth_token);
+        else if (hawkbit_config->gateway_token)
+                token = g_strdup_printf("Authorization: GatewayToken %s",
+                                        hawkbit_config->gateway_token);
+        if (token)
+                res = add_curl_header(headers, token, error);
+
+        return res;
+}
+
+/**
+ * @brief Set common Curl options, namely user agent, connect timeout, SSL
+ *        verify peer and SSL verify host options.
+ *
+ * @param[in] curl Curl handle
+ */
+static void set_default_curl_opts(CURL *curl)
+{
+        g_return_if_fail(curl);
+
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
+}
+
+/**
  * @brief Download download_url to file.
  *
  * @param[in]  download_url URL to download from
@@ -214,34 +257,24 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
         if (sha1sum)
                 payload->checksum = g_checksum_new(G_CHECKSUM_SHA1);
 
+        set_default_curl_opts(curl);
         curl_easy_setopt(curl, CURLOPT_URL, download_url);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8L);
-        curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_to_file_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, payload);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
 
         // abort if slower than 100 bytes/sec during 60 seconds
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 100L);
 
+        if (!set_auth_curl_header(&headers, error))
+                return FALSE;
+
         // set up request headers
         if (!add_curl_header(&headers, "Accept: application/octet-stream", error))
                 return FALSE;
-
-        if (hawkbit_config->auth_token)
-                token = g_strdup_printf("Authorization: TargetToken %s",
-                                        hawkbit_config->auth_token);
-        else if (hawkbit_config->gateway_token)
-                token = g_strdup_printf("Authorization: GatewayToken %s",
-                                        hawkbit_config->gateway_token);
-        if (token)
-                if (!add_curl_header(&headers, token, error))
-                        return FALSE;
 
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
@@ -332,15 +365,12 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         fetch_buffer->payload = g_malloc0(DEFAULT_CURL_REQUEST_BUFFER_SIZE);
 
         // set up CURL options
+        set_default_curl_opts(curl);
         curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, HTTPMethod_STRING[method]);
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, hawkbit_config->timeout);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_buffer);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
 
         if (jsonRequestBody) {
                 g_autoptr(JsonGenerator) generator = json_generator_new();
@@ -358,13 +388,7 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         if (!add_curl_header(&headers, "Accept: application/json;charset=UTF-8", error))
                 return FALSE;
 
-        if (hawkbit_config->auth_token)
-                token = g_strdup_printf("Authorization: TargetToken %s",
-                                        hawkbit_config->auth_token);
-        else if (hawkbit_config->gateway_token)
-                token = g_strdup_printf("Authorization: GatewayToken %s",
-                                        hawkbit_config->gateway_token);
-        if (token && !add_curl_header(&headers, token, error))
+        if (!set_auth_curl_header(&headers, error))
                 return FALSE;
 
         if (jsonRequestBody &&
