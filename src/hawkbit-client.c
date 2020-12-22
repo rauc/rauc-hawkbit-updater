@@ -431,24 +431,6 @@ out:
 }
 
 /**
- * @brief
- */
-static gchar** regex_groups(const gchar* pattern, const gchar *str, GError **error)
-{
-        gchar **result = NULL;
-        GMatchInfo *match_info;
-        GRegex *regex = g_regex_new(pattern, 0, 0, error);
-        g_regex_match(regex, str, 0, &match_info);
-        if (g_match_info_matches(match_info))
-        {
-                result = g_match_info_fetch_all(match_info);
-        }
-        g_match_info_free(match_info);
-        g_regex_unref(regex);
-        return result;
-}
-
-/**
  * @brief Build API URL
  *
  * @param path[in] a printf()-like format string describing the API path or NULL for base path
@@ -618,29 +600,22 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 return FALSE;
         }
 
-        // get resource id and action id from url
-        gchar** groups = regex_groups("/deploymentBase/(.+)[?]c=(.+)$", deployment, NULL);
-        if (groups == NULL) {
-                g_set_error(error,1,2,"Failed to parse deployment base response.");
-                return FALSE;
-        }
-        action_id = g_strdup(groups[1]);
-        g_autofree gchar *resource_id = g_strdup(groups[2]);
-        g_strfreev(groups);
-
-        // build urls for deployment resource info
-        g_autofree gchar *get_resource_url = build_api_url(
-                "deploymentBase/%s?c=%s", action_id, resource_id);
-        gchar *feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
-
         // get deployment resource
         JsonParser *json_response_parser = NULL;
-        int status = rest_request(GET, get_resource_url, NULL, &json_response_parser, error);
+        int status = rest_request(GET, deployment, NULL, &json_response_parser, error);
         if (status != 200 || json_response_parser == NULL) {
                 g_debug("Failed to get resource from hawkbit server. Status: %d", status);
                 return FALSE;
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
+
+        action_id = json_get_string(resp_root, "$.id", NULL);
+        if (!action_id) {
+                g_set_error(error,1,1,"Failed to parse deployment base response.");
+                return FALSE;
+        }
+
+        gchar *feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
 
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks", NULL);
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
