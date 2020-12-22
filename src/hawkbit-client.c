@@ -123,6 +123,35 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
 }
 
 /**
+ * @brief Add string to Curl headers, avoiding overwriting an existing
+ *        non-empty list on failure.
+ *
+ * @param[out] headers curl_slist** of already set headers
+ * @param[in]  string  Header to add
+ * @param[out] error   Error
+ * @return TRUE if string was added to headers successfully, FALSE otherwise (error set)
+ */
+static gboolean add_curl_header(struct curl_slist **headers, const char *string, GError **error)
+{
+        struct curl_slist *temp = NULL;
+
+        g_return_val_if_fail(headers, FALSE);
+        g_return_val_if_fail(string, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        temp = curl_slist_append(*headers, string);
+        if (!temp) {
+                curl_slist_free_all(*headers);
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
+                            "Could not add header %s", string);
+                return FALSE;
+        }
+
+        *headers = temp;
+        return TRUE;
+}
+
+/**
  * @brief download software bundle to file.
  *
  * @param[in]  download_url   URL to Software bundle
@@ -243,8 +272,10 @@ static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data
 static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonRequestBody, JsonParser** jsonResponseParser, GError** error)
 {
         gchar *postdata = NULL;
+        g_autofree gchar *token = NULL;
         RestPayload *fetch_buffer = g_new0(RestPayload, 1);
         glong http_code = 0;
+        struct curl_slist *headers = NULL;
         CURL *curl = curl_easy_init();
         if (!curl) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
@@ -287,19 +318,23 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                 json_node_unref(req_root);
         }
 
-        // Setup request headers
-        struct curl_slist *headers = NULL;
-        headers = curl_slist_append(headers, "Accept: application/json;charset=UTF-8");
-        if (hawkbit_config->auth_token) {
-                g_autofree gchar* auth_token = g_strdup_printf("Authorization: TargetToken %s", hawkbit_config->auth_token);
-                headers = curl_slist_append(headers, auth_token);
-        } else if (hawkbit_config->gateway_token) {
-                g_autofree gchar* gateway_token = g_strdup_printf("Authorization: GatewayToken %s", hawkbit_config->gateway_token);
-                headers = curl_slist_append(headers, gateway_token);
-        }
-        if (jsonRequestBody) {
-                headers = curl_slist_append(headers, "Content-Type: application/json;charset=UTF-8");
-        }
+        // set up request headers
+        if (!add_curl_header(&headers, "Accept: application/json;charset=UTF-8", error))
+                return -1;
+
+        if (hawkbit_config->auth_token)
+                token = g_strdup_printf("Authorization: TargetToken %s",
+                                        hawkbit_config->auth_token);
+        else if (hawkbit_config->gateway_token)
+                token = g_strdup_printf("Authorization: GatewayToken %s",
+                                        hawkbit_config->gateway_token);
+        if (token && !add_curl_header(&headers, token, error))
+                return -1;
+
+        if (jsonRequestBody &&
+            !add_curl_header(&headers, "Content-Type: application/json;charset=UTF-8", error))
+                return -1;
+
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         // perform request
