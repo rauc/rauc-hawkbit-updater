@@ -116,7 +116,7 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  * @param[out] speed          Average download speed
  * @param[out] error          Error
  */
-static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, gchar **sha1sum, GError **error)
+static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, gchar **sha1sum, curl_off_t *speed, GError **error)
 {
         glong http_code = 0;
         FILE *fp = fopen(file, "wb");
@@ -168,6 +168,7 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, speed);
         if (res == CURLE_OK) {
                 if (gb.checksum) { // if checksum enabled then return the value
                         *sha1sum = g_strdup(g_checksum_get_string(gb.checksum));
@@ -536,16 +537,15 @@ static gpointer download_thread(gpointer data)
         GError *error = NULL;
         g_autofree gchar *msg = NULL;
         struct artifact *artifact = data;
+        curl_off_t speed;
         g_message("Start downloading: %s", artifact->download_url);
 
         // setup checksum
         g_autofree gchar *sha1sum = NULL;
 
         // Download software bundle (artifact)
-        gint64 start_time = g_get_monotonic_time();
         gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                  artifact->size, &sha1sum, &error);
-        gint64 end_time = g_get_monotonic_time();
+                                  artifact->size, &sha1sum, &speed, &error);
         if (!res) {
                 g_autofree gchar *msg = g_strdup_printf("Download failed: %s", error->message);
                 g_clear_error(&error);
@@ -556,7 +556,7 @@ static gpointer download_thread(gpointer data)
 
         // notify hawkbit that download is complete
         msg = g_strdup_printf("Download complete. %.2f MB/s",
-                              (artifact->size / ((double)(end_time - start_time) / 1000000)) / (1024 * 1024));
+                              (double)speed/(1024*1024));
         feedback_progress(artifact->feedback_url, action_id, msg, NULL);
         g_message("%s", msg);
 
