@@ -451,8 +451,8 @@ static gchar** regex_groups(const gchar* pattern, const gchar *str, GError **err
 /**
  * @brief Build API URL
  *
- * @param path[in] a printf()-like format string describing the API path
- * @param ... The arguments to be insterte in path
+ * @param path[in] a printf()-like format string describing the API path or NULL for base path
+ * @param ... The arguments to be inserted in path
  *
  * @return a newly allocated full API URL
  */
@@ -466,15 +466,20 @@ static gchar* build_api_url(const gchar *path, ...)
         buffer = g_strdup_vprintf(path, args);
         va_end(args);
 
-        return g_strdup_printf("%s://%s%s", hawkbit_config->ssl ? "https" : "http", hawkbit_config->hawkbit_server, buffer);
+        return g_strdup_printf(
+                "%s://%s/%s/controller/v1/%s%s%s",
+                hawkbit_config->ssl ? "https" : "http",
+                hawkbit_config->hawkbit_server, hawkbit_config->tenant_id,
+                hawkbit_config->controller_id,
+                buffer ? "/" : "",
+                buffer ? buffer : "");
 }
 
 gboolean hawkbit_progress(const gchar *msg)
 {
         g_autofree gchar *feedback_url = NULL;
         if (action_id) {
-                feedback_url = build_api_url("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                                             hawkbit_config->controller_id, action_id);
+                feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
                 feedback_progress(feedback_url, action_id, msg, NULL);
         }
         return G_SOURCE_REMOVE;
@@ -483,9 +488,7 @@ gboolean hawkbit_progress(const gchar *msg)
 static gboolean identify(GError **error)
 {
         g_debug("Identifying ourself to hawkbit server");
-        g_autofree gchar *put_config_data_url = build_api_url(
-                "/%s/controller/v1/%s/configData", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id);
+        g_autofree gchar *put_config_data_url = build_api_url("configData");
 
         JsonBuilder *builder = json_builder_new();
         json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device);
@@ -526,8 +529,7 @@ gboolean install_complete_cb(gpointer ptr)
         struct on_install_complete_userdata *result = ptr;
         g_autofree gchar *feedback_url = NULL;
         if (action_id) {
-                feedback_url = build_api_url("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                                             hawkbit_config->controller_id, action_id);
+                feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
                 if (result->install_success) {
                         g_message("Software bundle installed successful.");
                         feedback(feedback_url, action_id, "Software bundle installed successful.", "success", "closed", NULL);
@@ -628,11 +630,8 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // build urls for deployment resource info
         g_autofree gchar *get_resource_url = build_api_url(
-                "/%s/controller/v1/%s/deploymentBase/%s?c=%s", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id, action_id, resource_id);
-        gchar *feedback_url = build_api_url(
-                "/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id, action_id);
+                "deploymentBase/%s?c=%s", action_id, resource_id);
+        gchar *feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
 
         // get deployment resource
         JsonParser *json_response_parser = NULL;
@@ -743,9 +742,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         data->last_run_sec = 0;
 
         // build hawkBit get tasks URL
-        g_autofree gchar *get_tasks_url = build_api_url(
-                "/%s/controller/v1/%s", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id);
+        g_autofree gchar *get_tasks_url = build_api_url(NULL);
         GError *error = NULL;
         JsonParser *json_response_parser = NULL;
 
