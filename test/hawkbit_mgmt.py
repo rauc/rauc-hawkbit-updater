@@ -1,0 +1,1 @@
+../script/hawkbit_mgmt.py
