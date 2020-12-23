@@ -122,7 +122,8 @@ static gboolean on_new_software_ready_cb(gpointer data)
 
         notify_hawkbit_install_progress = userdata->install_progress_callback;
         notify_hawkbit_install_complete = userdata->install_complete_callback;
-        rauc_install(userdata->file, on_rauc_install_progress_cb, on_rauc_install_complete_cb);
+        rauc_install(userdata->file, on_rauc_install_progress_cb, on_rauc_install_complete_cb,
+                     run_once);
 
         return G_SOURCE_REMOVE;
 }

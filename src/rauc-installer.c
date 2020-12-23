@@ -200,7 +200,7 @@ notify_complete:
 }
 
 void rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
-                  GSourceFunc on_install_complete)
+                  GSourceFunc on_install_complete, gboolean wait)
 {
         GMainContext *loop_context = NULL;
         struct install_context *context = NULL;
@@ -222,4 +222,6 @@ void rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
 
         // start install thread
         thread_install = g_thread_new("installer", install_loop_thread, (gpointer) context);
+        if (wait)
+                g_thread_join(thread_install);
 }

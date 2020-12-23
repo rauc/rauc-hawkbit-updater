@@ -46,8 +46,9 @@ struct install_context {
  *                              installation.
  * @param[in] on_install_complete Callback function to be called with the result of the
  *                                installation.
+ * @param[in] wait Whether to wait until install thread finished or not.
  */
 void rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
-                GSourceFunc on_install_complete);
+                GSourceFunc on_install_complete, gboolean wait);
 
 #endif // __RAUC_INSTALLER_H__
