@@ -31,10 +31,13 @@
  *
  * @param[in] source sd_event_source that should be prepared.
  * @param[in] timeout not used
+ * @return gboolean, TRUE on success, FALSE otherwise
  * @see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GSource
  */
 static gboolean sd_source_prepare(GSource *source, gint *timeout)
 {
+        g_return_val_if_fail(source, FALSE);
+
         return sd_event_prepare(((struct SDSource *) source)->event) > 0 ? TRUE : FALSE;
 }
 
@@ -42,10 +45,13 @@ static gboolean sd_source_prepare(GSource *source, gint *timeout)
  * @brief Callback function: check GSource
  *
  * @param[in] source sd_event_source that should be checked
+ * @return gboolean, TRUE on success, FALSE otherwise
  * @see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GSource
  */
 static gboolean sd_source_check(GSource *source)
 {
+        g_return_val_if_fail(source, FALSE);
+
         return sd_event_wait(((struct SDSource *) source)->event, 0) > 0 ? TRUE : FALSE;
 }
 
@@ -55,15 +61,15 @@ static gboolean sd_source_check(GSource *source)
  * @param[in] source sd_event_source that should be dispatched
  * @param[in] callback not used
  * @param[in] userdata not used
+ * @return gboolean, TRUE on success, FALSE otherwise
  * @see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GSource
  */
-static gboolean sd_source_dispatch(GSource *source,
-                                   GSourceFunc callback,
-                                   gpointer userdata)
+static gboolean sd_source_dispatch(GSource *source, GSourceFunc callback, gpointer userdata)
 {
+        g_return_val_if_fail(source, FALSE);
+
         return sd_event_dispatch(((struct SDSource *) source)->event) >= 0
-               ? G_SOURCE_CONTINUE
-               : G_SOURCE_REMOVE;
+               ? G_SOURCE_CONTINUE : G_SOURCE_REMOVE;
 }
 
 /**
@@ -74,6 +80,8 @@ static gboolean sd_source_dispatch(GSource *source,
  */
 static void sd_source_finalize(GSource *source)
 {
+        g_return_if_fail(source);
+
         sd_event_unref(((struct SDSource *) source)->event);
 }
 
@@ -82,11 +90,14 @@ static void sd_source_finalize(GSource *source)
  *
  * @param[in] source sd_event_source that exits
  * @param[in] userdata the GMainLoop the source is attached to.
- * @return Always return 0
+ * @return always return 0
  * @see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GMainLoop
  */
 static int sd_source_on_exit(sd_event_source *source, void *userdata)
 {
+        g_return_val_if_fail(source, -1);
+        g_return_val_if_fail(userdata, -1);
+
         g_main_loop_quit(userdata);
 
         sd_event_source_set_enabled(source, FALSE);
@@ -95,17 +106,11 @@ static int sd_source_on_exit(sd_event_source *source, void *userdata)
         return 0;
 }
 
-/**
- * @brief Attach GSource to GMainLoop
- *
- * @param[in] source Glib GSource
- * @param[in] loop GMainLoop the GSource should be attached to.
- * @return 0 if success else != 0 if error
- * @see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GMainLoop
- * @see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GSource
- */
 int sd_source_attach(GSource *source, GMainLoop *loop)
 {
+        g_return_val_if_fail(source, -1);
+        g_return_val_if_fail(loop, -1);
+
         g_source_set_name(source, "sd-event");
         g_source_add_poll(source, &((struct SDSource *) source)->pollfd);
         g_source_attach(source, g_main_loop_get_context(loop));
@@ -116,14 +121,6 @@ int sd_source_attach(GSource *source, GMainLoop *loop)
                                  loop);
 }
 
-/**
- * @brief Create GSource from a sd_event
- *
- * @param[in] event Systemd event that should be converted to a Glib GSource
- * @return the newly-created GSource
- * @see https://www.freedesktop.org/software/systemd/man/sd-event.html
- * @see https://developer.gnome.org/glib/stable/glib-The-Main-Event-Loop.html#GSource
- */
 GSource * sd_source_new(sd_event *event)
 {
         static GSourceFuncs funcs = {
@@ -132,7 +129,11 @@ GSource * sd_source_new(sd_event *event)
                 sd_source_dispatch,
                 sd_source_finalize,
         };
-        GSource *s = g_source_new(&funcs, sizeof(struct SDSource));
+        GSource *s = NULL;
+
+        g_return_val_if_fail(event, NULL);
+
+        s = g_source_new(&funcs, sizeof(struct SDSource));
         if (s) {
                 ((struct SDSource *) s)->event = sd_event_ref(event);
                 ((struct SDSource *) s)->pollfd.fd = sd_event_get_fd(event);
