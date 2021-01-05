@@ -37,18 +37,20 @@ static GThread *thread_install = NULL;
 /**
  * @brief RAUC DBUS property changed callback
  *
- * @see https://github.com/rauc/rauc/blob/master/src/rauc-installer.xml
+ * @see https://github.com/rauc/rauc/blob/master/src/de.pengutronix.rauc.Installer.xml
  */
 static void on_installer_status(GDBusProxy *proxy, GVariant *changed,
-                                const gchar* const *invalidated,
-                                gpointer data)
+                                const gchar* const *invalidated, gpointer data)
 {
         struct install_context *context = data;
-        gint32 percentage, depth;
-        const gchar *message = NULL;
+        gint32 percentage;
+        g_autofree gchar *message = NULL;
+
+        g_return_if_fail(changed);
+        g_return_if_fail(context);
 
         if (invalidated && invalidated[0]) {
-                g_printerr("RAUC DBUS service disappeared\n");
+                g_warning("RAUC DBUS service disappeared");
                 g_mutex_lock(&context->status_mutex);
                 context->status_result = 2;
                 g_mutex_unlock(&context->status_mutex);
@@ -57,39 +59,46 @@ static void on_installer_status(GDBusProxy *proxy, GVariant *changed,
         }
 
         if (context->notify_event) {
+                gboolean status_received = FALSE;
+
                 g_mutex_lock(&context->status_mutex);
-                if (g_variant_lookup(changed, "Operation", "s", &message)) {
-                        g_queue_push_tail(&context->status_messages, g_strdup(message));
-                } else if (g_variant_lookup(changed, "Progress", "(isi)", &percentage, &message, &depth)) {
-                        g_queue_push_tail(&context->status_messages, g_strdup_printf("%3"G_GINT32_FORMAT "%% %s", percentage, message));
-                } else if (g_variant_lookup(changed, "LastError", "s", &message) && message[0] != '\0') {
-                        g_queue_push_tail(&context->status_messages, g_strdup_printf("LastError: %s", message));
-                }
+                if (g_variant_lookup(changed, "Operation", "s", &message))
+                        g_queue_push_tail(&context->status_messages, g_steal_pointer(&message));
+                else if (g_variant_lookup(changed, "Progress", "(isi)", &percentage, &message,
+                                          NULL))
+                        g_queue_push_tail(&context->status_messages,
+                                          g_strdup_printf("%3" G_GINT32_FORMAT "%% %s", percentage,
+                                                          message));
+                else if (g_variant_lookup(changed, "LastError", "s", &message) && message[0] != 0)
+                        g_queue_push_tail(&context->status_messages,
+                                          g_strdup_printf("LastError: %s", message));
+
+                status_received = !g_queue_is_empty(&context->status_messages);
                 g_mutex_unlock(&context->status_mutex);
 
-                if (!g_queue_is_empty(&context->status_messages)) {
-                        g_main_context_invoke(context->loop_context, context->notify_event, context);
-                }
+                if (status_received)
+                        g_main_context_invoke(context->loop_context, context->notify_event,
+                                              context);
         }
 }
 
 /**
  * @brief RAUC DBUS complete signal callback
  *
- * @see https://github.com/rauc/rauc/blob/master/src/rauc-installer.xml
+ * @see https://github.com/rauc/rauc/blob/master/src/de.pengutronix.rauc.Installer.xml
  */
-static void on_installer_completed(GDBusProxy *proxy, gint result,
-                                   gpointer data)
+static void on_installer_completed(GDBusProxy *proxy, gint result, gpointer data)
 {
         struct install_context *context = data;
+
+        g_return_if_fail(context);
 
         g_mutex_lock(&context->status_mutex);
         context->status_result = result;
         g_mutex_unlock(&context->status_mutex);
 
-        if (result >= 0) {
+        if (result >= 0)
                 g_main_loop_quit(context->mainloop);
-        }
 }
 
 /**
@@ -117,8 +126,9 @@ static struct install_context *install_context_new(void)
  */
 static void install_context_free(struct install_context *context)
 {
-        if (context == NULL)
+        if (!context)
                 return;
+
         g_free(context->bundle);
         g_mutex_clear(&context->status_mutex);
         g_main_context_unref(context->loop_context);
@@ -140,35 +150,36 @@ static gpointer install_loop_thread(gpointer data)
         GBusType bus_type = (!g_strcmp0(g_getenv("DBUS_STARTER_BUS_TYPE"), "session"))
                             ? G_BUS_TYPE_SESSION : G_BUS_TYPE_SYSTEM;
         RInstaller *r_installer_proxy = NULL;
-        GError *error = NULL;
-        struct install_context *context = data;
+        g_autoptr(GError) error = NULL;
+        struct install_context *context = NULL;
+
+        g_return_val_if_fail(data, NULL);
+
+        context = data;
         g_main_context_push_thread_default(context->loop_context);
 
         g_debug("Creating RAUC DBUS proxy");
-        r_installer_proxy = r_installer_proxy_new_for_bus_sync(bus_type,
-                                                               G_DBUS_PROXY_FLAGS_GET_INVALIDATED_PROPERTIES,
-                                                               "de.pengutronix.rauc", "/", NULL, &error);
-        if (r_installer_proxy == NULL) {
-                g_printerr("Error creating proxy: %s\n", error->message);
-                g_clear_error(&error);
-                goto out_loop;
+        r_installer_proxy = r_installer_proxy_new_for_bus_sync(
+                bus_type, G_DBUS_PROXY_FLAGS_GET_INVALIDATED_PROPERTIES,
+                "de.pengutronix.rauc", "/", NULL, &error);
+        if (!r_installer_proxy) {
+                g_warning("Failed to create RAUC DBUS proxy: %s", error->message);
+                goto notify_complete;
         }
         if (g_signal_connect(r_installer_proxy, "g-properties-changed",
                              G_CALLBACK(on_installer_status), context) <= 0) {
-                g_printerr("Failed to connect properties-changed signal\n");
+                g_warning("Failed to connect properties-changed signal");
                 goto out_loop;
         }
         if (g_signal_connect(r_installer_proxy, "completed",
                              G_CALLBACK(on_installer_completed), context) <= 0) {
-                g_printerr("Failed to connect completed signal\n");
+                g_warning("Failed to connect completed signal");
                 goto out_loop;
         }
 
         g_debug("Trying to contact RAUC DBUS service");
-        if (!r_installer_call_install_sync(r_installer_proxy, context->bundle, NULL,
-                                           &error)) {
-                g_printerr("Failed %s\n", error->message);
-                g_clear_error(&error);
+        if (!r_installer_call_install_sync(r_installer_proxy, context->bundle, NULL, &error)) {
+                g_warning("%s", error->message);
                 goto out_loop;
         }
 
@@ -177,27 +188,26 @@ static gpointer install_loop_thread(gpointer data)
 out_loop:
         g_signal_handlers_disconnect_by_data(r_installer_proxy, context);
 
+notify_complete:
         // Notify the result of the RAUC installation
         if (context->notify_complete)
                 context->notify_complete(context);
 
+        g_clear_pointer(&r_installer_proxy, g_object_unref);
         g_main_context_pop_thread_default(context->loop_context);
         install_context_free(context);
         return NULL;
 }
 
-/**
- * @brief RAUC install bundle
- *
- * @param[in] bundle RAUC bundle file (.raucb) to install.
- * @param[in] on_install_notify Callback function to be called with status info during installation.
- * @param[in] on_install_complete Callback function to be called with the result of the installation.
- */
-void rauc_install(const gchar *bundle, GSourceFunc on_install_notify, GSourceFunc on_install_complete)
+void rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
+                  GSourceFunc on_install_complete)
 {
-        GMainContext *loop_context = g_main_context_new();
-        struct install_context *context;
+        GMainContext *loop_context = NULL;
+        struct install_context *context = NULL;
 
+        g_return_if_fail(bundle);
+
+        loop_context = g_main_context_new();
         context = install_context_new();
         context->bundle = g_strdup(bundle);
         context->notify_event = on_install_notify;
@@ -211,6 +221,5 @@ void rauc_install(const gchar *bundle, GSourceFunc on_install_notify, GSourceFun
                 g_thread_join(thread_install);
 
         // start install thread
-        thread_install = g_thread_new("installer", install_loop_thread,
-                                      (gpointer) context);
+        thread_install = g_thread_new("installer", install_loop_thread, (gpointer) context);
 }
