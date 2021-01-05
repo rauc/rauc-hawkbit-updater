@@ -27,6 +27,13 @@
 #include <systemd/sd-journal.h>
 #endif
 
+/**
+ * @brief     Setup Glib log handler
+ *
+ * @param[in] domain Log domain
+ * @param[in] level  Log level
+ * @param[in] p_output_to_systemd output to systemd journal
+ */
 void setup_logging(const gchar *domain, GLogLevelFlags level, gboolean output_to_systemd);
 
 #endif // __LOG_H__
