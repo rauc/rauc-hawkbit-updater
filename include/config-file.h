@@ -27,7 +27,7 @@
 /**
  * @brief struct that contains the Rauc HawkBit configuration.
  */
-struct config {
+typedef struct Config_ {
         gchar* hawkbit_server;            /**< hawkBit host or IP and port */
         gboolean ssl;                     /**< use https or http */
         gboolean ssl_verify;              /**< verify https certificate */
@@ -36,14 +36,29 @@ struct config {
         gchar* tenant_id;                 /**< hawkBit tenant id */
         gchar* controller_id;             /**< hawkBit controller id*/
         gchar* bundle_download_location;  /**< file to download rauc bundle to */
-        long connect_timeout;             /**< connection timeout */
-        long timeout;                     /**< reply timeout */
+        int connect_timeout;              /**< connection timeout */
+        int timeout;                      /**< reply timeout */
         int retry_wait;                   /**< wait between retries */
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
-};
+} Config;
 
-struct config* load_config_file(const gchar* config_file, GError** error);
-void config_file_free(struct config *config);
+/**
+ * @brief Get Config for config_file.
+ *
+ * @param[in]  config_file String value containing path to config file
+ * @param[out] error       Error
+ * @return Config on success, NULL otherwise (error is set)
+ */
+Config* load_config_file(const gchar *config_file, GError **error);
+
+/**
+ * @brief Frees the memory allocated by a Config
+ *
+ * @param[in] config Config to free
+ */
+void config_file_free(Config *config);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Config, config_file_free)
 
 #endif // __CONFIG_FILE_H__

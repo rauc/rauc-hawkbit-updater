@@ -25,7 +25,8 @@
 #include <glib.h>
 #include <glib/gtypes.h>
 #include <stdio.h>
-struct config;
+
+#include "config-file.h"
 
 #define HAWKBIT_USERAGENT                 "rauc-hawkbit-c-agent/1.0"
 #define DEFAULT_CURL_REQUEST_BUFFER_SIZE  512
@@ -100,7 +101,7 @@ struct on_install_complete_userdata {
         gboolean install_success;               /**< status of installation */
 };
 
-void hawkbit_init(struct config *config, GSourceFunc on_install_ready);
+void hawkbit_init(Config *config, GSourceFunc on_install_ready);
 int hawkbit_start_service_sync();
 gboolean hawkbit_progress(const gchar *msg);
 gboolean install_complete_cb(gpointer ptr);
