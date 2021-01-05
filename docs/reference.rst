@@ -101,6 +101,10 @@ Optional options:
   Defaults to ``100``.
   See https://curl.se/libcurl/c/CURLOPT_LOW_SPEED_LIMIT.html.
 
+``resume_downloads=<boolean>``
+  Whether to resume aborted downloads or not.
+  Defaults to ``false``.
+
 ``post_update_reboot=<boolean>``
   Whether to reboot the system after a successful update.
   Defaults to ``false``.
