@@ -1,0 +1,51 @@
+name: tests
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        options:
+        - -DWITH_SYSTEMD=ON
+        - -DWITH_SYSTEMD=OFF
+    steps:
+    - name: Inspect environment
+      run: |
+        whoami
+        gcc --version
+
+    - uses: actions/checkout@v2
+
+    - name: Install required packages
+      run: |
+        sudo apt-get install libcurl4-openssl-dev libsystemd-dev libjson-glib-dev
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+    - name: Build & Test (with ${{ matrix.options }})
+      run: |
+        mkdir -p build
+        cd build
+        cmake ${{ matrix.options }} -DQA_BUILD=ON ..
+        make
+        cd -
+        docker pull hawkbit/hawkbit-update-server
+        docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server
+        ./test/wait-for-hawkbit-online
+        cd test && ./rauc-hawkbit-updater.t -v
+
+  uncrustify:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Run uncrustify check
+      run: |
+        ./uncrustify.sh
+        git diff --exit-code

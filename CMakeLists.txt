@@ -5,13 +5,13 @@ option(WITH_SYSTEMD "Set to ON to create unit files and enable systemd startup" 
 option(BUILD_DOC    "Build documentation" OFF)
 option(QA_BUILD     "QA build (pedantic, with fatal errors)" OFF)
 
-if (WITH_SYSTEMD)
-	add_definitions( -DWITH_SYSTEMD )
-endif (WITH_SYSTEMD)
-
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(SYSTEMD libsystemd)
+if (WITH_SYSTEMD)
+	add_definitions( -DWITH_SYSTEMD )
+	pkg_check_modules(SYSTEMD REQUIRED libsystemd)
+endif (WITH_SYSTEMD)
+
 include_directories(${SYSTEMD_INCLUDE_DIRS})
 if (SYSTEMD_FOUND AND "${SYSTEMD_SERVICES_INSTALL_DIR}" STREQUAL "")
 	execute_process(COMMAND ${PKG_CONFIG_EXECUTABLE}
