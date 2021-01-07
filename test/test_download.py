@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: LGPL-2.1-only
 # SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
+import re
+
 from helper import run
 
 def test_download_inexistent_location(hawkbit, bundle_assigned, adjust_config):
@@ -61,3 +63,63 @@ def test_download_too_slow(hawkbit, bundle_assigned, adjust_config, rate_limited
     assert 'Start downloading: ' in out
     assert err.strip() == 'WARNING: Download failed: Timeout was reached'
     assert exitcode == 1
+
+def test_download_partials_without_resume(hawkbit, bundle_assigned, adjust_config,
+                                          partial_download_port):
+    """
+    Assign bundle to target and test download of partial bundle parts without having
+    download resuming configured.
+    """
+    config = adjust_config(
+        {'client': {'hawkbit_server': f'{hawkbit.host}:{partial_download_port}'}}
+    )
+
+    # ignore failing installation
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert 'Start downloading: ' in out
+    assert err.strip() == 'WARNING: Download failed: Transferred a partial file'
+    assert exitcode == 1
+
+def test_download_partials_with_resume(hawkbit, bundle_assigned, adjust_config,
+                                       partial_download_port):
+    """
+    Assign bundle to target and test download of partial bundle parts with download resuming
+    configured.
+    """
+    config = adjust_config({
+        'client': {
+            'hawkbit_server': f'{hawkbit.host}:{partial_download_port}',
+            'resume_downloads': 'true',
+        }
+    })
+
+    # ignore failing installation
+    out, _, _ = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert re.findall('Resuming download from offset [1-9]', out)
+    assert 'Download complete.' in out
+    assert 'File checksum OK.' in out
+
+def test_download_slow_with_resume(hawkbit, bundle_assigned, adjust_config, rate_limited_port):
+    """
+    Assign bundle to target and test slow download of bundle with download resuming enabled. That
+    should lead to resuming downloads.
+    """
+    port = rate_limited_port(50000)
+    config = adjust_config({
+        'client': {
+            'hawkbit_server': f'{hawkbit.host}:{port}',
+            'resume_downloads': 'true',
+            'low_speed_time': '1',
+            'low_speed_rate': '100000',
+        }
+    })
+
+    # ignore failing installation
+    out, _, _ = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert 'Timeout was reached, resuming download..' in out
+    assert 'Resuming download from offset' in out
+    assert 'Download complete.' in out
+    assert 'File checksum OK.' in out
