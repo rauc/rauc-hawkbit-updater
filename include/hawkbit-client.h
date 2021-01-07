@@ -80,16 +80,6 @@ typedef struct RestPayload_ {
 } RestPayload;
 
 /**
- * @brief struct containing Curl write callback context.
- */
-typedef struct BinaryPayload_ {
-        FILE *fp;                     /**< filepointer to download file */
-        gint64 filesize;              /**< expected file size of download file */
-        gint64 written;               /**< number of bytes written to download file */
-        GChecksum *checksum;          /**< checksum of download file */
-} BinaryPayload;
-
-/**
  * @brief struct containing
  */
 typedef struct Artifact_ {
@@ -160,13 +150,6 @@ gboolean install_complete_cb(gpointer ptr);
 void rest_payload_free(RestPayload *payload);
 
 /**
- * @brief Frees the memory allocated by a BinaryPayload
- *
- * @param[in] payload BinaryPayload to free
- */
-void binary_payload_free(BinaryPayload *payload);
-
-/**
  * @brief Frees the memory allocated by an Artifact
  *
  * @param[in] artifact Artifact to free
@@ -174,7 +157,6 @@ void binary_payload_free(BinaryPayload *payload);
 void artifact_free(Artifact *artifact);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(BinaryPayload, binary_payload_free)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free)
 
 #endif // __HAWKBIT_CLIENT_H__

@@ -37,6 +37,7 @@
 
 #include "hawkbit-client.h"
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(FILE, fclose)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURL, curl_easy_cleanup)
 
 gboolean run_once = FALSE;
@@ -116,28 +117,45 @@ static gboolean get_available_space(const char *path, goffset *free_space, GErro
 }
 
 /**
- * @brief Curl callback writing RAUC bundle file data to BinaryPayload*->fp (expected opened
- * writable) tracking written data and calculating hawkbit checksum.
+ * @brief Calculate checksum for file.
  *
- * @see   https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
+ * @param[in]  fp       File to read data from
+ * @param[in]  type     Desired type of checksum
+ * @param[out] checksum Calculated checksum digest hex string
+ * @param[out] error    Error
+ * @return TRUE if checksum calculation succeeded, FALSE otherwise (error set)
  */
-static size_t curl_write_to_file_cb(const void *content, size_t size, size_t nmemb, void *data)
+static gboolean get_file_checksum(FILE *fp, const GChecksumType type, gchar **checksum,
+                                  GError **error)
 {
-        BinaryPayload *p = NULL;
-        size_t written;
+        g_autoptr(GChecksum) ctx = g_checksum_new(type);
+        guchar buf[4096];
+        size_t r;
 
-        g_return_val_if_fail(content, 0);
-        g_return_val_if_fail(data, 0);
+        g_return_val_if_fail(fp, FALSE);
+        g_return_val_if_fail(checksum && *checksum == NULL, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        p = (BinaryPayload *) data;
+        g_assert_nonnull(ctx);
 
-        written = fwrite(content, size, nmemb, p->fp);
-        p->written += written;
+        fseek(fp, 0, SEEK_SET);
 
-        if (p->checksum)
-                g_checksum_update(p->checksum, content, written);
+        while (1) {
+                r = fread(buf, 1, sizeof(buf), fp);
+                if (ferror(fp)) {
+                        g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Read failed");
+                        return FALSE;
+                }
 
-        return written;
+                g_checksum_update(ctx, buf, r);
+
+                if (feof(fp))
+                        break;
+        }
+
+        *checksum = g_strdup(g_checksum_get_string(ctx));
+
+        return TRUE;
 }
 
 /**
@@ -217,17 +235,16 @@ static void set_default_curl_opts(CURL *curl)
  *
  * @param[in]  download_url URL to download from
  * @param[in]  file         Download destination
- * @param[in]  filesize     Expected file size in bytes
  * @param[out] sha1sum      Calculated checksum or NULL
  * @param[out] speed        Average download speed
  * @param[out] error        Error
  * @return TRUE if download succeeded, FALSE otherwise (error set)
  */
-static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 filesize,
-                           gchar **sha1sum, curl_off_t *speed, GError **error)
+static gboolean get_binary(const gchar *download_url, const gchar *file, gchar **sha1sum,
+                           curl_off_t *speed, GError **error)
 {
         g_autoptr(CURL) curl = NULL;
-        g_autoptr(BinaryPayload) payload = NULL;
+        g_autoptr(FILE) fp = NULL;
         CURLcode curl_code;
         glong http_code = 0;
         struct curl_slist *headers = NULL;
@@ -238,10 +255,8 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
         g_return_val_if_fail(sha1sum == NULL || *sha1sum == NULL, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        payload = g_new0(BinaryPayload, 1);
-        payload->filesize = filesize;
-        payload->fp = g_fopen(file, "wb");
-        if (!payload->fp) {
+        fp = g_fopen(file, "wb+");
+        if (!fp) {
                 int err = errno;
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
                             "Failed to open %s for download: %s", file, g_strerror(err));
@@ -255,17 +270,12 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
                 return FALSE;
         }
 
-        if (sha1sum)
-                payload->checksum = g_checksum_new(G_CHECKSUM_SHA1);
-
         set_default_curl_opts(curl);
         curl_easy_setopt(curl, CURLOPT_URL, download_url);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8L);
-        curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE);
         curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_to_file_cb);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, payload);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
         // abort if slower than 100 bytes/sec during 60 seconds
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
@@ -298,8 +308,8 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
         }
 
         // if checksum enabled then return the value
-        if (payload->checksum)
-                *sha1sum = g_strdup(g_checksum_get_string(payload->checksum));
+        if (sha1sum && !get_file_checksum(fp, G_CHECKSUM_SHA1, sha1sum, error))
+                return FALSE;
 
         return TRUE;
 }
@@ -809,7 +819,7 @@ static gpointer download_thread(gpointer data)
 
         // Download software bundle (artifact)
         if (!get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                        artifact->size, &sha1sum, &speed, &error)) {
+                        &sha1sum, &speed, &error)) {
                 g_prefix_error(&error, "Download failed: ");
                 goto report_err;
         }
@@ -1310,16 +1320,5 @@ void rest_payload_free(RestPayload *payload)
                 return;
 
         g_free(payload->payload);
-        g_free(payload);
-}
-
-void binary_payload_free(BinaryPayload *payload)
-{
-        if (!payload)
-                return;
-
-        if (payload->fp)
-                fclose(payload->fp);
-        g_checksum_free(payload->checksum);
         g_free(payload);
 }
