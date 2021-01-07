@@ -90,6 +90,17 @@ Optional options:
   Time to wait before retrying in case an error occurred [seconds].
   Defaults to ``60`` seconds.
 
+``low_speed_time=<seconds>``
+  Time to be below ``low_speed_rate`` to trigger the low speed abort.
+  Defaults to ``60``.
+  See https://curl.se/libcurl/c/CURLOPT_LOW_SPEED_TIME.html.
+
+``low_speed_rate=<bytes per second>``
+  Average transfer speed to be below during ``low_speed_time`` seconds to
+  consider transfer as "too slow" and abort it.
+  Defaults to ``100``.
+  See https://curl.se/libcurl/c/CURLOPT_LOW_SPEED_LIMIT.html.
+
 ``post_update_reboot=<boolean>``
   Whether to reboot the system after a successful update.
   Defaults to ``false``.

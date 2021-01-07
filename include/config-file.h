@@ -24,6 +24,8 @@ typedef struct Config_ {
         int connect_timeout;              /**< connection timeout */
         int timeout;                      /**< reply timeout */
         int retry_wait;                   /**< wait between retries */
+        int low_speed_time;               /**< time to be below the speed to trigger low speed abort */
+        int low_speed_rate;               /**< low speed limit to abort transfer */
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
 } Config;

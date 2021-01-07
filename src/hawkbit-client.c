@@ -277,9 +277,9 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gchar *
         curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
-        // abort if slower than 100 bytes/sec during 60 seconds
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 100L);
+        // abort if slower than configured download rate during configured time span
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, hawkbit_config->low_speed_time);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, hawkbit_config->low_speed_rate);
 
         if (!set_auth_curl_header(&headers, error))
                 return FALSE;
