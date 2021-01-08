@@ -48,9 +48,13 @@ def test_download_too_slow(hawkbit, bundle_assigned, adjust_config, rate_limited
     """Assign bundle to target and test too slow download of bundle."""
     # limit to 50 bytes/s
     port = rate_limited_port(50)
-    config = adjust_config(
-        {'client': {'hawkbit_server': f'{hawkbit.host}:{port}'}}
-    )
+    config = adjust_config({
+        'client': {
+            'hawkbit_server': f'{hawkbit.host}:{port}',
+            'low_speed_time': '3',
+            'low_speed_rate': '100',
+        }
+    })
 
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r', timeout=90)
 
