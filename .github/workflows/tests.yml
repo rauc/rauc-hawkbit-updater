@@ -20,6 +20,7 @@ jobs:
 
     - name: Install required packages
       run: |
+        sudo apt-get update
         sudo apt-get install libcurl4-openssl-dev libsystemd-dev libjson-glib-dev
 
     - name: Login to DockerHub
