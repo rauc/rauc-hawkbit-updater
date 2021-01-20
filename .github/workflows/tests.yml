@@ -42,6 +42,25 @@ jobs:
         ./test/wait-for-hawkbit-online
         cd test && ./rauc-hawkbit-updater.t -v
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install libcurl4-openssl-dev libjson-glib-dev python-sphinx doxygen
+
+    - name: Build documentation (Sphinx & Doxygen)
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DBUILD_DOC=ON -DSPHINX_OPTIONS=-W ..
+        make doc_doxygen
+        make doc
+        cd -
+
   uncrustify:
     runs-on: ubuntu-latest
     steps:
