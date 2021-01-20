@@ -58,6 +58,22 @@ if (BUILD_DOC)
 	endif (DOXYGEN_FOUND)
 endif (BUILD_DOC)
 
+find_program(SPHINX_EXECUTABLE
+             NAMES sphinx-build
+             DOC "Path to sphinx-build executable")
+if (SPHINX_EXECUTABLE)
+	message("Sphinx is installed")
+	set(SPHINX_IN ${CMAKE_CURRENT_SOURCE_DIR}/docs)
+	set(SPHINX_OUT ${CMAKE_CURRENT_BINARY_DIR}/build-doc)
+	add_custom_target( doc
+	    COMMAND ${SPHINX_EXECUTABLE} -b html ${SPHINX_OPTIONS} ${SPHINX_IN} ${SPHINX_OUT}
+	    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+	    COMMENT "Generating user documentation with Sphinx"
+	    VERBATIM )
+else (SPHINX_EXECUTABLE)
+	message("Sphinx needs to be installed to generate the user documentation")
+endif (SPHINX_EXECUTABLE)
+
 set(RAUC_HAWKBIT_SRCS
   src/rauc-hawkbit-updater.c
   src/rauc-installer.c
