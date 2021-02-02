@@ -6,6 +6,7 @@ After=rauc.service
 [Service]
 User=rauc-hawkbit
 Group=rauc-hawkbit
+AmbientCapabilities=CAP_SYS_BOOT
 ExecStart=/usr/bin/rauc-hawkbit-updater -s -c /etc/rauc-hawkbit-updater/config.conf
 TimeoutSec=60s
 WatchdogSec=5m
