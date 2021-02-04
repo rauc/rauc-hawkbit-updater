@@ -50,7 +50,7 @@ jobs:
     - name: Install required packages
       run: |
         sudo apt-get update
-        sudo apt-get install libcurl4-openssl-dev libjson-glib-dev python-sphinx doxygen
+        sudo apt-get install libcurl4-openssl-dev libjson-glib-dev python3-sphinx python3-sphinx-rtd-theme doxygen
 
     - name: Build documentation (Sphinx & Doxygen)
       run: |
