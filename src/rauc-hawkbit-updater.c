@@ -62,48 +62,64 @@ static GSourceFunc notify_hawkbit_install_complete;
 
 
 /**
- * @brief RAUC callback when new progress.
+ * @brief GSourceFunc callback for install thread, consumes RAUC progress messages, logs them and
+ * passes them on to notify_hawkbit_install_progress().
+ *
+ * @param[in] data install_context pointer allowing access to received status messages
+ * @return G_SOURCE_REMOVE is always returned
  */
 static gboolean on_rauc_install_progress_cb(gpointer data)
 {
         struct install_context *context = data;
 
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
         g_mutex_lock(&context->status_mutex);
         while (!g_queue_is_empty(&context->status_messages)) {
-                gchar *msg = g_queue_pop_head(&context->status_messages);
+                g_autofree gchar *msg = g_queue_pop_head(&context->status_messages);
                 g_message("Installing: %s : %s", context->bundle, msg);
                 // notify hawkbit server about progress
                 notify_hawkbit_install_progress(msg);
-                g_free(msg);
         }
         g_mutex_unlock(&context->status_mutex);
 
         return G_SOURCE_REMOVE;
 }
 
-
 /**
- * @brief RAUC callback when install is complete.
+ * @brief GSourceFunc callback for install thread, consumes RAUC installation status result
+ *        (on complete) and passes it on to notify_hawkbit_install_complete().
+ *
+ * @param[in] data install_context pointer allowing access to received status result
+ * @return G_SOURCE_REMOVE is always returned
  */
 static gboolean on_rauc_install_complete_cb(gpointer data)
 {
         struct install_context *context = data;
+        struct on_install_complete_userdata userdata;
 
-        struct on_install_complete_userdata userdata = {
-                .install_success = (context->status_result == 0)
-        };
-        // lets notify hawkbit with install result
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
+        userdata.install_success = (context->status_result == 0);
+
+        // notify hawkbit about install result
         notify_hawkbit_install_complete(&userdata);
 
         return G_SOURCE_REMOVE;
 }
 
 /**
- * @brief hawkbit callback when new software is available.
+ * @brief GSourceFunc callback for download thread, triggers RAUC installation.
+ *
+ * @param[in] data on_new_software_userdata pointer
+ * @return G_SOURCE_REMOVE is always returned
  */
 static gboolean on_new_software_ready_cb(gpointer data)
 {
         struct on_new_software_userdata *userdata = data;
+
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
         notify_hawkbit_install_progress = userdata->install_progress_callback;
         notify_hawkbit_install_complete = userdata->install_complete_callback;
         rauc_install(userdata->file, on_rauc_install_progress_cb, on_rauc_install_complete_cb);
@@ -113,66 +129,48 @@ static gboolean on_new_software_ready_cb(gpointer data)
 
 int main(int argc, char **argv)
 {
-        GError *error = NULL;
-        GOptionContext *context;
-        gint exit_code = 0;
-        gchar **args;
+        g_autoptr(GError) error = NULL;
+        g_autoptr(GOptionContext) context = NULL;
+        g_auto(GStrv) args = NULL;
         GLogLevelFlags log_level;
+        g_autoptr(Config) config = NULL;
 
-        // Lets support unicode filenames
         args = g_strdupv(argv);
 
         context = g_option_context_new("");
         g_option_context_add_main_entries(context, entries, NULL);
         if (!g_option_context_parse_strv(context, &args, &error)) {
                 g_printerr("option parsing failed: %s\n", error->message);
-                g_error_free(error);
-                exit_code = 1;
-                goto out;
+                return 1;
         }
 
         if (opt_version) {
                 g_printf("Version %.1f\n", VERSION);
-                goto out;
+                return 0;
         }
 
-        if (config_file == NULL) {
+        if (!config_file) {
                 g_printerr("No configuration file given\n");
-                exit_code = 2;
-                goto out;
+                return 2;
         }
 
         if (!g_file_test(config_file, G_FILE_TEST_EXISTS)) {
                 g_printerr("No such configuration file: %s\n", config_file);
-                exit_code = 3;
-                goto out;
+                return 3;
         }
 
-        if (opt_run_once) {
-                run_once = TRUE;
-        }
+        run_once = opt_run_once;
 
-        Config *config = load_config_file(config_file, &error);
-        if (config == NULL) {
+        config = load_config_file(config_file, &error);
+        if (!config) {
                 g_printerr("Loading config file failed: %s\n", error->message);
-                g_error_free(error);
-                exit_code = 4;
-                goto out;
+                return 4;
         }
 
-        if (opt_debug) {
-                log_level = G_LOG_LEVEL_MASK;
-        } else {
-                log_level = config->log_level;
-        }
+        log_level = (opt_debug) ? G_LOG_LEVEL_MASK : config->log_level;
 
         setup_logging(PROGRAM, log_level, opt_output_systemd);
         hawkbit_init(config, on_new_software_ready_cb);
-        exit_code = hawkbit_start_service_sync();
 
-        config_file_free(config);
-out:
-        g_option_context_free(context);
-        g_strfreev(args);
-        return exit_code;
+        return hawkbit_start_service_sync();
 }
