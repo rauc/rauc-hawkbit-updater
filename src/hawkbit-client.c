@@ -112,12 +112,13 @@ static size_t curl_write_to_file_cb(void *ptr, size_t size, size_t nmemb, struct
  * @param[in]  download_url   URL to Software bundle
  * @param[in]  file           File the software bundle should be written to.
  * @param[in]  filesize       Expected file size
- * @param[out] checksum       Calculated checksum
- * @param[out] http_code      Return location for the http_code, can be NULL
+ * @param[out] sha1sum        Return location for calculated checksum or NULL
+ * @param[out] speed          Average download speed
  * @param[out] error          Error
  */
-static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, struct get_binary_checksum *checksum, glong *http_code, GError **error)
+static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 filesize, gchar **sha1sum, curl_off_t *speed, GError **error)
 {
+        glong http_code = 0;
         FILE *fp = fopen(file, "wb");
         if (fp == NULL) {
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
@@ -137,7 +138,7 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
                 .fp       = fp,
                 .filesize = filesize,
                 .written  = 0,
-                .checksum = (checksum != NULL ? g_checksum_new(checksum->checksum_type) : NULL)
+                .checksum = (sha1sum != NULL ? g_checksum_new(G_CHECKSUM_SHA1) : NULL)
         };
 
         curl_easy_setopt(curl, CURLOPT_URL, download_url);
@@ -166,19 +167,20 @@ static gboolean get_binary(const gchar* download_url, const gchar* file, gint64 
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         CURLcode res = curl_easy_perform(curl);
-        if (http_code)
-                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, http_code);
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, speed);
         if (res == CURLE_OK) {
                 if (gb.checksum) { // if checksum enabled then return the value
-                        checksum->checksum_result = g_strdup(g_checksum_get_string(gb.checksum));
+                        *sha1sum = g_strdup(g_checksum_get_string(gb.checksum));
                         g_checksum_free(gb.checksum);
                 }
         } else {
                 g_set_error(error,
                             G_IO_ERROR,                    // error domain
                             G_IO_ERROR_FAILED,             // error code
-                            "HTTP request failed: %s",     // error message format string
-                            curl_easy_strerror(res));
+                            "HTTP request failed: %s (%ld)",     // error message format string
+                            curl_easy_strerror(res),
+                            http_code);
         }
 
         curl_easy_cleanup(curl);
@@ -322,7 +324,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
  * @brief Build JSON status request.
  * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_post_tenant_controller_v1_controllerid_deploymentbase_actionid_feedback
  */
-static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detail, const gchar *result, const gchar *execution, GHashTable *data, gint progress)
+static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar *detail, const gchar *result, const gchar *execution, GHashTable *data)
 {
         GHashTableIter iter;
         gpointer key, value;
@@ -350,19 +352,6 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
         json_builder_begin_object(builder);
         json_builder_set_member_name(builder, "result");
         json_builder_begin_object(builder);
-
-        if (g_strcmp0(execution, "proceeding") == 0) {
-                json_builder_set_member_name(builder, "progress");
-                json_builder_begin_object(builder);
-
-                json_builder_set_member_name(builder, "of");
-                json_builder_add_int_value(builder, 1);
-
-                json_builder_set_member_name(builder, "cnt");
-                json_builder_add_int_value(builder, 3);
-
-                json_builder_end_object(builder);
-        }
 
         json_builder_set_member_name(builder, "finished");
         json_builder_add_string_value(builder, result);
@@ -398,7 +387,7 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
 static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *execution, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
-        json_build_status(builder, id, detail, finished, execution, NULL, 0);
+        json_build_status(builder, id, detail, finished, execution, NULL);
 
         int status = rest_request(POST, url, builder, NULL, error);
         g_debug("Feedback status: %d, URL: %s", status, url);
@@ -409,10 +398,10 @@ static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, 
 /**
  * @brief Send progress feedback to hawkBit.
  */
-static gboolean feedback_progress(const gchar *url, const gchar *id, gint progress, const gchar *detail, GError **error)
+static gboolean feedback_progress(const gchar *url, const gchar *id, const gchar *detail, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
-        json_build_status(builder, id, detail, "none", "proceeding", NULL, progress);
+        json_build_status(builder, id, detail, "none", "proceeding", NULL);
 
         int status = rest_request(POST, url, builder, NULL, error);
         g_debug("Feedback progress status: %d, URL: %s", status, url);
@@ -443,28 +432,10 @@ out:
 }
 
 /**
- * @brief
- */
-static gchar** regex_groups(const gchar* pattern, const gchar *str, GError **error)
-{
-        gchar **result = NULL;
-        GMatchInfo *match_info;
-        GRegex *regex = g_regex_new(pattern, 0, 0, error);
-        g_regex_match(regex, str, 0, &match_info);
-        if (g_match_info_matches(match_info))
-        {
-                result = g_match_info_fetch_all(match_info);
-        }
-        g_match_info_free(match_info);
-        g_regex_unref(regex);
-        return result;
-}
-
-/**
  * @brief Build API URL
  *
- * @param path[in] a printf()-like format string describing the API path
- * @param ... The arguments to be insterte in path
+ * @param path[in] a printf()-like format string describing the API path or NULL for base path
+ * @param ... The arguments to be inserted in path
  *
  * @return a newly allocated full API URL
  */
@@ -478,16 +449,21 @@ static gchar* build_api_url(const gchar *path, ...)
         buffer = g_strdup_vprintf(path, args);
         va_end(args);
 
-        return g_strdup_printf("%s://%s%s", hawkbit_config->ssl ? "https" : "http", hawkbit_config->hawkbit_server, buffer);
+        return g_strdup_printf(
+                "%s://%s/%s/controller/v1/%s%s%s",
+                hawkbit_config->ssl ? "https" : "http",
+                hawkbit_config->hawkbit_server, hawkbit_config->tenant_id,
+                hawkbit_config->controller_id,
+                buffer ? "/" : "",
+                buffer ? buffer : "");
 }
 
 gboolean hawkbit_progress(const gchar *msg)
 {
         g_autofree gchar *feedback_url = NULL;
         if (action_id) {
-                feedback_url = build_api_url("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                                             hawkbit_config->controller_id, action_id);
-                feedback_progress(feedback_url, action_id, 3, msg, NULL);
+                feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
+                feedback_progress(feedback_url, action_id, msg, NULL);
         }
         return G_SOURCE_REMOVE;
 }
@@ -495,12 +471,10 @@ gboolean hawkbit_progress(const gchar *msg)
 static gboolean identify(GError **error)
 {
         g_debug("Identifying ourself to hawkbit server");
-        g_autofree gchar *put_config_data_url = build_api_url(
-                "/%s/controller/v1/%s/configData", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id);
+        g_autofree gchar *put_config_data_url = build_api_url("configData");
 
         JsonBuilder *builder = json_builder_new();
-        json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device, FALSE);
+        json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device);
 
         gint status = rest_request(PUT, put_config_data_url, builder, NULL, error);
         g_object_unref(builder);
@@ -516,7 +490,6 @@ static void process_artifact_cleanup(struct artifact *artifact)
         g_free(artifact->download_url);
         g_free(artifact->feedback_url);
         g_free(artifact->sha1);
-        g_free(artifact->md5);
         g_free(artifact);
 }
 
@@ -539,8 +512,7 @@ gboolean install_complete_cb(gpointer ptr)
         struct on_install_complete_userdata *result = ptr;
         g_autofree gchar *feedback_url = NULL;
         if (action_id) {
-                feedback_url = build_api_url("/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                                             hawkbit_config->controller_id, action_id);
+                feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
                 if (result->install_success) {
                         g_message("Software bundle installed successful.");
                         feedback(feedback_url, action_id, "Software bundle installed successful.", "success", "closed", NULL);
@@ -565,19 +537,17 @@ static gpointer download_thread(gpointer data)
         GError *error = NULL;
         g_autofree gchar *msg = NULL;
         struct artifact *artifact = data;
+        curl_off_t speed;
         g_message("Start downloading: %s", artifact->download_url);
 
         // setup checksum
-        struct get_binary_checksum checksum = { .checksum_result = NULL, .checksum_type = G_CHECKSUM_SHA1 };
+        g_autofree gchar *sha1sum = NULL;
 
         // Download software bundle (artifact)
-        gint64 start_time = g_get_monotonic_time();
-        glong status = 0;
         gboolean res = get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                                  artifact->size, &checksum, &status, &error);
-        gint64 end_time = g_get_monotonic_time();
+                                  artifact->size, &sha1sum, &speed, &error);
         if (!res) {
-                g_autofree gchar *msg = g_strdup_printf("Download failed: %s Status: %ld", error->message, status);
+                g_autofree gchar *msg = g_strdup_printf("Download failed: %s", error->message);
                 g_clear_error(&error);
                 g_critical("%s", msg);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
@@ -586,31 +556,28 @@ static gpointer download_thread(gpointer data)
 
         // notify hawkbit that download is complete
         msg = g_strdup_printf("Download complete. %.2f MB/s",
-                              (artifact->size / ((double)(end_time - start_time) / 1000000)) / (1024 * 1024));
-        feedback_progress(artifact->feedback_url, action_id, 1, msg, NULL);
+                              (double)speed/(1024*1024));
+        feedback_progress(artifact->feedback_url, action_id, msg, NULL);
         g_message("%s", msg);
 
         // validate checksum
-        if (g_strcmp0(artifact->sha1, checksum.checksum_result)) {
+        if (g_strcmp0(artifact->sha1, sha1sum)) {
                 g_autofree gchar *msg = g_strdup_printf(
                         "Software: %s V%s. Invalid checksum: %s expected %s",
                         artifact->name, artifact->version,
-                        checksum.checksum_result,
+                        sha1sum,
                         artifact->sha1);
                 feedback(artifact->feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_critical("%s", msg);
-                status = -3;
                 goto down_error;
         }
         g_message("File checksum OK.");
-        feedback_progress(artifact->feedback_url, action_id, 2, "File checksum OK.", NULL);
-        g_free(checksum.checksum_result);
+        feedback_progress(artifact->feedback_url, action_id, "File checksum OK.", NULL);
         process_artifact_cleanup(artifact);
 
         software_ready_cb(&userdata);
         return NULL;
 down_error:
-        g_free(checksum.checksum_result);
         process_artifact_cleanup(artifact);
         process_deployment_cleanup();
         return NULL;
@@ -633,32 +600,22 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 return FALSE;
         }
 
-        // get resource id and action id from url
-        gchar** groups = regex_groups("/deploymentBase/(.+)[?]c=(.+)$", deployment, NULL);
-        if (groups == NULL) {
-                g_set_error(error,1,2,"Failed to parse deployment base response.");
-                return FALSE;
-        }
-        action_id = g_strdup(groups[1]);
-        g_autofree gchar *resource_id = g_strdup(groups[2]);
-        g_strfreev(groups);
-
-        // build urls for deployment resource info
-        g_autofree gchar *get_resource_url = build_api_url(
-                "/%s/controller/v1/%s/deploymentBase/%s?c=%s", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id, action_id, resource_id);
-        gchar *feedback_url = build_api_url(
-                "/%s/controller/v1/%s/deploymentBase/%s/feedback", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id, action_id);
-
         // get deployment resource
         JsonParser *json_response_parser = NULL;
-        int status = rest_request(GET, get_resource_url, NULL, &json_response_parser, error);
+        int status = rest_request(GET, deployment, NULL, &json_response_parser, error);
         if (status != 200 || json_response_parser == NULL) {
                 g_debug("Failed to get resource from hawkbit server. Status: %d", status);
                 return FALSE;
         }
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
+
+        action_id = json_get_string(resp_root, "$.id", NULL);
+        if (!action_id) {
+                g_set_error(error,1,1,"Failed to parse deployment base response.");
+                return FALSE;
+        }
+
+        gchar *feedback_url = build_api_url("deploymentBase/%s/feedback", action_id);
 
         JsonArray *json_chunks = json_get_array(resp_root, "$.deployment.chunks", NULL);
         if (json_chunks == NULL || json_array_get_length(json_chunks) == 0) {
@@ -683,7 +640,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         artifact->name = json_get_string(json_chunk, "$.name", NULL);
         artifact->size = json_get_int(json_artifact, "$.size", NULL);
         artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1", NULL);
-        artifact->md5 = json_get_string(json_artifact, "$.hashes.md5", NULL);
         artifact->feedback_url = feedback_url;
         // favour https download
         artifact->download_url = json_get_string(json_artifact, "$._links.download.href", NULL);
@@ -761,9 +717,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         data->last_run_sec = 0;
 
         // build hawkBit get tasks URL
-        g_autofree gchar *get_tasks_url = build_api_url(
-                "/%s/controller/v1/%s", hawkbit_config->tenant_id,
-                hawkbit_config->controller_id);
+        g_autofree gchar *get_tasks_url = build_api_url(NULL);
         GError *error = NULL;
         JsonParser *json_response_parser = NULL;
 
