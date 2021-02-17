@@ -263,6 +263,7 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8L);
         curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE);
+        curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_to_file_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, payload);
 
