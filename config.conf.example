@@ -32,6 +32,9 @@ connect_timeout           = 20
 # request timeout in seconds
 timeout                   = 60
 
+# reboot after a successful update
+post_update_reboot        = false
+
 # debug, info, message, critical, error, fatal
 log_level                 = message
 

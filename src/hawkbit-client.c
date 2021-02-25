@@ -46,6 +46,7 @@
 #include <libgen.h>
 #include <bits/types/struct_tm.h>
 #include <gio/gio.h>
+#include <sys/reboot.h>
 
 #include "json-helper.h"
 #ifdef WITH_SYSTEMD
@@ -516,6 +517,13 @@ gboolean install_complete_cb(gpointer ptr)
                 if (result->install_success) {
                         g_message("Software bundle installed successful.");
                         feedback(feedback_url, action_id, "Software bundle installed successful.", "success", "closed", NULL);
+                        if (hawkbit_config->post_update_reboot) {
+                                process_deployment_cleanup();
+                                sync();
+                                if (reboot(RB_AUTOBOOT) < 0) {
+                                        g_critical("Failed to reboot: %s", g_strerror(errno));
+                                }
+                        }
                 } else {
                         g_critical("Failed to install software bundle.");
                         feedback(feedback_url, action_id, "Failed to install software bundle.", "failure", "closed", NULL);
