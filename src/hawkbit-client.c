@@ -55,6 +55,8 @@
 
 #include "hawkbit-client.h"
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURL, curl_easy_cleanup)
+
 gboolean run_once = FALSE;
 
 /**
@@ -260,23 +262,32 @@ static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data
 }
 
 /**
- * @brief Make REST request.
+ * @brief Perform REST request with JSON data, expecting response JSON data.
  *
- * @param[in]  method             HTTP Method ex. GET
+ * @param[in]  method             HTTP Method, e.g. GET
  * @param[in]  url                URL used in HTTP REST request
- * @param[in]  jsonRequestBody    REST request body. If NULL, no body is sent.
- * @param[out] jsonResponseParser REST response
+ * @param[in]  jsonRequestBody    REST request body. If NULL, no body is sent
+ * @param[out] jsonResponseParser Return location for a REST response or NULL to skip response
+ *                                parsing
  * @param[out] error              Error
  * @return TRUE if request and response parser (if given) suceeded, FALSE otherwise (error set).
  */
-static gboolean rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonRequestBody, JsonParser** jsonResponseParser, GError** error)
+static gboolean rest_request(enum HTTPMethod method, const gchar *url,
+                             JsonBuilder *jsonRequestBody, JsonParser **jsonResponseParser,
+                             GError **error)
 {
-        gchar *postdata = NULL;
-        g_autofree gchar *token = NULL;
-        RestPayload *fetch_buffer = g_new0(RestPayload, 1);
-        glong http_code = 0;
+        g_autofree gchar *postdata = NULL, *token = NULL;
+        g_autoptr(RestPayload) fetch_buffer = NULL;
         struct curl_slist *headers = NULL;
-        CURL *curl = curl_easy_init();
+        g_autoptr(CURL) curl = NULL;
+        glong http_code = 0;
+        CURLcode res;
+
+        g_return_val_if_fail(url, FALSE);
+        g_return_val_if_fail(jsonResponseParser == NULL || *jsonResponseParser == NULL, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        curl = curl_easy_init();
         if (!curl) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
                             "Unable to start libcurl easy session");
@@ -284,15 +295,11 @@ static gboolean rest_request(enum HTTPMethod method, const gchar* url, JsonBuild
         }
 
         // init response buffer
-        fetch_buffer->payload = g_malloc0(DEFAULT_CURL_REQUEST_BUFFER_SIZE);
-        if (fetch_buffer->payload == NULL) {
-                g_debug("Failed to expand buffer");
-                curl_easy_cleanup(curl);
-                return FALSE;
-        }
+        fetch_buffer = g_new0(RestPayload, 1);
         fetch_buffer->size = 0;
+        fetch_buffer->payload = g_malloc0(DEFAULT_CURL_REQUEST_BUFFER_SIZE);
 
-        // setup CURL options
+        // set up CURL options
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, HTTPMethod_STRING[method]);
@@ -304,18 +311,15 @@ static gboolean rest_request(enum HTTPMethod method, const gchar* url, JsonBuild
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
 
         if (jsonRequestBody) {
-                // Convert request into a string
-                JsonGenerator *generator = json_generator_new();
-                JsonNode *req_root = json_builder_get_root(jsonRequestBody);
-                gsize length;
+                g_autoptr(JsonGenerator) generator = json_generator_new();
+                g_autoptr(JsonNode) req_root = json_builder_get_root(jsonRequestBody);
+                g_autofree gchar *json_req_str = NULL;
 
                 json_generator_set_root(generator, req_root);
-                postdata = json_generator_to_data(generator, &length);
-                g_object_unref(generator);
+                postdata = json_generator_to_data(generator, NULL);
                 curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata);
-                g_autofree gchar *str = json_to_string(req_root, TRUE);
-                g_debug("Request body: %s", str);
-                json_node_unref(req_root);
+                json_req_str = json_to_string(req_root, TRUE);
+                g_debug("Request body: %s", json_req_str);
         }
 
         // set up request headers
@@ -338,37 +342,38 @@ static gboolean rest_request(enum HTTPMethod method, const gchar* url, JsonBuild
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         // perform request
-        CURLcode res = curl_easy_perform(curl);
+        res = curl_easy_perform(curl);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-        if (res == CURLE_OK && http_code == 200) {
-                if (jsonResponseParser && fetch_buffer->size > 0) {
-                        JsonParser *parser = json_parser_new_immutable();
-                        if (json_parser_load_from_data(parser, fetch_buffer->payload, fetch_buffer->size, error)) {
-                                JsonNode *resp_root = json_parser_get_root(parser);
-                                g_autofree gchar *str = json_to_string(resp_root, TRUE);
-                                g_debug("Response body: %s", str);
-                                *jsonResponseParser = parser;
-
-                        } else {
-                                g_object_unref(parser);
-                                g_debug("Failed to parse JSON response body. status: %ld", http_code);
-                        }
-                }
-        }
+        curl_slist_free_all(headers);
         if (res != CURLE_OK) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, res, "%s",
                             curl_easy_strerror(res));
-        } else if (http_code != 200) {
+                return FALSE;
+        }
+        if (http_code != 200) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld; server response: %s", http_code,
                             fetch_buffer->payload);
+                return FALSE;
         }
 
-        rest_payload_free(fetch_buffer);
-        g_free(postdata);
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
-        return http_code == 200;
+        if (jsonResponseParser && fetch_buffer->size > 0) {
+                // process JSON repsonse
+                g_autoptr(JsonParser) parser = json_parser_new_immutable();
+                JsonNode *resp_root = NULL;
+                g_autofree gchar *json_resp_str = NULL;
+
+                if (!json_parser_load_from_data(parser, fetch_buffer->payload, fetch_buffer->size,
+                                                error))
+                        return FALSE;
+
+                resp_root = json_parser_get_root(parser);
+                json_resp_str = json_to_string(resp_root, TRUE);
+                g_debug("Response body: %s", json_resp_str);
+                *jsonResponseParser = g_steal_pointer(&parser);
+        }
+
+        return TRUE;
 }
 
 /**
