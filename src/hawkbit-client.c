@@ -267,9 +267,9 @@ static size_t curl_write_cb(void *content, size_t size, size_t nmemb, void *data
  * @param[in]  jsonRequestBody    REST request body. If NULL, no body is sent.
  * @param[out] jsonResponseParser REST response
  * @param[out] error              Error
- * @return HTTP Status code (Standard codes: 200 = OK, 524 = Operation timed out, 401 = Authorization needed, 403 = Authentication failed )
+ * @return TRUE if request and response parser (if given) suceeded, FALSE otherwise (error set).
  */
-static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonRequestBody, JsonParser** jsonResponseParser, GError** error)
+static gboolean rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* jsonRequestBody, JsonParser** jsonResponseParser, GError** error)
 {
         gchar *postdata = NULL;
         g_autofree gchar *token = NULL;
@@ -280,7 +280,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         if (!curl) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
                             "Unable to start libcurl easy session");
-                return -1;
+                return FALSE;
         }
 
         // init response buffer
@@ -288,7 +288,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         if (fetch_buffer->payload == NULL) {
                 g_debug("Failed to expand buffer");
                 curl_easy_cleanup(curl);
-                return -1;
+                return FALSE;
         }
         fetch_buffer->size = 0;
 
@@ -320,7 +320,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
 
         // set up request headers
         if (!add_curl_header(&headers, "Accept: application/json;charset=UTF-8", error))
-                return -1;
+                return FALSE;
 
         if (hawkbit_config->auth_token)
                 token = g_strdup_printf("Authorization: TargetToken %s",
@@ -329,11 +329,11 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
                 token = g_strdup_printf("Authorization: GatewayToken %s",
                                         hawkbit_config->gateway_token);
         if (token && !add_curl_header(&headers, token, error))
-                return -1;
+                return FALSE;
 
         if (jsonRequestBody &&
             !add_curl_header(&headers, "Content-Type: application/json;charset=UTF-8", error))
-                return -1;
+                return FALSE;
 
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
@@ -368,7 +368,7 @@ static gint rest_request(enum HTTPMethod method, const gchar* url, JsonBuilder* 
         g_free(postdata);
         curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
-        return http_code;
+        return http_code == 200;
 }
 
 /**
@@ -438,12 +438,13 @@ static void json_build_status(JsonBuilder *builder, const gchar *id, const gchar
 static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, gchar *execution, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
+        gboolean res;
+
         json_build_status(builder, id, detail, finished, execution, NULL);
 
-        int status = rest_request(POST, url, builder, NULL, error);
-        g_debug("Feedback status: %d, URL: %s", status, url);
+        res = rest_request(POST, url, builder, NULL, error);
         g_object_unref(builder);
-        return (status == 200);
+        return res;
 }
 
 /**
@@ -452,12 +453,13 @@ static gboolean feedback(gchar *url, gchar *id, gchar *detail, gchar *finished, 
 static gboolean feedback_progress(const gchar *url, const gchar *id, const gchar *detail, GError **error)
 {
         JsonBuilder *builder = json_builder_new();
+        gboolean res;
+
         json_build_status(builder, id, detail, "none", "proceeding", NULL);
 
-        int status = rest_request(POST, url, builder, NULL, error);
-        g_debug("Feedback progress status: %d, URL: %s", status, url);
+        res = rest_request(POST, url, builder, NULL, error);
         g_object_unref(builder);
-        return (status == 200);
+        return res;
 }
 
 /**
@@ -521,15 +523,17 @@ gboolean hawkbit_progress(const gchar *msg)
 
 static gboolean identify(GError **error)
 {
+        gboolean res;
+
         g_debug("Identifying ourself to hawkbit server");
         g_autofree gchar *put_config_data_url = build_api_url("configData");
 
         JsonBuilder *builder = json_builder_new();
         json_build_status(builder, NULL, NULL, "success", "closed", hawkbit_config->device);
 
-        gint status = rest_request(PUT, put_config_data_url, builder, NULL, error);
+        res = rest_request(PUT, put_config_data_url, builder, NULL, error);
         g_object_unref(builder);
-        return (status == 200);
+        return res;
 }
 
 static void process_artifact_cleanup(struct artifact *artifact)
@@ -645,6 +649,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         GError *ierror = NULL;
         struct artifact *artifact = NULL;
+        gboolean res;
 
         if (action_id) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
@@ -664,11 +669,10 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // get deployment resource
         JsonParser *json_response_parser = NULL;
-        int status = rest_request(GET, deployment, NULL, &json_response_parser, error);
-        if (status != 200 || json_response_parser == NULL) {
-                g_debug("Failed to get resource from hawkbit server. Status: %d", status);
+        res = rest_request(GET, deployment, NULL, &json_response_parser, error);
+        if (!res)
                 return FALSE;
-        }
+
         JsonNode *resp_root = json_parser_get_root(json_response_parser);
 
         action_id = json_get_string(resp_root, "$.id", NULL);
@@ -728,7 +732,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         if (freespace == -1) {
                 feedback(feedback_url, action_id, ierror->message, "failure", "closed", NULL);
                 g_propagate_error(error, ierror);
-                status = -4;
                 goto proc_error;
         } else if (freespace < artifact->size) {
                 g_autofree gchar *msg = g_strdup_printf("Not enough free space. File size: %" G_GINT64_FORMAT  ". Free space: %" G_GOFFSET_FORMAT,
@@ -737,7 +740,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 // Notify hawkbit that there is not enough free space.
                 feedback(feedback_url, action_id, msg, "failure", "closed", NULL);
                 g_set_error(error, 1, 23, "%s", msg);
-                status = -4;
                 goto proc_error;
         }
 
@@ -778,6 +780,7 @@ typedef struct ClientData_ {
 static gboolean hawkbit_pull_cb(gpointer user_data)
 {
         ClientData *data = user_data;
+        gboolean res;
 
         if (++data->last_run_sec < data->hawkbit_interval_check_sec)
                 return G_SOURCE_CONTINUE;
@@ -790,8 +793,8 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         JsonParser *json_response_parser = NULL;
 
         g_message("Checking for new software...");
-        int status = rest_request(GET, get_tasks_url, NULL, &json_response_parser, &error);
-        if (status == 200) {
+        res = rest_request(GET, get_tasks_url, NULL, &json_response_parser, &error);
+        if (res) {
                 if (json_response_parser) {
                         // json_root is owned by the JsonParser and should never be modified or freed.
                         JsonNode *json_root = json_parser_get_root(json_response_parser);
@@ -828,7 +831,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
 
                 data->hawkbit_interval_check_sec = hawkbit_config->retry_wait;
         } else {
-                g_debug("Scheduled check for new software failed status code: %d", status);
+                g_debug("Scheduled check for new software failed status code: %d", error->code);
                 if (error) {
                         g_critical("HTTP Error: %s", error->message);
                 }
@@ -837,7 +840,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         g_clear_error(&error);
 
         if (run_once) {
-                data->res = status == 200 ? 0 : 1;
+                data->res = res ? 0 : 1;
                 g_main_loop_quit(data->loop);
                 return G_SOURCE_REMOVE;
         }
