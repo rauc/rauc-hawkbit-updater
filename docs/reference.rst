@@ -88,6 +88,15 @@ Optional options:
   Time to wait before retrying in case an error occurred [seconds].
   Defaults to ``60`` seconds.
 
+``post_update_reboot``
+  Whether to reboot the system after a successful update.
+  Defaults to ``false``.
+
+  .. important::
+    Note that this results in an immediate reboot without contacting the system
+    manager and without terminating any processes or unmounting any file systems.
+    This may result in data loss.
+
 ``log_level=<level>``
   Log level to print, where ``level`` is a string of
 
