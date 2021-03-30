@@ -5,6 +5,7 @@ RAUC hawkBit Updater
 [![License](https://img.shields.io/badge/license-LGPLv2.1-blue.svg)](https://raw.githubusercontent.com/rauc/rauc-hawkbit-updater/master/LICENSE)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/rauc/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/rauc/rauc-hawkbit-updater/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/rauc/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/rauc/rauc-hawkbit-updater/context:cpp)
+[![Documentation](https://readthedocs.org/projects/rauc-hawkbit-updater/badge/?version=latest)](https://rauc-hawkbit-updater.readthedocs.io/en/latest/?badge=latest)
 [![Matrix](https://img.shields.io/matrix/rauc:matrix.org?label=matrix%20chat)](https://app.element.io/#/room/#rauc:matrix.org)
 
 The RAUC hawkBit updater is a simple commandline tool / daemon written in C (glib).
