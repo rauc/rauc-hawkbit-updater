@@ -134,6 +134,11 @@ int main(int argc, char **argv)
         g_auto(GStrv) args = NULL;
         GLogLevelFlags log_level;
         g_autoptr(Config) config = NULL;
+        GLogLevelFlags fatal_mask;
+
+        fatal_mask = g_log_set_always_fatal(G_LOG_FATAL_MASK);
+        fatal_mask |= G_LOG_LEVEL_CRITICAL;
+        g_log_set_always_fatal(fatal_mask);
 
         args = g_strdupv(argv);
 
