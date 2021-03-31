@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
-project( rauc-hawkbit-updater )
+project( rauc-hawkbit-updater VERSION "0.1.0" )
+
+add_definitions( -DPROJECT_VERSION="${PROJECT_VERSION}" )
 
 option(WITH_SYSTEMD "Set to ON to create unit files and enable systemd startup"  OFF)
 option(BUILD_DOC    "Build documentation" OFF)
