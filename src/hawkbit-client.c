@@ -1040,7 +1040,7 @@ out:
                         res = GPOINTER_TO_INT(thread_ret);
                 }
 
-                data->res = res ? 0 : 1;
+                data->res = res;
                 g_main_loop_quit(data->loop);
                 return G_SOURCE_REMOVE;
         }
@@ -1097,7 +1097,7 @@ int hawkbit_start_service_sync()
 
         g_main_loop_run(cdata.loop);
 
-        res = cdata.res;
+        res = cdata.res ? 0 : 1;
 
 #ifdef WITH_SYSTEMD
         sd_notify(0, "STOPPING=1\nSTATUS=Stopped polling HawkBit for new software.");
