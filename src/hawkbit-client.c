@@ -741,7 +741,10 @@ gboolean install_complete_cb(gpointer ptr)
  * feedback and call software_ready_cb() callback on success.
  *
  * @param[in] data Artifact* to process
- * @return NULL is always returned
+ * @return gpointer being 1 (TRUE) if download succeeded, 0 (FALSE) otherwise. The return value is
+ *         meant to be used with the GPOINTER_TO_INT() macro only.
+ *         Note that if the download thread waited for installation to finish ('run_once' mode),
+ *         TRUE means both installation and download succeeded.
  */
 static gpointer download_thread(gpointer data)
 {
@@ -749,6 +752,7 @@ static gpointer download_thread(gpointer data)
                 .install_progress_callback = (GSourceFunc) hawkbit_progress,
                 .install_complete_callback = install_complete_cb,
                 .file = hawkbit_config->bundle_download_location,
+                .install_success = FALSE,
         };
         g_autoptr(GError) error = NULL, feedback_error = NULL;
         g_autofree gchar *msg = NULL, *sha1sum = NULL;
@@ -795,7 +799,7 @@ static gpointer download_thread(gpointer data)
 
         software_ready_cb(&userdata);
 
-        return NULL;
+        return GINT_TO_POINTER(userdata.install_success);
 
 report_err:
         g_mutex_trylock(&active_action->mutex);
@@ -806,7 +810,7 @@ report_err:
         process_deployment_cleanup();
         g_mutex_unlock(&active_action->mutex);
 
-        return NULL;
+        return GINT_TO_POINTER(FALSE);
 }
 
 /**
@@ -1031,7 +1035,12 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
 
 out:
         if (run_once) {
-                data->res = res ? 0 : 1;
+                if (thread_download) {
+                        gpointer thread_ret = g_thread_join(thread_download);
+                        res = GPOINTER_TO_INT(thread_ret);
+                }
+
+                data->res = res;
                 g_main_loop_quit(data->loop);
                 return G_SOURCE_REMOVE;
         }
@@ -1088,7 +1097,7 @@ int hawkbit_start_service_sync()
 
         g_main_loop_run(cdata.loop);
 
-        res = cdata.res;
+        res = cdata.res ? 0 : 1;
 
 #ifdef WITH_SYSTEMD
         sd_notify(0, "STOPPING=1\nSTATUS=Stopped polling HawkBit for new software.");
