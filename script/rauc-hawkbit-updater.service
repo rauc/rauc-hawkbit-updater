@@ -1,7 +1,7 @@
 [Unit]
 Description=HawkBit client for Rauc
-After=network.target
-After=rauc.service
+After=network-online.target rauc.service
+Wants=network-online.target
 
 [Service]
 User=rauc-hawkbit
