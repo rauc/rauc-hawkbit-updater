@@ -2,12 +2,8 @@
  * SPDX-License-Identifier: LGPL-2.1-only
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
- * @file hawkbit-client.c
- * @author Lasse Mikkelsen <lkmi@prevas.dk>
- * @date 19 Sep 2018
- * @brief Hawkbit client
- *
- * Implementation of the hawkBit DDI API.
+ * @file
+ * @brief Implementation of the hawkBit DDI API
  *
  * @see https://github.com/rauc/rauc-hawkbit
  * @see https://www.eclipse.org/hawkbit/apis/ddi_api/

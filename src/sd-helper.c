@@ -2,11 +2,8 @@
  * SPDX-License-Identifier: LGPL-2.1-only
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
- * @file sd-helper.c
- * @author Lasse Mikkelsen <lkmi@prevas.dk>
- * @date 21 Sep 2018
+ * @file
  * @brief Systemd helper
- *
  */
 
 #include "sd-helper.h"
