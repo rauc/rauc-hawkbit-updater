@@ -1,5 +1,6 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
+ * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
  * Copyright (C) 2018-2020 Prevas A/S (www.prevas.com)
  *
