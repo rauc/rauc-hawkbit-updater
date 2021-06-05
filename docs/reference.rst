@@ -116,3 +116,7 @@ Optional options:
 This section allows to set a custom list of key-value pairs that will be used
 as config data target attribute for device registration.
 They can be used for target filtering.
+
+.. important::
+  The [device] section is mandatory and at least one key-value pair must be
+  configured.
