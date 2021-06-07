@@ -49,7 +49,7 @@ Mandatory options:
 
   .. note:: Either ``auth_token`` or ``gateway_token`` must be provided
 
-``gateway_token``
+``gateway_token=<token>``
   Gateway authentication token.
   This is a tenant-wide token and must explicitly be enabled in hakwBit first.
   It is actually meant to authenticate a gateway that itself
@@ -72,7 +72,7 @@ Optional options:
   Whether to use SSL connections (``https``) or not (``http``).
   Defaults to ``true``.
 
-``ssl_verify``
+``ssl_verify=<boolean>``
   Whether to enforce SSL verification or not.
   Defaults to ``true``.
 
@@ -88,7 +88,7 @@ Optional options:
   Time to wait before retrying in case an error occurred [seconds].
   Defaults to ``60`` seconds.
 
-``post_update_reboot``
+``post_update_reboot=<boolean>``
   Whether to reboot the system after a successful update.
   Defaults to ``false``.
 
@@ -116,3 +116,7 @@ Optional options:
 This section allows to set a custom list of key-value pairs that will be used
 as config data target attribute for device registration.
 They can be used for target filtering.
+
+.. important::
+  The [device] section is mandatory and at least one key-value pair must be
+  configured.
