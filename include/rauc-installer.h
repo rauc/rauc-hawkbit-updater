@@ -20,6 +20,7 @@ struct install_context {
         gint status_result;           /**< The result of the installation */
         GMainLoop *mainloop;          /**< The installation GMainLoop  */
         GMainContext *loop_context;   /**< GMainContext for the GMainLoop */
+        gboolean keep_install_context; /**< Whether the installation thread should free this struct or keep it */
 };
 
 /**

@@ -177,7 +177,10 @@ notify_complete:
 
         g_clear_pointer(&r_installer_proxy, g_object_unref);
         g_main_context_pop_thread_default(context->loop_context);
-        install_context_free(context);
+
+        // on wait, calling function will take care of freeing after reading context->status_result
+        if (!context->keep_install_context)
+                install_context_free(context);
         return NULL;
 }
 
@@ -197,6 +200,7 @@ gboolean rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
         context->mainloop = g_main_loop_new(loop_context, FALSE);
         context->loop_context = loop_context;
         context->status_result = 2;
+        context->keep_install_context = wait;
 
         // unref/free previous install thread by joining it
         if (thread_install)
@@ -205,8 +209,13 @@ gboolean rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
         // start install thread
         thread_install = g_thread_new("installer", install_loop_thread, (gpointer) context);
         if (wait) {
+                gboolean result;
+
                 g_thread_join(thread_install);
-                return context->status_result == 0;
+                result = context->status_result == 0;
+
+                install_context_free(context);
+                return result;
         }
 
         // return immediately if we did not wait for the install thread
