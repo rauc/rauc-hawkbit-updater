@@ -781,7 +781,7 @@ static gpointer download_thread(gpointer data)
         return GINT_TO_POINTER(userdata.install_success);
 
 report_err:
-        g_mutex_trylock(&active_action->mutex);
+        g_mutex_lock(&active_action->mutex);
         if (!feedback(artifact->feedback_url, active_action->id, error->message, "failure",
                       "closed", &feedback_error))
                 g_warning("%s", feedback_error->message);
