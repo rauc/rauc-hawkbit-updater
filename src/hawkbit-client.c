@@ -671,8 +671,6 @@ static gboolean identify(GError **error)
  */
 static void process_deployment_cleanup()
 {
-        g_assert_false(g_mutex_trylock(&active_action->mutex));
-
         g_free(active_action->id);
         active_action->id = NULL;
 
@@ -783,7 +781,7 @@ static gpointer download_thread(gpointer data)
         return GINT_TO_POINTER(userdata.install_success);
 
 report_err:
-        g_mutex_trylock(&active_action->mutex);
+        g_mutex_lock(&active_action->mutex);
         if (!feedback(artifact->feedback_url, active_action->id, error->message, "failure",
                       "closed", &feedback_error))
                 g_warning("%s", feedback_error->message);
@@ -813,7 +811,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         g_return_val_if_fail(req_root, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-        g_assert_false(g_mutex_trylock(&active_action->mutex));
 
         if (active_action->id) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
