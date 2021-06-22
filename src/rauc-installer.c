@@ -113,7 +113,11 @@ static void install_context_free(struct install_context *context)
 
         g_free(context->bundle);
         g_mutex_clear(&context->status_mutex);
+
+        // make sure all pending events are processed
+        while (g_main_context_iteration(context->loop_context, FALSE));
         g_main_context_unref(context->loop_context);
+
         g_assert_cmpint(context->status_result, >=, 0);
         g_assert_true(g_queue_is_empty(&context->status_messages));
         g_main_loop_unref(context->mainloop);
