@@ -7,6 +7,7 @@
  */
 
 #include <stdio.h>
+#include <locale.h>
 #include <glib.h>
 #include <glib/gprintf.h>
 #include "rauc-installer.h"
@@ -121,6 +122,13 @@ int main(int argc, char **argv)
         fatal_mask = g_log_set_always_fatal(G_LOG_FATAL_MASK);
         fatal_mask |= G_LOG_LEVEL_CRITICAL;
         g_log_set_always_fatal(fatal_mask);
+
+        // support available locales and require locale's encoding to be UTF-8
+        setlocale(LC_ALL, "");
+        if (!g_get_charset(NULL)) {
+                g_printerr("Locale's encoding must be UTF-8\n");
+                return 1;
+        }
 
         args = g_strdupv(argv);
 
