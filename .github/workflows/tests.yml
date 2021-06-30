@@ -6,10 +6,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         options:
         - -DWITH_SYSTEMD=ON
         - -DWITH_SYSTEMD=OFF
+        - -DWITH_SYSTEMD=ON -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak"
+        - -DWITH_SYSTEMD=OFF -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak"
     steps:
     - name: Inspect environment
       run: |
@@ -57,7 +60,7 @@ jobs:
     - name: Run test suite
       run: |
         ./test/wait-for-hawkbit-online
-        dbus-run-session -- pytest -v
+        ASAN_OPTIONS=fast_unwind_on_malloc=0 dbus-run-session -- pytest -v
 
   docs:
     runs-on: ubuntu-latest
