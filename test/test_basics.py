@@ -14,6 +14,13 @@ def test_version():
     assert out.startswith('Version ')
     assert err == ''
 
+def test_invalid_encoding(non_utf8_locale):
+    """Test invalid locale encoding."""
+    out, err, exitcode = run('rauc-hawkbit-updater')
+
+    assert exitcode == 1
+    assert err.strip() == "Locale's encoding must be UTF-8"
+
 def test_invalid_arg():
     """Test invalid argument."""
     out, err, exitcode = run('rauc-hawkbit-updater --invalidarg')

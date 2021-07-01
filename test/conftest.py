@@ -260,3 +260,13 @@ def rate_limited_port(nginx_proxy):
         return nginx_proxy(location_options)
 
     return _rate_limited_port
+
+@pytest.fixture
+def non_utf8_locale():
+    """Set LC_CTYPE to the C locale. It uses ASCII encoding, not UTF-8."""
+    env = os.environ.copy()
+    os.environ['LC_CTYPE'] = 'C'
+
+    yield
+
+    os.environ = env
