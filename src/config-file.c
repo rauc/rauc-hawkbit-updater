@@ -54,6 +54,7 @@ static gboolean get_key_string(GKeyFile *key_file, const gchar *group, const gch
                 return FALSE;
         }
 
+        val = g_strchomp(val);
         *value = g_steal_pointer(&val);
         return TRUE;
 }
@@ -87,6 +88,8 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar *group, const gchar
                 *value = default_value;
                 return TRUE;
         }
+
+        val = g_strchomp(val);
 
         if (g_strcmp0(val, "0") == 0 || g_ascii_strcasecmp(val, "no") == 0 ||
             g_ascii_strcasecmp(val, "false") == 0) {
@@ -186,6 +189,7 @@ static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **h
                 if (!value)
                         return FALSE;
 
+                value = g_strchomp(value);
                 g_hash_table_insert(tmp_hash, g_strdup(keys[key]), g_steal_pointer(&value));
         }
 
