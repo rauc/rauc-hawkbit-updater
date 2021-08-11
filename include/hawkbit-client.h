@@ -89,6 +89,7 @@ typedef struct Artifact_ {
         gchar *download_url;          /**< download URL of software bundle file */
         gchar *feedback_url;          /**< URL status feedback should be sent to */
         gchar *sha1;                  /**< sha1 checksum of software bundle file */
+        gboolean do_install;          /**< whether the installation should be started or not */
 } Artifact;
 
 /**

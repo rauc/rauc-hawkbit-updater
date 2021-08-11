@@ -906,6 +906,14 @@ static gpointer download_thread(gpointer data)
         if (active_action->state == ACTION_STATE_CANCEL_REQUESTED)
                 goto cancel;
 
+        // skip installation if hawkBit asked us to do so
+        if (!artifact->do_install) {
+                active_action->state = ACTION_STATE_NONE;
+                g_mutex_unlock(&active_action->mutex);
+
+                return GINT_TO_POINTER(TRUE);
+        }
+
         // start installation, cancelations are impossible now
         active_action->state = ACTION_STATE_INSTALLING;
         g_cond_signal(&active_action->cond);
@@ -945,8 +953,9 @@ cancel:
  */
 static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
-        g_autoptr(Artifact) artifact = NULL;
-        g_autofree gchar *deployment = NULL, *feedback_url = NULL, *deployment_download = NULL,
+        g_autoptr(Artifact) artifact = g_new0(Artifact, 1);
+        g_autofree gchar *deployment = NULL, *feedback_url = NULL, *temp_id = NULL,
+                         *deployment_download = NULL, *deployment_update = NULL,
                          *maintenance_window = NULL, *maintenance_msg = NULL;
         g_autoptr(JsonParser) json_response_parser = NULL;
         g_autoptr(JsonArray) json_chunks = NULL, json_artifacts = NULL;
@@ -995,9 +1004,34 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 return TRUE;
         }
 
+        // handle deployment.update=skip
+        deployment_update = json_get_string(resp_root, "$.deployment.update", error);
+        if (!deployment_update)
+                goto error;
+
+        artifact->do_install = g_strcmp0(deployment_update, "skip") != 0;
+        if (!artifact->do_install)
+                g_message("hawkBit requested to skip installation, not invoking RAUC yet%s.",
+                          maintenance_msg);
+
         // remember deployment's action id
+        temp_id = json_get_string(resp_root, "$.id", error);
+
+        if (!artifact->do_install && !g_strcmp0(temp_id, active_action->id)) {
+                g_debug("Deployment %s is still waiting%s.", active_action->id, maintenance_msg);
+                active_action->state = ACTION_STATE_NONE;
+                return TRUE;
+        }
+
+        // clean up on changed deployment id
+        if (g_strcmp0(temp_id, active_action->id))
+                process_deployment_cleanup();
+        else
+                g_debug("Continuing scheduled deployment %s%s.", active_action->id,
+                        maintenance_msg);
+
         g_free(active_action->id);
-        active_action->id = json_get_string(resp_root, "$.id", error);
+        active_action->id = g_steal_pointer(&temp_id);
         if (!active_action->id)
                 goto error;
 
@@ -1029,7 +1063,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         json_artifact = json_array_get_element(json_artifacts, 0);
 
         // get artifact information
-        artifact = g_new0(Artifact, 1);
         artifact->version = json_get_string(json_chunk, "$.version", error);
         if (!artifact->version)
                 goto proc_error;
