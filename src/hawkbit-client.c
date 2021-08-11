@@ -946,7 +946,8 @@ cancel:
 static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         g_autoptr(Artifact) artifact = NULL;
-        g_autofree gchar *deployment = NULL, *feedback_url = NULL;
+        g_autofree gchar *deployment = NULL, *feedback_url = NULL, *deployment_download = NULL,
+                         *maintenance_window = NULL, *maintenance_msg = NULL;
         g_autoptr(JsonParser) json_response_parser = NULL;
         g_autoptr(JsonArray) json_chunks = NULL, json_artifacts = NULL;
         JsonNode *resp_root = NULL, *json_chunk = NULL, *json_artifact = NULL;
@@ -975,6 +976,24 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto error;
 
         resp_root = json_parser_get_root(json_response_parser);
+
+        // handle deployment.maintenanceWindow (only available if maintenance window is defined)
+        maintenance_window = json_get_string(resp_root, "$.deployment.maintenanceWindow", NULL);
+        maintenance_msg = maintenance_window
+                          ? g_strdup_printf(" (maintenance window is '%s')", maintenance_window)
+                          : g_strdup("");
+
+        // handle deployment.download=skip
+        deployment_download = json_get_string(resp_root, "$.deployment.download", error);
+        if (!deployment_download)
+                goto error;
+
+        if (!g_strcmp0(deployment_download, "skip")) {
+                g_message("hawkBit requested to skip download, not downloading yet%s.",
+                          maintenance_msg);
+                active_action->state = ACTION_STATE_NONE;
+                return TRUE;
+        }
 
         // remember deployment's action id
         g_free(active_action->id);
