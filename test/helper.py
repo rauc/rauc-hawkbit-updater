@@ -73,3 +73,15 @@ def available_port():
         sock.bind(('localhost', 0))
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return sock.getsockname()[1]
+
+def timezone_offset_utc(date):
+    utc_offset = int(date.astimezone().utcoffset().total_seconds())
+
+    utc_offset_hours, remainder = divmod(utc_offset, 60*60)
+    utc_offset_minutes, remainder = divmod(remainder, 60)
+    sign_offset = '+' if utc_offset >=0 else '-'
+
+    if remainder != 0:
+        raise Exception('UTC offset contains fraction of a minute')
+
+    return f'{sign_offset}{utc_offset_hours:02}:{utc_offset_minutes:02}'

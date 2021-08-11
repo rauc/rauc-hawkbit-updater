@@ -1,7 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-only
 # SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
-from helper import run
+from datetime import datetime, timedelta
+from pathlib import Path
+
+from pexpect import TIMEOUT
+
+from helper import run, run_pexpect, timezone_offset_utc
 
 def test_install_bundle_no_dbus_iface(hawkbit, bundle_assigned, config):
     """Assign bundle to target and test installation without RAUC D-Bus interface available."""
@@ -50,3 +55,38 @@ def test_install_failure(hawkbit, config, bundle_assigned, rauc_dbus_install_fai
     status = hawkbit.get_action_status()
     assert status[0]['type'] == 'error'
     assert 'Failed to install software bundle.' in status[0]['messages']
+
+def test_install_maintenance_window(hawkbit, config, rauc_bundle, assign_bundle,
+                                    rauc_dbus_install_success):
+    bundle_size = Path(rauc_bundle).stat().st_size
+    maintenance_start = datetime.now() + timedelta(seconds=15)
+    maintenance_window = {
+        'maintenanceWindow': {
+            'schedule' : maintenance_start.strftime('%-S %-M %-H ? %-m * %-Y'),
+            'timezone' : timezone_offset_utc(maintenance_start),
+            'duration' : '00:01:00'
+        }
+    }
+    assign_bundle(params=maintenance_window)
+
+    proc = run_pexpect(f'rauc-hawkbit-updater -c "{config}"')
+    proc.expect(r"hawkBit requested to skip installation, not invoking RAUC yet \(maintenance window is 'unavailable'\)")
+    proc.expect('Start downloading')
+    proc.expect('Download complete')
+    proc.expect('File checksum OK')
+
+    # wait for the maintenance window to become available and the next poll of the base resource
+    proc.expect(TIMEOUT, timeout=30)
+    proc.expect(r"Continuing scheduled deployment .* \(maintenance window is 'available'\)")
+    # RAUC bundle should have been already downloaded completely
+    proc.expect(f'Resuming download from offset {bundle_size}')
+    proc.expect('Download complete')
+    proc.expect('File checksum OK')
+    proc.expect('Software bundle installed successfully')
+
+    # let feedback propagate to hawkBit before termination
+    proc.expect(TIMEOUT, timeout=2)
+    proc.terminate(force=True)
+
+    status = hawkbit.get_action_status()
+    assert status[0]['type'] == 'finished'
