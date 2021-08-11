@@ -123,3 +123,21 @@ def test_download_slow_with_resume(hawkbit, bundle_assigned, adjust_config, rate
     assert 'Resuming download from offset' in out
     assert 'Download complete.' in out
     assert 'File checksum OK.' in out
+
+def test_download_only(hawkbit, config, assign_bundle):
+    """Test "downloadonly" deployment."""
+    assign_bundle(params={'type': 'downloadonly'})
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    assert 'Start downloading' in out
+    assert 'hawkBit requested to skip installation, not invoking RAUC yet.' in out
+    assert 'Download complete' in out
+    assert 'File checksum OK' in out
+    assert err == ''
+    assert exitcode == 0
+
+    status = hawkbit.get_action_status()
+    assert any(['download' in s['type'] for s in status])
+
+    # check last status message
+    assert 'File checksum OK.' in status[0]['messages']
