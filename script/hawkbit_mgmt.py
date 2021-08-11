@@ -354,7 +354,7 @@ class HawkbitMgmtTestClient:
         if 'artifact' in self.id and artifact_id == self.id['artifact']:
             del self.id['artifact']
 
-    def assign_target(self, dist_id: str = None, target_id: str = None):
+    def assign_target(self, dist_id: str = None, target_id: str = None, params: dict = None):
         """
         Assigns the distribution set matching `dist_id` to a target matching `target_id`.
         If `dist_id` is not given, uses the distribution set created by the most recent
@@ -368,6 +368,9 @@ class HawkbitMgmtTestClient:
         dist_id = dist_id or self.id['distributionset']
         target_id = target_id or self.id['target']
         testdata = [{'id': target_id}]
+
+        if params:
+            testdata[0].update(params)
 
         response = self.post(f'distributionsets/{dist_id}/assignedTargets', testdata)
 

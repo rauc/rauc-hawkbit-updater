@@ -138,7 +138,7 @@ def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle, tmp_path):
     distributionsets = []
     actions = []
 
-    def _assign_bundle(swmodules_num=1, artifacts_num=1):
+    def _assign_bundle(swmodules_num=1, artifacts_num=1, params=None):
         for i in range(swmodules_num):
             swmodule_type = 'application' if swmodules_num > 1 else 'os'
             swmodules.append(hawkbit.add_softwaremodule(module_type=swmodule_type))
@@ -156,7 +156,7 @@ def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle, tmp_path):
         dist_type = 'app' if swmodules_num > 1 else 'os'
         distributionsets.append(hawkbit.add_distributionset(module_ids=swmodules,
                                                             dist_type=dist_type))
-        actions.append(hawkbit.assign_target(distributionsets[-1]))
+        actions.append(hawkbit.assign_target(distributionsets[-1], params=params))
 
         return actions[-1]
 
