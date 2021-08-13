@@ -18,7 +18,7 @@ class PExpectLogger:
     def __init__(self, level=logging.INFO, logger=None):
         self.level = level
         self.data = b''
-        self.logger = logger if logger else logging.getLogger()
+        self.logger = logger or logging.getLogger()
 
     def write(self, data):
         self.data += data
