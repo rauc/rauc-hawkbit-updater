@@ -250,28 +250,30 @@ class HawkbitMgmtTestClient:
         if 'softwaremodule' in self.id and module_id == self.id['softwaremodule']:
             del self.id['softwaremodule']
 
-    def add_distributionset(self, name: str = None, module_id: str = None):
+    def add_distributionset(self, name: str = None, module_ids: list = []):
         """
-        Adds a new distribution set with `name` to the software module matching `module_id`.
+        Adds a new distribution set with `name` containing the software modules matching `module_ids`.
         If `name` is not given, a generic name is made up.
-        If `module_id` is not given, uses the software module created by the most recent
+        If `module_ids` is not given, uses the software module created by the most recent
         `add_softwaremodule()` call.
         Stores the id of the created distribution set for future use by other methods.
         Returns the id of the created distribution set.
 
         https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_post_rest_v1_distributionsets
         """
+        assert isinstance(module_ids, list)
+
         name = name or f'distribution {self.version} ({time.monotonic()})'
-        module_id = module_id or self.id['softwaremodule']
+        module_ids = module_ids or [self.id['softwaremodule']]
         data = [{
             'name': name,
             'description': 'Test distribution',
             'version': str(self.version),
-            'modules': [{
-                'id': module_id
-            }],
+            'modules': [],
             'type': 'os'
         }]
+        for module_id in module_ids:
+            data[0]['modules'].append({'id': module_id})
 
         self.id['distributionset'] = self.post('distributionsets', data)[0]['id']
         return self.id['distributionset']

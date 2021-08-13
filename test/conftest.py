@@ -135,7 +135,7 @@ def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle):
     def _assign_bundle():
         swmodules.append(hawkbit.add_softwaremodule())
         artifacts.append(hawkbit.add_artifact(rauc_bundle, swmodules[-1]))
-        distributionsets.append(hawkbit.add_distributionset(swmodules[-1]))
+        distributionsets.append(hawkbit.add_distributionset(module_ids=swmodules))
         actions.append(hawkbit.assign_target(distributionsets[-1]))
 
         return actions[-1]
