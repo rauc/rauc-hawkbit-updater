@@ -120,7 +120,7 @@ def rauc_bundle(tmp_path_factory):
     return str(bundle)
 
 @pytest.fixture
-def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle):
+def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle, tmp_path):
     """
     Creates a softwaremodule containing the file from the rauc_bundle fixture as an artifact.
     Creates a distributionset from this softwaremodule. Assigns this distributionset to the target
@@ -132,10 +132,24 @@ def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle):
     distributionsets = []
     actions = []
 
-    def _assign_bundle():
-        swmodules.append(hawkbit.add_softwaremodule())
-        artifacts.append(hawkbit.add_artifact(rauc_bundle, swmodules[-1]))
-        distributionsets.append(hawkbit.add_distributionset(module_ids=swmodules))
+    def _assign_bundle(swmodules_num=1, artifacts_num=1):
+        for i in range(swmodules_num):
+            swmodule_type = 'application' if swmodules_num > 1 else 'os'
+            swmodules.append(hawkbit.add_softwaremodule(module_type=swmodule_type))
+
+            for k in range(artifacts_num):
+                # hawkBit will reject files with the same name, so symlink to unique names
+                symlink_dest = tmp_path / f'{os.path.basename(rauc_bundle)}_{k}'
+                try:
+                    os.symlink(rauc_bundle, symlink_dest)
+                except FileExistsError:
+                    pass
+
+                artifacts.append(hawkbit.add_artifact(symlink_dest, swmodules[-1]))
+
+        dist_type = 'app' if swmodules_num > 1 else 'os'
+        distributionsets.append(hawkbit.add_distributionset(module_ids=swmodules,
+                                                            dist_type=dist_type))
         actions.append(hawkbit.assign_target(distributionsets[-1]))
 
         return actions[-1]
@@ -153,7 +167,11 @@ def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle):
 
     for swmodule in swmodules:
         for artifact in artifacts:
-            hawkbit.delete_artifact(artifact, swmodule)
+            try:
+                hawkbit.delete_artifact(artifact, swmodule)
+            except HawkbitError: # artifact does not necessarily belong to this swmodule
+                pass
+
             hawkbit.delete_softwaremodule(swmodule)
 
 @pytest.fixture
