@@ -207,7 +207,7 @@ class HawkbitMgmtTestClient:
 
         return self.get(f'targets/{target_id}/attributes')
 
-    def add_softwaremodule(self, name: str = None):
+    def add_softwaremodule(self, name: str = None, module_type: str = 'os'):
         """
         Adds a new software module with `name`.
         If `name` is not given, a generic name is made up.
@@ -220,7 +220,7 @@ class HawkbitMgmtTestClient:
         data = [{
             'name': name,
             'version': str(self.version),
-            'type': 'os'
+            'type': module_type,
         }]
 
         self.id['softwaremodule'] = self.post('softwaremodules', data)[0]['id']
@@ -250,7 +250,7 @@ class HawkbitMgmtTestClient:
         if 'softwaremodule' in self.id and module_id == self.id['softwaremodule']:
             del self.id['softwaremodule']
 
-    def add_distributionset(self, name: str = None, module_ids: list = []):
+    def add_distributionset(self, name: str = None, module_ids: list = [], dist_type: str = 'os'):
         """
         Adds a new distribution set with `name` containing the software modules matching `module_ids`.
         If `name` is not given, a generic name is made up.
@@ -270,7 +270,7 @@ class HawkbitMgmtTestClient:
             'description': 'Test distribution',
             'version': str(self.version),
             'modules': [],
-            'type': 'os'
+            'type': dist_type,
         }]
         for module_id in module_ids:
             data[0]['modules'].append({'id': module_id})
