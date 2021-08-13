@@ -157,7 +157,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_post_rest_v1_targets
         """
-        target_id = target_id or f'test-{int(time.monotonic())}'
+        target_id = target_id or f'test-{time.monotonic()}'
         testdata = {
             'controllerId': target_id,
             'name': target_id,
@@ -216,7 +216,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_post_rest_v1_softwaremodules
         """
-        name = name or f'software module {int(time.monotonic())}'
+        name = name or f'software module {time.monotonic()}'
         data = [{
             'name': name,
             'version': str(self.version),
@@ -261,7 +261,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_post_rest_v1_distributionsets
         """
-        name = name or f'distribution {self.version} ({int(time.monotonic())})'
+        name = name or f'distribution {self.version} ({time.monotonic()})'
         module_id = module_id or self.id['softwaremodule']
         data = [{
             'name': name,
