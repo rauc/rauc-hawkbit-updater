@@ -33,40 +33,28 @@ class PExpectLogger:
 def run_pexpect(command, *, timeout=30, cwd=None):
     """
     Runs given command via pexpect with DBUS_STARTER_BUS_TYPE=session and PATH+=./build. Returns
-    process handle immediately allowing further expect calls. Logs command (with updated env) and
-    its stdout/stderr/exit code.
+    process handle immediately allowing further expect calls. Logs command and its
+    stdout/stderr/exit code.
     """
     import pexpect
 
     logger = logging.getLogger(command.split()[0])
-
-    env = os.environ.copy()
-    env.update({'DBUS_STARTER_BUS_TYPE': 'session'})
-    env['PATH'] += f':{os.path.dirname(os.path.abspath(__file__))}/../build'
-
-    log_env = [ f'{key}={value}' for key, value in set(env.items()) - set(os.environ.items()) ]
-    logger.info('running: %s %s', ' '.join(log_env), command)
+    logger.info('running: %s', command)
 
     pexpect_log = PExpectLogger(logger=logger)
-    return pexpect.spawn(command, env=env, timeout=timeout, cwd=cwd, logfile=pexpect_log)
+    return pexpect.spawn(command, timeout=timeout, cwd=cwd, logfile=pexpect_log)
 
 def run(command, *, timeout=30):
     """
     Runs given command as subprocess with DBUS_STARTER_BUS_TYPE=session and PATH+=./build. Blocks
-    until command terminates. Logs command (with updated env) and its stdout/stderr/exit code.
+    until command terminates. Logs command and its stdout/stderr/exit code.
     Returns tuple (stdout, stderr, exit code).
     """
-    env = os.environ.copy()
-    env.update({'DBUS_STARTER_BUS_TYPE': 'session'})
-    env['PATH'] += f':{os.path.dirname(os.path.abspath(__file__))}/../build'
-
     logger = logging.getLogger(command.split()[0])
-
-    log_env = [ f'{key}={value}' for key, value in set(env.items()) - set(os.environ.items()) ]
-    logger.info('running: %s %s', ' '.join(log_env), command)
+    logger.info('running: %s', command)
 
     proc = subprocess.run(shlex.split(command), capture_output=True, text=True, check=False,
-                          env=env, timeout=timeout)
+                          timeout=timeout)
 
     for line in proc.stdout.splitlines():
         if line:

@@ -18,6 +18,12 @@ def pytest_addoption(parser):
         help='HOST:PORT of hawkBit instance to use (default: %(default)s)',
         default='localhost:8080')
 
+@pytest.fixture(autouse=True)
+def env_setup(monkeypatch):
+    monkeypatch.setenv('PATH', f'{os.path.dirname(os.path.abspath(__file__))}/../build',
+                       prepend=os.pathsep)
+    monkeypatch.setenv('DBUS_STARTER_BUS_TYPE', 'session')
+
 @pytest.fixture(scope='session')
 def hawkbit(pytestconfig):
     """Instance of HawkbitMgmtTestClient connecting to a hawkBit instance."""
