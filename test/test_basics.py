@@ -4,6 +4,8 @@
 
 from configparser import ConfigParser
 
+import pytest
+
 from helper import run
 
 def test_version():
@@ -73,12 +75,14 @@ def test_register_and_check_invalid_gateway_token(adjust_config):
     assert 'MESSAGE: Checking for new software...' in out
     assert err.strip() == 'WARNING: Failed to authenticate. Check if gateway_token is correct?'
 
-def test_register_and_check_valid_gateway_token(hawkbit, adjust_config):
+@pytest.mark.parametrize("trailing_space", ('no_trailing_space', 'trailing_space'))
+def test_register_and_check_valid_gateway_token(hawkbit, adjust_config, trailing_space):
     """Test config with valid gateway_token."""
     gateway_token = hawkbit.get_config('authentication.gatewaytoken.key')
     config = adjust_config(
             {'client': {'gateway_token': gateway_token}},
-            remove={'client': 'auth_token'}
+            remove={'client': 'auth_token'},
+            add_trailing_space=(trailing_space == 'trailing_space'),
     )
 
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
@@ -97,8 +101,12 @@ def test_register_and_check_invalid_auth_token(adjust_config):
     assert 'MESSAGE: Checking for new software...' in out
     assert err.strip() == 'WARNING: Failed to authenticate. Check if auth_token is correct?'
 
-def test_register_and_check_valid_auth_token(config):
+@pytest.mark.parametrize("trailing_space", ('no_trailing_space', 'trailing_space'))
+def test_register_and_check_valid_auth_token(adjust_config, trailing_space):
     """Test config with valid auth_token."""
+    config = adjust_config(
+            add_trailing_space=(trailing_space == 'trailing_space'),
+    )
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
 
     assert exitcode == 0

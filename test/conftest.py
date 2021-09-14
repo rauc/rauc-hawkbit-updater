@@ -87,7 +87,7 @@ def adjust_config(config):
     adding/overwriting or removing options.
     """
     config_files = []
-    def _adjust_config(options={'client': {}}, remove={}):
+    def _adjust_config(options={'client': {}}, remove={}, add_trailing_space=False):
         adjusted_config = ConfigParser()
         adjusted_config.read(config)
 
@@ -99,6 +99,12 @@ def adjust_config(config):
         # remove
         for section, option in remove.items():
             adjusted_config.remove_option(section, option)
+
+        # add trailing space
+        if add_trailing_space:
+            for orig_section, orig_options in adjusted_config.items():
+                for orig_option in orig_options.items():
+                    adjusted_config.set(orig_section, orig_option[0], orig_option[1] + ' ')
 
         with config.open('w') as f:
             adjusted_config.write(f)
