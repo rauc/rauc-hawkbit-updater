@@ -21,6 +21,8 @@ if (SYSTEMD_FOUND AND "${SYSTEMD_SERVICES_INSTALL_DIR}" STREQUAL "")
 		"${SYSTEMD_SERVICES_INSTALL_DIR}")
 endif ()
 
+add_definitions( -DPROJECT_VERSION=${CMAKE_PROJECT_VERSION} )
+
 pkg_check_modules(CURL REQUIRED libcurl>=7.47.0)
 include_directories(${CURL_INCLUDE_DIRS})
 
