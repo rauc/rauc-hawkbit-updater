@@ -1,5 +1,6 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
+ * SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
  * @file
@@ -15,7 +16,7 @@
 #include "log.h"
 
 #define PROGRAM "rauc-hawkbit-updater"
-#define VERSION 0.1
+#define VERSION PROJECT_VERSION
 
 // program arguments
 static gchar *config_file          = NULL;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project( rauc-hawkbit-updater )
+project( rauc-hawkbit-updater VERSION 1.0 )
 
 option(WITH_SYSTEMD "Set to ON to create unit files and enable systemd startup"  OFF)
 option(BUILD_DOC    "Build documentation" OFF)
@@ -20,6 +20,8 @@ if (SYSTEMD_FOUND AND "${SYSTEMD_SERVICES_INSTALL_DIR}" STREQUAL "")
 	string(REGEX REPLACE "[ \t\n]+" "" SYSTEMD_SERVICES_INSTALL_DIR
 		"${SYSTEMD_SERVICES_INSTALL_DIR}")
 endif ()
+
+add_definitions( -DPROJECT_VERSION=${CMAKE_PROJECT_VERSION} )
 
 pkg_check_modules(CURL REQUIRED libcurl>=7.47.0)
 include_directories(${CURL_INCLUDE_DIRS})
