@@ -133,7 +133,7 @@ int main(int argc, char **argv)
         }
 
         if (opt_version) {
-                g_printf("Version %.1f\n", VERSION);
+                g_printf("Version %s\n", PROJECT_VERSION);
                 return 0;
         }
 
