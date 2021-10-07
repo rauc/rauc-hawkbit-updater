@@ -21,3 +21,29 @@ In the RAUC hawkBit updater's configuration file it's called ``gateway_token``.
 Although gateway token is very handy during development or testing, it's
 recommended to use this token with care because it can be used to
 authenticate any device.
+
+Plain Bundle Support
+--------------------
+
+RAUC takes ownership of `plain format bundles <https://rauc.readthedocs.io/en/latest/reference.html#plain-format>`_
+during installation.
+Thus rauc-hawkbit-updater can remove these bundles after installation only if
+it they are located in a directory belonging to the user executing
+rauc-hawkbit-updater.
+
+systemd Example
+^^^^^^^^^^^^^^^
+
+To store the bundle in such a directory, a drop-in
+``rauc-hawkbit-updater.service.d/10-plain-bundle.conf`` can be created:
+
+.. code-block:: cfg
+
+  [Service]
+  ExecStartPre=/bin/mkdir -p /tmp/rauc-hawkbit-updater/
+
+The bundle location needs to be set in rauc-hawkbit-updater's config:
+
+.. code-block:: cfg
+
+  bundle_download_location = /tmp/rauc-hawkbit-updater/bundle.raucb
