@@ -157,7 +157,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_post_rest_v1_targets
         """
-        target_id = target_id if target_id else f'test-{int(time.monotonic())}'
+        target_id = target_id or f'test-{time.monotonic()}'
         testdata = {
             'controllerId': target_id,
             'name': target_id,
@@ -179,7 +179,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid
         """
-        target_id = target_id if target_id else self.id['target']
+        target_id = target_id or self.id['target']
 
         return self.get(f'targets/{target_id}')
 
@@ -190,7 +190,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_delete_rest_v1_targets_targetid
         """
-        target_id = target_id if target_id else self.id['target']
+        target_id = target_id or self.id['target']
         self.delete(f'targets/{target_id}')
 
         if 'target' in self.id and target_id == self.id['target']:
@@ -203,11 +203,11 @@ class HawkbitMgmtTestClient:
         call.
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid_attributes
         """
-        target_id = target_id if target_id else self.id['target']
+        target_id = target_id or self.id['target']
 
         return self.get(f'targets/{target_id}/attributes')
 
-    def add_softwaremodule(self, name: str = None):
+    def add_softwaremodule(self, name: str = None, module_type: str = 'os'):
         """
         Adds a new software module with `name`.
         If `name` is not given, a generic name is made up.
@@ -216,11 +216,11 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_post_rest_v1_softwaremodules
         """
-        name = name if name else f'software module {int(time.monotonic())}'
+        name = name or f'software module {time.monotonic()}'
         data = [{
             'name': name,
             'version': str(self.version),
-            'type': 'os'
+            'type': module_type,
         }]
 
         self.id['softwaremodule'] = self.post('softwaremodules', data)[0]['id']
@@ -234,7 +234,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid
         """
-        module_id = module_id if module_id else self.id['softwaremodule']
+        module_id = module_id or self.id['softwaremodule']
 
         return self.get(f'softwaremodules/{module_id}')
 
@@ -244,34 +244,36 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_delete_rest_v1_softwaremodules_softwaremoduleid
         """
-        module_id = module_id if module_id else self.id['softwaremodule']
+        module_id = module_id or self.id['softwaremodule']
         self.delete(f'softwaremodules/{module_id}')
 
         if 'softwaremodule' in self.id and module_id == self.id['softwaremodule']:
             del self.id['softwaremodule']
 
-    def add_distributionset(self, name: str = None, module_id: str = None):
+    def add_distributionset(self, name: str = None, module_ids: list = [], dist_type: str = 'os'):
         """
-        Adds a new distribution set with `name` to the software module matching `module_id`.
+        Adds a new distribution set with `name` containing the software modules matching `module_ids`.
         If `name` is not given, a generic name is made up.
-        If `module_id` is not given, uses the software module created by the most recent
+        If `module_ids` is not given, uses the software module created by the most recent
         `add_softwaremodule()` call.
         Stores the id of the created distribution set for future use by other methods.
         Returns the id of the created distribution set.
 
         https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_post_rest_v1_distributionsets
         """
-        name = name if name else f'distribution {self.version} ({int(time.monotonic())})'
-        module_id = module_id if module_id else self.id['softwaremodule']
+        assert isinstance(module_ids, list)
+
+        name = name or f'distribution {self.version} ({time.monotonic()})'
+        module_ids = module_ids or [self.id['softwaremodule']]
         data = [{
             'name': name,
             'description': 'Test distribution',
             'version': str(self.version),
-            'modules': [{
-                'id': module_id
-            }],
-            'type': 'os'
+            'modules': [],
+            'type': dist_type,
         }]
+        for module_id in module_ids:
+            data[0]['modules'].append({'id': module_id})
 
         self.id['distributionset'] = self.post('distributionsets', data)[0]['id']
         return self.id['distributionset']
@@ -284,7 +286,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_get_rest_v1_distributionsets_distributionsetid
         """
-        dist_id = dist_id if dist_id else self.id['distributionset']
+        dist_id = dist_id or self.id['distributionset']
 
         return self.get(f'distributionsets/{dist_id}')
 
@@ -296,7 +298,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_delete_rest_v1_distributionsets_distributionsetid
         """
-        dist_id = dist_id if dist_id else self.id['distributionset']
+        dist_id = dist_id or self.id['distributionset']
 
         self.delete(f'distributionsets/{dist_id}')
 
@@ -313,7 +315,7 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_post_rest_v1_softwaremodules_softwaremoduleid_artifacts
         """
-        module_id = module_id if module_id else self.id['softwaremodule']
+        module_id = module_id or self.id['softwaremodule']
 
         self.id['artifact'] = self.post(f'softwaremodules/{module_id}/artifacts',
                                         file_name=file_name)['id']
@@ -329,8 +331,8 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_get_rest_v1_softwaremodules_softwaremoduleid_artifacts_artifactid
         """
-        module_id = module_id if module_id else self.id['softwaremodule']
-        artifact_id = artifact_id if artifact_id else self.id['artifact']
+        module_id = module_id or self.id['softwaremodule']
+        artifact_id = artifact_id or self.id['artifact']
 
         return self.get(f'softwaremodules/{module_id}/artifacts/{artifact_id}')['id']
 
@@ -344,8 +346,8 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_delete_rest_v1_softwaremodules_softwaremoduleid_artifacts_artifactid
         """
-        module_id = module_id if module_id else self.id['softwaremodule']
-        artifact_id = artifact_id if artifact_id else self.id['artifact']
+        module_id = module_id or self.id['softwaremodule']
+        artifact_id = artifact_id or self.id['artifact']
 
         self.delete(f'softwaremodules/{module_id}/artifacts/{artifact_id}')
 
@@ -363,8 +365,8 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_post_rest_v1_distributionsets_distributionsetid_assignedtargets
         """
-        dist_id = dist_id if dist_id else self.id['distributionset']
-        target_id = target_id if target_id else self.id['target']
+        dist_id = dist_id or self.id['distributionset']
+        target_id = target_id or self.id['target']
         testdata = [{'id': target_id}]
 
         response = self.post(f'distributionsets/{dist_id}/assignedTargets', testdata)
@@ -385,8 +387,8 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid_actions_actionid
         """
-        action_id = action_id if action_id else self.id['action']
-        target_id = target_id if target_id else self.id['target']
+        action_id = action_id or self.id['action']
+        target_id = target_id or self.id['target']
 
         return self.get(f'targets/{target_id}/actions/{action_id}')
 
@@ -401,8 +403,8 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid_actions_actionid_status
         """
-        action_id = action_id if action_id else self.id['action']
-        target_id = target_id if target_id else self.id['target']
+        action_id = action_id or self.id['action']
+        target_id = target_id or self.id['target']
 
         req = self.get(f'targets/{target_id}/actions/{action_id}/status?offset=0&limit=50&sort=id:DESC')
         return req['content']
@@ -418,8 +420,8 @@ class HawkbitMgmtTestClient:
 
         https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_delete_rest_v1_targets_targetid_actions_actionid
         """
-        action_id = action_id if action_id else self.id['action']
-        target_id = target_id if target_id else self.id['target']
+        action_id = action_id or self.id['action']
+        target_id = target_id or self.id['target']
 
         self.delete(f'targets/{target_id}/actions/{action_id}')
 

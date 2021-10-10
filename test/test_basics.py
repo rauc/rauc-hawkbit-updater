@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: 2021 Enrico Jörns <e.joerns@pengutronix.de>, Pengutronix
 # SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
+import re
 from configparser import ConfigParser
 
 import pytest
@@ -128,3 +129,27 @@ def test_identify(hawkbit, config):
     ref_config.read(config)
 
     assert dict(ref_config.items('device')) == hawkbit.get_attributes()
+
+@pytest.mark.parametrize("multi_object", ('chunks', 'artifacts'))
+def test_unsupported_multi_objects(hawkbit, config, assign_bundle, multi_object):
+    """
+    Test that deployments with multiple software modules (called chunks in the DDI API) or multiple
+    artifacts are rejected.
+    """
+    expected_error = rf'Deployment \d*? unsupported: cannot handle multiple {multi_object}.'
+
+    if multi_object == 'chunks':
+        assign_param = {'swmodules_num': 2}
+    elif multi_object == 'artifacts':
+        assign_param = {'artifacts_num': 2}
+
+    assign_bundle(**assign_param)
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert exitcode == 1
+    assert re.fullmatch(f'(WARNING: {expected_error}\n){{2}}', err)
+
+    status = hawkbit.get_action_status()
+    assert status[0]['type'] == 'error'
+    assert re.fullmatch(expected_error, status[0]['messages'][0])

@@ -881,15 +881,28 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
 
+        // downloading multiple chunks not supported, only first chunk is downloaded (RAUC bundle)
         json_chunks = json_get_array(resp_root, "$.deployment.chunks", error);
         if (!json_chunks)
                 goto proc_error;
+        if (json_array_get_length(json_chunks) > 1) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR, RHU_HAWKBIT_CLIENT_ERROR_MULTI_CHUNKS,
+                            "Deployment %s unsupported: cannot handle multiple chunks.", active_action->id);
+                goto proc_error;
+        }
 
-        // downloading multiple chunks not supported, only first chunk is downloaded (RAUC bundle)
         json_chunk = json_array_get_element(json_chunks, 0);
+
+        // downloading multiple artifacts not supported, only first artifact is downloaded (RAUC bundle)
         json_artifacts = json_get_array(json_chunk, "$.artifacts", error);
         if (!json_artifacts)
                 goto proc_error;
+        if (json_array_get_length(json_artifacts) > 1) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR, RHU_HAWKBIT_CLIENT_ERROR_MULTI_ARTIFACTS,
+                            "Deployment %s unsupported: cannot handle multiple artifacts.",
+                            active_action->id);
+                goto proc_error;
+        }
 
         json_artifact = json_array_get_element(json_artifacts, 0);
 

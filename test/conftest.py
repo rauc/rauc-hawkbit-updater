@@ -120,28 +120,70 @@ def rauc_bundle(tmp_path_factory):
     return str(bundle)
 
 @pytest.fixture
-def bundle_assigned(hawkbit, hawkbit_target_added, rauc_bundle):
+def assign_bundle(hawkbit, hawkbit_target_added, rauc_bundle, tmp_path):
     """
     Creates a softwaremodule containing the file from the rauc_bundle fixture as an artifact.
     Creates a distributionset from this softwaremodule. Assigns this distributionset to the target
     created by the hawkbit_target_added fixture. Returns the corresponding action ID of this
     assignment.
     """
-    swmodule = hawkbit.add_softwaremodule()
-    artifact = hawkbit.add_artifact(rauc_bundle, swmodule)
-    distributionset = hawkbit.add_distributionset(swmodule)
-    action = hawkbit.assign_target(distributionset)
+    swmodules = []
+    artifacts = []
+    distributionsets = []
+    actions = []
 
-    yield action
+    def _assign_bundle(swmodules_num=1, artifacts_num=1):
+        for i in range(swmodules_num):
+            swmodule_type = 'application' if swmodules_num > 1 else 'os'
+            swmodules.append(hawkbit.add_softwaremodule(module_type=swmodule_type))
 
-    try:
-        hawkbit.cancel_action(action, hawkbit_target_added, force=True)
-    except HawkbitError:
-        pass
+            for k in range(artifacts_num):
+                # hawkBit will reject files with the same name, so symlink to unique names
+                symlink_dest = tmp_path / f'{os.path.basename(rauc_bundle)}_{k}'
+                try:
+                    os.symlink(rauc_bundle, symlink_dest)
+                except FileExistsError:
+                    pass
 
-    hawkbit.delete_distributionset(distributionset)
-    hawkbit.delete_artifact(artifact, swmodule)
-    hawkbit.delete_softwaremodule(swmodule)
+                artifacts.append(hawkbit.add_artifact(symlink_dest, swmodules[-1]))
+
+        dist_type = 'app' if swmodules_num > 1 else 'os'
+        distributionsets.append(hawkbit.add_distributionset(module_ids=swmodules,
+                                                            dist_type=dist_type))
+        actions.append(hawkbit.assign_target(distributionsets[-1]))
+
+        return actions[-1]
+
+    yield _assign_bundle
+
+    for action in actions:
+        try:
+            hawkbit.cancel_action(action, hawkbit_target_added, force=True)
+        except HawkbitError:
+            pass
+
+    for distributionset in distributionsets:
+        hawkbit.delete_distributionset(distributionset)
+
+    for swmodule in swmodules:
+        for artifact in artifacts:
+            try:
+                hawkbit.delete_artifact(artifact, swmodule)
+            except HawkbitError: # artifact does not necessarily belong to this swmodule
+                pass
+
+            hawkbit.delete_softwaremodule(swmodule)
+
+@pytest.fixture
+def bundle_assigned(assign_bundle):
+    """
+    Creates a softwaremodule containing the file from the rauc_bundle fixture as an artifact.
+    Creates a distributionset from this softwaremodule. Assigns this distributionset to the target
+    created by the hawkbit_target_added fixture. Returns the corresponding action ID of this
+    assignment.
+    """
+
+    assign_bundle()
 
 @pytest.fixture
 def rauc_dbus_install_success(rauc_bundle):
