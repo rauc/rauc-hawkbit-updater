@@ -41,6 +41,8 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURL, curl_easy_cleanup)
 
 gboolean run_once = FALSE;
 
+static const gint MAX_RETRIES_ON_API_ERROR = 10;
+
 /**
  * @brief String representation of HTTP methods.
  */
@@ -432,6 +434,51 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
 }
 
 /**
+ * @brief Perform REST request with JSON data, expecting response JSON data. On HTTP error
+ * 409 (Conflict) and 429 (Too Many Requests), try again (up to MAX_RETRIES_ON_API_ERROR).
+ *
+ * @param[in]  method             HTTP Method, e.g. GET
+ * @param[in]  url                URL used in HTTP REST request
+ * @param[in]  jsonRequestBody    REST request body. If NULL, no body is sent
+ * @param[out] jsonResponseParser Return location for a REST response or NULL to skip response
+ *                                parsing
+ * @param[out] error              Error
+ * @return TRUE if request and response parser (if given) suceeded, FALSE otherwise (error set).
+ */
+static gboolean rest_request_retriable(enum HTTPMethod method, const gchar *url,
+                                       JsonBuilder *jsonRequestBody,
+                                       JsonParser **jsonResponseParser, GError **error)
+{
+        gboolean res, retry;
+        gint retry_count = 0;
+        GError *ierror = NULL;
+
+        g_return_val_if_fail(url, FALSE);
+        g_return_val_if_fail(jsonResponseParser == NULL || *jsonResponseParser == NULL, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        while (1) {
+                res = rest_request(method, url, jsonRequestBody, jsonResponseParser, &ierror);
+                retry = (g_error_matches(ierror, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 409) ||
+                         g_error_matches(ierror, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 429)) &&
+                        retry_count < MAX_RETRIES_ON_API_ERROR;
+                if (!retry)
+                        break;
+
+                g_debug("%s Trying again (%d/%d)..", ierror->message, retry_count+1,
+                        MAX_RETRIES_ON_API_ERROR);
+                g_clear_error(&ierror);
+                g_usleep(1000000);
+                retry_count++;
+        }
+
+        if (!res)
+                g_propagate_error(error, ierror);
+
+        return res;
+}
+
+/**
  * @brief Build hawkBit JSON request.
  *
  * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_post_tenant_controller_v1_controllerid_deploymentbase_actionid_feedback
@@ -540,7 +587,7 @@ static gboolean feedback(const gchar *url, const gchar *id, const gchar *detail,
 
         builder = json_build_status(id, detail, finished, execution, NULL);
 
-        res = rest_request(POST, url, builder, NULL, error);
+        res = rest_request_retriable(POST, url, builder, NULL, error);
         if (!res)
                 g_prefix_error(error, "Failed to report \"%s\" feedback: ", detail);
 
@@ -675,7 +722,7 @@ static gboolean identify(GError **error)
 
         builder = json_build_status(NULL, NULL, "success", "closed", hawkbit_config->device);
 
-        return rest_request(PUT, put_config_data_url, builder, NULL, error);
+        return rest_request_retriable(PUT, put_config_data_url, builder, NULL, error);
 }
 
 /**
