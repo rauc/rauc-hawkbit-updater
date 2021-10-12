@@ -37,6 +37,7 @@
 
 #include "hawkbit-client.h"
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(FILE, fclose)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURL, curl_easy_cleanup)
 
 gboolean run_once = FALSE;
@@ -48,6 +49,21 @@ static const gint MAX_RETRIES_ON_API_ERROR = 10;
  */
 static const char *HTTPMethod_STRING[] = {
         "GET", "HEAD", "PUT", "POST", "PATCH", "DELETE"
+};
+
+/**
+ * @brief CURLcodes that should lead to download resuming, 0 terminated
+ */
+static const gint resumable_codes[] = {
+        CURLE_OPERATION_TIMEDOUT,
+        CURLE_COULDNT_RESOLVE_HOST,
+        CURLE_COULDNT_CONNECT,
+        CURLE_PARTIAL_FILE,
+        CURLE_SEND_ERROR,
+        CURLE_RECV_ERROR,
+        CURLE_HTTP2,
+        CURLE_HTTP2_STREAM,
+        0
 };
 
 static Config *hawkbit_config = NULL;
@@ -116,28 +132,45 @@ static gboolean get_available_space(const char *path, goffset *free_space, GErro
 }
 
 /**
- * @brief Curl callback writing RAUC bundle file data to BinaryPayload*->fp (expected opened
- * writable) tracking written data and calculating hawkbit checksum.
+ * @brief Calculate checksum for file.
  *
- * @see   https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
+ * @param[in]  fp       File to read data from
+ * @param[in]  type     Desired type of checksum
+ * @param[out] checksum Calculated checksum digest hex string
+ * @param[out] error    Error
+ * @return TRUE if checksum calculation succeeded, FALSE otherwise (error set)
  */
-static size_t curl_write_to_file_cb(const void *content, size_t size, size_t nmemb, void *data)
+static gboolean get_file_checksum(FILE *fp, const GChecksumType type, gchar **checksum,
+                                  GError **error)
 {
-        BinaryPayload *p = NULL;
-        size_t written;
+        g_autoptr(GChecksum) ctx = g_checksum_new(type);
+        guchar buf[4096];
+        size_t r;
 
-        g_return_val_if_fail(content, 0);
-        g_return_val_if_fail(data, 0);
+        g_return_val_if_fail(fp, FALSE);
+        g_return_val_if_fail(checksum && *checksum == NULL, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        p = (BinaryPayload *) data;
+        g_assert_nonnull(ctx);
 
-        written = fwrite(content, size, nmemb, p->fp);
-        p->written += written;
+        fseek(fp, 0, SEEK_SET);
 
-        if (p->checksum)
-                g_checksum_update(p->checksum, content, written);
+        while (1) {
+                r = fread(buf, 1, sizeof(buf), fp);
+                if (ferror(fp)) {
+                        g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Read failed");
+                        return FALSE;
+                }
 
-        return written;
+                g_checksum_update(ctx, buf, r);
+
+                if (feof(fp))
+                        break;
+        }
+
+        *checksum = g_strdup(g_checksum_get_string(ctx));
+
+        return TRUE;
 }
 
 /**
@@ -217,17 +250,17 @@ static void set_default_curl_opts(CURL *curl)
  *
  * @param[in]  download_url URL to download from
  * @param[in]  file         Download destination
- * @param[in]  filesize     Expected file size in bytes
+ * @param[in]  resume_from  Offset to resume download from
  * @param[out] sha1sum      Calculated checksum or NULL
  * @param[out] speed        Average download speed
  * @param[out] error        Error
  * @return TRUE if download succeeded, FALSE otherwise (error set)
  */
-static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 filesize,
+static gboolean get_binary(const gchar *download_url, const gchar *file, curl_off_t resume_from,
                            gchar **sha1sum, curl_off_t *speed, GError **error)
 {
         g_autoptr(CURL) curl = NULL;
-        g_autoptr(BinaryPayload) payload = NULL;
+        g_autoptr(FILE) fp = NULL;
         CURLcode curl_code;
         glong http_code = 0;
         struct curl_slist *headers = NULL;
@@ -238,10 +271,11 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
         g_return_val_if_fail(sha1sum == NULL || *sha1sum == NULL, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        payload = g_new0(BinaryPayload, 1);
-        payload->filesize = filesize;
-        payload->fp = g_fopen(file, "wb");
-        if (!payload->fp) {
+        if (resume_from)
+                g_debug("Resuming download from offset %" CURL_FORMAT_CURL_OFF_T, resume_from);
+
+        fp = g_fopen(file, (resume_from) ? "ab+" : "wb+");
+        if (!fp) {
                 int err = errno;
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
                             "Failed to open %s for download: %s", file, g_strerror(err));
@@ -255,20 +289,18 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
                 return FALSE;
         }
 
-        if (sha1sum)
-                payload->checksum = g_checksum_new(G_CHECKSUM_SHA1);
-
         set_default_curl_opts(curl);
         curl_easy_setopt(curl, CURLOPT_URL, download_url);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8L);
-        curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_to_file_cb);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, payload);
+        curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
-        // abort if slower than 100 bytes/sec during 60 seconds
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 100L);
+        // abort if slower than configured download rate during configured time span
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, hawkbit_config->low_speed_time);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, hawkbit_config->low_speed_rate);
+
+        curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, resume_from);
 
         if (!set_auth_curl_header(&headers, error))
                 return FALSE;
@@ -290,15 +322,16 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, gint64 
                             curl_easy_strerror(curl_code));
                 return FALSE;
         }
-        if (http_code != 200) {
+        // consider ok/partial download/range not satisfiable (EOF reached) as success
+        if (http_code != 200 && http_code != 206 && http_code != 416) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld", http_code);
                 return FALSE;
         }
 
         // if checksum enabled then return the value
-        if (payload->checksum)
-                *sha1sum = g_strdup(g_checksum_get_string(payload->checksum));
+        if (sha1sum && !get_file_checksum(fp, G_CHECKSUM_SHA1, sha1sum, error))
+                return FALSE;
 
         return TRUE;
 }
@@ -806,17 +839,40 @@ static gpointer download_thread(gpointer data)
 
         g_message("Start downloading: %s", artifact->download_url);
 
-        // Download software bundle (artifact)
-        if (!get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
-                        artifact->size, &sha1sum, &speed, &error)) {
-                g_prefix_error(&error, "Download failed: ");
-                goto report_err;
-        }
+        while (1) {
+                gboolean resumable = FALSE;
+                GStatBuf bundle_stat;
+                curl_off_t resume_from = 0;
 
-        g_mutex_lock(&active_action->mutex);
-        if (active_action->state == ACTION_STATE_CANCEL_REQUESTED)
-                goto cancel;
-        g_mutex_unlock(&active_action->mutex);
+                g_clear_pointer(&sha1sum, g_free);
+
+                // Download software bundle (artifact)
+                if (g_stat(hawkbit_config->bundle_download_location, &bundle_stat) == 0)
+                        resume_from = (curl_off_t) bundle_stat.st_size;
+
+                if (get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
+                               resume_from, &sha1sum, &speed, &error))
+                        break;
+
+                for (const gint *code = &resumable_codes[0]; *code; code++)
+                        resumable |= g_error_matches(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, *code);
+
+                if (!hawkbit_config->resume_downloads || !resumable) {
+                        g_prefix_error(&error, "Download failed: ");
+                        goto report_err;
+                }
+                g_debug("%s, resuming download..", curl_easy_strerror(error->code));
+
+                g_mutex_lock(&active_action->mutex);
+                if (active_action->state == ACTION_STATE_CANCEL_REQUESTED)
+                        goto cancel;
+                g_mutex_unlock(&active_action->mutex);
+
+                g_clear_error(&error);
+
+                // sleep 0.5 s before attempting to resume download
+                g_usleep(500000);
+        }
 
         // notify hawkbit that download is complete
         msg = g_strdup_printf("Download complete. %.2f MB/s",
@@ -1309,16 +1365,5 @@ void rest_payload_free(RestPayload *payload)
                 return;
 
         g_free(payload->payload);
-        g_free(payload);
-}
-
-void binary_payload_free(BinaryPayload *payload)
-{
-        if (!payload)
-                return;
-
-        if (payload->fp)
-                fclose(payload->fp);
-        g_checksum_free(payload->checksum);
         g_free(payload);
 }

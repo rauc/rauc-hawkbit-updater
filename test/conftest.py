@@ -314,3 +314,16 @@ def rate_limited_port(nginx_proxy):
         return nginx_proxy(location_options)
 
     return _rate_limited_port
+
+@pytest.fixture(scope='session')
+def partial_download_port(nginx_proxy):
+    """
+    Runs an nginx proxy, forcing partial downloads. HTTP requests are forwarded to port 8080
+    (default port of the docker hawkBit instance). Returns the port the proxy is running on. This
+    port can be set in the rauc-hawkbit-updater config to test partial downloads.
+    """
+    location_options = {
+        'limit_rate_after': '200k',
+        'limit_rate': '70k',
+    }
+    return nginx_proxy(location_options)

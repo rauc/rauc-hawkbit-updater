@@ -292,6 +292,14 @@ Config* load_config_file(const gchar *config_file, GError **error)
         if (!get_key_int(ini_file, "client", "retry_wait", &config->retry_wait, DEFAULT_RETRY_WAIT,
                          error))
                 return NULL;
+        if (!get_key_int(ini_file, "client", "low_speed_rate", &config->low_speed_rate, 100,
+                         error))
+                return NULL;
+        if (!get_key_int(ini_file, "client", "low_speed_time", &config->low_speed_time, 60, error))
+                return NULL;
+        if (!get_key_bool(ini_file, "client", "resume_downloads", &config->resume_downloads, FALSE,
+                          error))
+                return NULL;
         if (!get_key_string(ini_file, "client", "log_level", &val, DEFAULT_LOG_LEVEL, error))
                 return NULL;
         config->log_level = log_level_from_string(val);

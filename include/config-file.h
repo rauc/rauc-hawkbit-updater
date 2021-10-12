@@ -16,6 +16,7 @@ typedef struct Config_ {
         gboolean ssl;                     /**< use https or http */
         gboolean ssl_verify;              /**< verify https certificate */
         gboolean post_update_reboot;      /**< reboot system after successful update */
+        gboolean resume_downloads;        /**< resume downloads or not */
         gchar* auth_token;                /**< hawkBit target security token */
         gchar* gateway_token;             /**< hawkBit gateway security token */
         gchar* tenant_id;                 /**< hawkBit tenant id */
@@ -24,6 +25,8 @@ typedef struct Config_ {
         int connect_timeout;              /**< connection timeout */
         int timeout;                      /**< reply timeout */
         int retry_wait;                   /**< wait between retries */
+        int low_speed_time;               /**< time to be below the speed to trigger low speed abort */
+        int low_speed_rate;               /**< low speed limit to abort transfer */
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
 } Config;
