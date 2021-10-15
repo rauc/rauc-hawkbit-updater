@@ -8,7 +8,7 @@ option(QA_BUILD     "QA build (pedantic, with fatal errors)" OFF)
 find_package(PkgConfig REQUIRED)
 
 if (WITH_SYSTEMD)
-	add_definitions( -DWITH_SYSTEMD )
+	set(WITH_SYSTEMD "Enable systemd support" ON)
 	pkg_check_modules(SYSTEMD REQUIRED libsystemd)
 endif (WITH_SYSTEMD)
 
@@ -21,7 +21,7 @@ if (SYSTEMD_FOUND AND "${SYSTEMD_SERVICES_INSTALL_DIR}" STREQUAL "")
 		"${SYSTEMD_SERVICES_INSTALL_DIR}")
 endif ()
 
-add_definitions( -DPROJECT_VERSION="${CMAKE_PROJECT_VERSION}" )
+set(PROJECT_VERSION "${CMAKE_PROJECT_VERSION}")
 
 pkg_check_modules(CURL REQUIRED libcurl>=7.47.0)
 include_directories(${CURL_INCLUDE_DIRS})
@@ -115,7 +115,10 @@ set(RAUC_HAWKBIT_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/${CODEGEN_PREFIX}.c
 )
 
+configure_file(config.h.in config.h)
+
 add_executable( rauc-hawkbit-updater ${RAUC_HAWKBIT_SRCS} )
+target_compile_options(rauc-hawkbit-updater PUBLIC -include ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 target_compile_options(rauc-hawkbit-updater PUBLIC -Wall -Wformat-nonliteral)
 if (QA_BUILD)
   target_compile_options(rauc-hawkbit-updater PUBLIC -Wextra -Werror -pedantic -Wbad-function-cast -Wcast-align -Wdeclaration-after-statement -Wformat=2 -Wshadow -Wno-unused-parameter -Wno-missing-field-initializers)

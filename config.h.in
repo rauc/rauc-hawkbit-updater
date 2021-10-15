@@ -1,0 +1,2 @@
+#cmakedefine PROJECT_VERSION "@PROJECT_VERSION@"
+#cmakedefine WITH_SYSTEMD
