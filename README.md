@@ -77,11 +77,8 @@ Compile
 -------
 
 ```shell
-  mkdir build
-  cd build
-  cmake ..
-  make
-  cd ..
+  meson setup build
+  ninja -C build
 ```
 
 Test Suite
