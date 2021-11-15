@@ -1,6 +1,40 @@
 Release 1.1 (in development)
 ----------------------------
 
+.. rubric:: Enhancements
+
+* RAUC hawkBit Updater does now handle hawkBit cancellation requests.
+  This allows to cancel deployments that were not yet
+  received/downloaded/installed.
+  Once the installation has begun, cancellations are rejected. [#89]
+* RAUC hawkBit Updater now explicitly rejects deployments with multiple
+  chunks/artifacts as these are conceptually unsupported by RAUC. [#103]
+* RAUC hawkBit Updater now implements waiting and retrying when receiving
+  HTTP errors 409 (Conflict) or 429 (Too Many Requests) on DDI API calls.
+  [#102]
+* Enable TCP keep-alive probing to recognize and deal with connection outages
+  earlier. [#101]
+* New configuration options ``low_speed_time`` and ``low_speed_time`` allow
+  to adjust the detection of slow connections to match the expected
+  environmental conditions. [#101]
+* A new option ``resume_downloads`` allows to configure RAUC hawkBit Updater
+  to resume aborted downloads if possible. [#101]
+* RAUC hawkBit Updater now evaluates the deployment API's 'skip' options for
+  download and update (as e.g. used for maintenance window handling).
+  Depending on what attributes are set, this will skip installation after
+  download or even the entire update. [#111]
+
+.. rubric:: Testing
+
+* replaced manual injection of temporary env modification by monkeypatch
+  fixture
+* test cases for all new features were added
+
+.. rubric:: Documentation
+
+* Added note on requirements for storage location when using plain bundle
+  format
+
 Release 1.0 (released Sep 15, 2021)
 -----------------------------------
 
