@@ -702,9 +702,11 @@ static gchar* build_api_url(const gchar *path, ...)
         g_autofree gchar *buffer = NULL;
         va_list args;
 
-        va_start(args, path);
-        buffer = g_strdup_vprintf(path, args);
-        va_end(args);
+        if (path) {
+                va_start(args, path);
+                buffer = g_strdup_vprintf(path, args);
+                va_end(args);
+        }
 
         return g_strdup_printf(
                 "%s://%s/%s/controller/v1/%s%s%s",
