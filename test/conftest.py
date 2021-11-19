@@ -242,6 +242,7 @@ http {{
 
     server {{
         listen {port};
+        listen [::]:{port};
 
         location / {{
             proxy_pass http://localhost:8080;
