@@ -88,7 +88,7 @@ Optional options:
 
 ``retry_wait=<seconds>``
   Time to wait before retrying in case an error occurred [seconds].
-  Defaults to ``60`` seconds.
+  Defaults to ``300`` seconds.
 
 ``low_speed_time=<seconds>``
   Time to be below ``low_speed_rate`` to trigger the low speed abort.
