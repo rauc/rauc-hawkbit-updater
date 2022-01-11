@@ -29,7 +29,7 @@ def hawkbit(pytestconfig):
     """Instance of HawkbitMgmtTestClient connecting to a hawkBit instance."""
     from uuid import uuid4
 
-    host, port = pytestconfig.option.hawkbit_instance.split(':')
+    host, port = pytestconfig.option.hawkbit_instance.rsplit(':', 1)
     client = HawkbitMgmtTestClient(host, int(port))
 
     client.set_config('pollingTime', '00:00:30')
@@ -242,6 +242,7 @@ http {{
 
     server {{
         listen {port};
+        listen [::]:{port};
 
         location / {{
             proxy_pass http://localhost:8080;
