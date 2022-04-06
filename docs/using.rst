@@ -34,13 +34,15 @@ rauc-hawkbit-updater.
 systemd Example
 ^^^^^^^^^^^^^^^
 
-To store the bundle in such a directory, a drop-in
-``rauc-hawkbit-updater.service.d/10-plain-bundle.conf`` can be created:
+To store the bundle in such a directory, a configuration file for
+systemd-tmpfiles can be created and placed in
+``/usr/lib/tmpfiles.d/rauc-hawkbit-updater.conf``.
+This tells systemd-tmpfiles to create a directory in ``/tmp`` with proper
+ownership:
 
 .. code-block:: cfg
 
-  [Service]
-  ExecStartPre=/bin/mkdir -p /tmp/rauc-hawkbit-updater/
+  d /tmp/rauc-hawkbit-updater     - rauc-hawkbit rauc-hawkbit - -
 
 The bundle location needs to be set in rauc-hawkbit-updater's config:
 
