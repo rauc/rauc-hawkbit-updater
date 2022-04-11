@@ -35,7 +35,7 @@ class Installer:
         self._last_error = ''
         self._progress = 0, '', 1
 
-    def Install(self, source):
+    def InstallBundle(self, source, args):
         def mimic_install():
             """Mimics a sucessful/failing installation, depending on `self._completed_code`."""
             progresses = [

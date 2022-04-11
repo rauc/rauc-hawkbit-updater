@@ -138,6 +138,7 @@ static gpointer install_loop_thread(gpointer data)
                             ? G_BUS_TYPE_SESSION : G_BUS_TYPE_SYSTEM;
         RInstaller *r_installer_proxy = NULL;
         g_autoptr(GError) error = NULL;
+        g_auto(GVariantDict) args = G_VARIANT_DICT_INIT(NULL);
         struct install_context *context = NULL;
 
         g_return_val_if_fail(data, NULL);
@@ -165,7 +166,8 @@ static gpointer install_loop_thread(gpointer data)
         }
 
         g_debug("Trying to contact RAUC DBUS service");
-        if (!r_installer_call_install_sync(r_installer_proxy, context->bundle, NULL, &error)) {
+        if (!r_installer_call_install_bundle_sync(r_installer_proxy, context->bundle,
+                                                  g_variant_dict_end(&args), NULL, &error)) {
                 g_warning("%s", error->message);
                 goto out_loop;
         }

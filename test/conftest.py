@@ -195,7 +195,7 @@ def bundle_assigned(assign_bundle):
 def rauc_dbus_install_success(rauc_bundle):
     """
     Creates a RAUC D-Bus dummy interface on the SessionBus mimicing a successful installation on
-    Install().
+    InstallBundle().
     """
     proc = run_pexpect(f'{sys.executable} -m rauc_dbus_dummy {rauc_bundle}',
                        cwd=os.path.dirname(__file__))
@@ -210,7 +210,7 @@ def rauc_dbus_install_success(rauc_bundle):
 def rauc_dbus_install_failure(rauc_bundle):
     """
     Creates a RAUC D-Bus dummy interface on the SessionBus mimicing a failing installation on
-    Install().
+    InstallBundle().
     """
     proc = run_pexpect(f'{sys.executable} -m rauc_dbus_dummy {rauc_bundle} --completed-code=1',
                        cwd=os.path.dirname(__file__), timeout=None)
