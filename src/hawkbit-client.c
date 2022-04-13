@@ -202,6 +202,25 @@ static gboolean add_curl_header(struct curl_slist **headers, const char *string,
 }
 
 /**
+ * @brief Returns the header required to authenticate against hawkBit, either target or gateway
+ *        token.
+ *
+ * @return header required to authenticate against hawkBit
+ */
+static char* get_auth_header()
+{
+        if (hawkbit_config->auth_token)
+                return g_strdup_printf("Authorization: TargetToken %s",
+                                       hawkbit_config->auth_token);
+
+        if (hawkbit_config->gateway_token)
+                return g_strdup_printf("Authorization: GatewayToken %s",
+                                       hawkbit_config->gateway_token);
+
+        g_return_val_if_reached(NULL);
+}
+
+/**
  * @brief Add hawkBit authorization header to Curl headers.
  *
  * @param[out] headers curl_slist** of already set headers
@@ -216,12 +235,7 @@ static gboolean set_auth_curl_header(struct curl_slist **headers, GError **error
 
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        if (hawkbit_config->auth_token)
-                token = g_strdup_printf("Authorization: TargetToken %s",
-                                        hawkbit_config->auth_token);
-        else if (hawkbit_config->gateway_token)
-                token = g_strdup_printf("Authorization: GatewayToken %s",
-                                        hawkbit_config->gateway_token);
+        token = get_auth_header();
         if (token)
                 res = add_curl_header(headers, token, error);
 
