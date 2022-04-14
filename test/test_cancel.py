@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1-only
 # SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
-from pexpect import TIMEOUT
+from pexpect import TIMEOUT, EOF
 
 from helper import run, run_pexpect
 
@@ -55,6 +55,7 @@ def test_cancel_during_download(hawkbit, adjust_config, bundle_assigned, rate_li
     # wait for feedback to arrive at hawkbit server
     proc.expect(TIMEOUT, timeout=2)
     proc.terminate(force=True)
+    proc.expect(EOF)
 
     cancel = hawkbit.get_action()
     assert cancel['type'] == 'cancel'
@@ -80,6 +81,7 @@ def test_cancel_during_install(hawkbit, config, bundle_assigned, rauc_dbus_insta
     # wait for feedback to arrive at hawkbit server
     proc.expect(TIMEOUT, timeout=2)
     proc.terminate(force=True)
+    proc.expect(EOF)
 
     cancel = hawkbit.get_action()
     assert cancel['type'] == 'update'

@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from pexpect import TIMEOUT
+from pexpect import TIMEOUT, EOF
 
 from helper import run, run_pexpect, timezone_offset_utc
 
@@ -87,6 +87,7 @@ def test_install_maintenance_window(hawkbit, config, rauc_bundle, assign_bundle,
     # let feedback propagate to hawkBit before termination
     proc.expect(TIMEOUT, timeout=2)
     proc.terminate(force=True)
+    proc.expect(EOF)
 
     status = hawkbit.get_action_status()
     assert status[0]['type'] == 'finished'
