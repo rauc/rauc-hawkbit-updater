@@ -92,7 +92,6 @@ def adjust_config(config):
     Adjusts the rauc-hawkbit-updater configuration created by the config fixture by
     adding/overwriting or removing options.
     """
-    config_files = []
     def _adjust_config(options={'client': {}}, remove={}, add_trailing_space=False):
         adjusted_config = ConfigParser()
         adjusted_config.read(config)
