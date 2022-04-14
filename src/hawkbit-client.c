@@ -263,7 +263,6 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
         CURLcode curl_code;
         glong http_code = 0;
         struct curl_slist *headers = NULL;
-        g_autofree gchar *token = NULL;
 
         g_return_val_if_fail(download_url, FALSE);
         g_return_val_if_fail(file, FALSE);
@@ -374,7 +373,7 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
                              JsonBuilder *jsonRequestBody, JsonParser **jsonResponseParser,
                              GError **error)
 {
-        g_autofree gchar *postdata = NULL, *token = NULL;
+        g_autofree gchar *postdata = NULL;
         g_autoptr(RestPayload) fetch_buffer = NULL;
         struct curl_slist *headers = NULL;
         g_autoptr(CURL) curl = NULL;
