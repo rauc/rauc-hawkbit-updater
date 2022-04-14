@@ -29,6 +29,20 @@ class PExpectLogger:
 
         self.data = b''
 
+def logger_from_command(command):
+    """
+    Returns a logger named after the executable, or in case of a python executable, after the
+    python module,
+    """
+    cmd_parts = command.split()
+    base_cmd = os.path.basename(cmd_parts[0])
+    try:
+        if base_cmd.startswith('python') and cmd_parts[1] == '-m':
+            base_cmd = command.split()[2]
+    except IndexError:
+        pass
+
+    return logging.getLogger(base_cmd)
 
 def run_pexpect(command, *, timeout=30, cwd=None):
     """
@@ -37,8 +51,7 @@ def run_pexpect(command, *, timeout=30, cwd=None):
     stdout/stderr/exit code.
     """
     import pexpect
-
-    logger = logging.getLogger(command.split()[0])
+    logger = logger_from_command(command)
     logger.info('running: %s', command)
 
     pexpect_log = PExpectLogger(logger=logger)
@@ -50,7 +63,7 @@ def run(command, *, timeout=30):
     until command terminates. Logs command and its stdout/stderr/exit code.
     Returns tuple (stdout, stderr, exit code).
     """
-    logger = logging.getLogger(command.split()[0])
+    logger = logger_from_command(command)
     logger.info('running: %s', command)
 
     proc = subprocess.run(shlex.split(command), capture_output=True, text=True, check=False,
