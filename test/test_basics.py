@@ -114,6 +114,16 @@ def test_register_and_check_valid_auth_token(adjust_config, trailing_space):
     assert 'MESSAGE: Checking for new software...' in out
     assert err == ''
 
+def test_register_and_check_no_download_location_no_streaming(adjust_config):
+    """Test config without bundle_download_location and without stream_bundle."""
+    config = adjust_config(remove={'client': 'bundle_download_location'})
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert exitcode == 4
+    assert out == ''
+    assert err.strip() == \
+            "Loading config file failed: 'bundle_download_location' is required if 'stream_bundle' is disabled"
+
 def test_identify(hawkbit, config):
     """
     Test that supplying target meta information works and information are received correctly by
