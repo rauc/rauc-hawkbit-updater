@@ -124,6 +124,18 @@ class Installer:
         self._last_error = value
         self.PropertiesChanged(Installer.interface, {'LastError': self.LastError}, [])
 
+    @property
+    def Compatible(self):
+        return "not implemented"
+
+    @property
+    def Variant(self):
+        return "not implemented"
+
+    @property
+    def BootSlot(self):
+        return "not implemented"
+
 
 if __name__ == '__main__':
     import argparse
