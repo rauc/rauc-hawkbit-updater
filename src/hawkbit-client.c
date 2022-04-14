@@ -1336,9 +1336,9 @@ int hawkbit_start_service_sync()
         g_autoptr(GMainContext) ctx = NULL;
         ClientData cdata;
         g_autoptr(GSource) timeout_source = NULL;
-        g_autoptr(GSource) event_source = NULL;
         int res = 0;
 #ifdef WITH_SYSTEMD
+        g_autoptr(GSource) event_source = NULL;
         g_autoptr(sd_event) event = NULL;
 #endif
 
