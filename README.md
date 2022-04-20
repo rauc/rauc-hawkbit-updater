@@ -99,7 +99,9 @@ Run hawkBit docker container:
 
 ```shell
 $ docker pull hawkbit/hawkbit-update-server
-$ docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server
+$ docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server \
+    --hawkbit.server.security.dos.filter.enabled=false \
+    --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1
 ```
 
 Run test suite:
