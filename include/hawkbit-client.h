@@ -99,6 +99,7 @@ struct on_new_software_userdata {
         GSourceFunc install_progress_callback;  /**< callback function to be called when new progress */
         GSourceFunc install_complete_callback;  /**< callback function to be called when installation is complete */
         gchar *file;                            /**< downloaded new software file */
+        gchar *auth_header;                     /**< authentication header for bundle streaming */
         gboolean install_success;               /**< whether the installation succeeded or not (only meaningful for run_once mode!) */
 };
 
