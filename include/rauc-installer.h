@@ -13,6 +13,7 @@
  */
 struct install_context {
         gchar *bundle;                /**< Rauc bundle file to install */
+        gchar *auth_header;           /**< Authentication header for bundle streaming */
         GSourceFunc notify_event;     /**< Callback function */
         GSourceFunc notify_complete;  /**< Callback function */
         GMutex status_mutex;          /**< Mutex used for accessing status_messages */
@@ -27,6 +28,8 @@ struct install_context {
  * @brief RAUC install bundle
  *
  * @param[in] bundle RAUC bundle file (.raucb) to install.
+ * @param[in] auth_header Authentication header on HTTP streaming installation or NULL on normal
+ *                        installation.
  * @param[in] on_install_notify Callback function to be called with status info during
  *                              installation.
  * @param[in] on_install_complete Callback function to be called with the result of the
@@ -35,7 +38,7 @@ struct install_context {
  * @return for wait=TRUE, TRUE if installation succeeded, FALSE otherwise; for
  *         wait=FALSE TRUE is always returned immediately
  */
-gboolean rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
+gboolean rauc_install(const gchar *bundle, const gchar *auth_header, GSourceFunc on_install_notify,
                 GSourceFunc on_install_complete, gboolean wait);
 
 #endif // __RAUC_INSTALLER_H__
