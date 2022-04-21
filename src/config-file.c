@@ -240,6 +240,7 @@ Config* load_config_file(const gchar *config_file, GError **error)
         g_autoptr(GKeyFile) ini_file = NULL;
         gboolean key_auth_token_exists = FALSE;
         gboolean key_gateway_token_exists = FALSE;
+        gboolean bundle_location_given = FALSE;
 
         g_return_val_if_fail(config_file, NULL);
         g_return_val_if_fail(error == NULL || *error == NULL, NULL);
@@ -274,9 +275,8 @@ Config* load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         if (!get_key_string(ini_file, "client", "tenant_id", &config->tenant_id, "DEFAULT", error))
                 return NULL;
-        if (!get_key_string(ini_file, "client", "bundle_download_location",
-                            &config->bundle_download_location, NULL, error))
-                return NULL;
+        bundle_location_given = get_key_string(ini_file, "client", "bundle_download_location",
+                                               &config->bundle_download_location, NULL, NULL);
         if (!get_key_bool(ini_file, "client", "ssl", &config->ssl, DEFAULT_SSL, error))
                 return NULL;
         if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify,
@@ -300,6 +300,9 @@ Config* load_config_file(const gchar *config_file, GError **error)
         if (!get_key_bool(ini_file, "client", "resume_downloads", &config->resume_downloads, FALSE,
                           error))
                 return NULL;
+        if (!get_key_bool(ini_file, "client", "stream_bundle", &config->stream_bundle, FALSE,
+                          error))
+                return NULL;
         if (!get_key_string(ini_file, "client", "log_level", &val, DEFAULT_LOG_LEVEL, error))
                 return NULL;
         config->log_level = log_level_from_string(val);
@@ -313,6 +316,12 @@ Config* load_config_file(const gchar *config_file, GError **error)
                             G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
                             "timeout (%d) must be greater than connect_timeout (%d)",
                             config->timeout, config->connect_timeout);
+                return NULL;
+        }
+
+        if (!bundle_location_given && !config->stream_bundle) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND,
+                            "'bundle_download_location' is required if 'stream_bundle' is disabled");
                 return NULL;
         }
 

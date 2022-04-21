@@ -91,7 +91,8 @@ static gboolean on_rauc_install_complete_cb(gpointer data)
 }
 
 /**
- * @brief GSourceFunc callback for download thread, triggers RAUC installation.
+ * @brief GSourceFunc callback for download thread, or main thread in case of HTTP streaming
+ *        installation. Triggers RAUC installation.
  *
  * @param[in] data on_new_software_userdata pointer
  * @return G_SOURCE_REMOVE is always returned
