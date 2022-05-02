@@ -836,6 +836,7 @@ static gpointer download_thread(gpointer data)
                 .install_complete_callback = install_complete_cb,
                 .file = hawkbit_config->bundle_download_location,
                 .auth_header = NULL,
+                .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
         };
         g_autoptr(GError) error = NULL, feedback_error = NULL;
