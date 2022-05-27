@@ -92,7 +92,6 @@ def adjust_config(config):
     Adjusts the rauc-hawkbit-updater configuration created by the config fixture by
     adding/overwriting or removing options.
     """
-    config_files = []
     def _adjust_config(options={'client': {}}, remove={}, add_trailing_space=False):
         adjusted_config = ConfigParser()
         adjusted_config.read(config)
@@ -197,6 +196,8 @@ def rauc_dbus_install_success(rauc_bundle):
     Creates a RAUC D-Bus dummy interface on the SessionBus mimicing a successful installation on
     InstallBundle().
     """
+    import pexpect
+
     proc = run_pexpect(f'{sys.executable} -m rauc_dbus_dummy {rauc_bundle}',
                        cwd=os.path.dirname(__file__))
     proc.expect('Interface published')
@@ -205,6 +206,7 @@ def rauc_dbus_install_success(rauc_bundle):
 
     assert proc.isalive()
     assert proc.terminate(force=True)
+    proc.expect(pexpect.EOF)
 
 @pytest.fixture
 def rauc_dbus_install_failure(rauc_bundle):
@@ -301,6 +303,7 @@ def nginx_proxy(nginx_config):
     for proc in procs:
         assert proc.isalive()
         proc.terminate(force=True)
+        proc.expect(pexpect.EOF)
 
 @pytest.fixture(scope='session')
 def rate_limited_port(nginx_proxy):
