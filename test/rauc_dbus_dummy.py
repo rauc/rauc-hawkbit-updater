@@ -35,7 +35,7 @@ class Installer:
         self._last_error = ''
         self._progress = 0, '', 1
 
-    def Install(self, source):
+    def InstallBundle(self, source, args):
         def mimic_install():
             """Mimics a sucessful/failing installation, depending on `self._completed_code`."""
             progresses = [
@@ -123,6 +123,18 @@ class Installer:
     def LastError(self, value):
         self._last_error = value
         self.PropertiesChanged(Installer.interface, {'LastError': self.LastError}, [])
+
+    @property
+    def Compatible(self):
+        return "not implemented"
+
+    @property
+    def Variant(self):
+        return "not implemented"
+
+    @property
+    def BootSlot(self):
+        return "not implemented"
 
 
 if __name__ == '__main__':
