@@ -1,5 +1,6 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
+ * SPDX-FileCopyrightText: 2022 Lukas Reinecke <lukas.reinecke@epis.de>, Epis (https://www.epis.de)
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  */
 
@@ -37,6 +38,7 @@ GQuark rhu_hawkbit_client_http_error_quark(void);
 #define DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE 64 * 1024 // 64KB
 
 extern gboolean run_once;                  /**< only run software check once and exit */
+extern gboolean with_gui;                  /**< enable custom Epis GUI support */
 
 /**
  * @brief HTTP methods.

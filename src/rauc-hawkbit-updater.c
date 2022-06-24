@@ -1,5 +1,6 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
+ * SPDX-FileCopyrightText: 2022 Lukas Reinecke <lukas.reinecke@epis.de>, Epis (https://www.epis.de)
  * SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
@@ -24,6 +25,7 @@ static gboolean opt_version        = FALSE;
 static gboolean opt_debug          = FALSE;
 static gboolean opt_run_once       = FALSE;
 static gboolean opt_output_systemd = FALSE;
+static gboolean opt_with_gui       = FALSE;
 
 // Commandline options
 static GOptionEntry entries[] =
@@ -32,6 +34,7 @@ static GOptionEntry entries[] =
         { "version",          'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_version,           "Version information",                      NULL },
         { "debug",            'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_debug,             "Enable debug output",                      NULL },
         { "run-once",         'r', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_run_once,          "Check and install new software and exit",  NULL },
+        { "with-gui",         'g', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_with_gui,          "Enable GUI support",                       NULL },
 #ifdef WITH_SYSTEMD
         { "output-systemd",   's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_output_systemd,    "Enable output to systemd",                 NULL },
 #endif
@@ -154,6 +157,8 @@ int main(int argc, char **argv)
                 g_printerr("Loading config file failed: %s\n", error->message);
                 return 4;
         }
+
+        with_gui = opt_with_gui;
 
         log_level = (opt_debug) ? G_LOG_LEVEL_MASK : config->log_level;
 

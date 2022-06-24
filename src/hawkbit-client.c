@@ -1,5 +1,6 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
+ * SPDX-FileCopyrightText: 2022 Lukas Reinecke <lukas.reinecke@epis.de>, Epis (https://www.epis.de)
  * SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
@@ -40,6 +41,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(FILE, fclose)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURL, curl_easy_cleanup)
 
 gboolean run_once = FALSE;
+gboolean with_gui = FALSE;
 
 static const gint MAX_RETRIES_ON_API_ERROR = 10;
 
