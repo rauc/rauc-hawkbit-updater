@@ -1,6 +1,35 @@
 Release 1.2 (in development)
 ----------------------------
 
+.. rubric:: Enhancements
+
+* Let rauc-hawkbit-updater use the recent InstallBundle() DBus method instead of
+  legacy Install() method. [#129]
+
+.. rubric:: Bug Fixes
+
+* Fixed NULL pointer dereference if build_api_url() is called for base
+  deployment URL without having GLIB_USING_SYSTEM_PRINTF defined [#115]
+* Fixed compilation against musl by not including glibc-specific
+  bits/types/struct_tm.h [#123] (by Zygmunt Krynicki)
+
+.. rubric:: Code
+
+* Drop some unused variables [#126]
+
+.. rubric:: Testing
+
+* Enable and fix testing for IPv6 addresses [#116]
+* Enhance test output by not aborting too early on process termination [#128]
+* Set proper names for python logger [#127]
+
+.. rubric:: Documentation
+
+* Corrected retry_wait default value in reference [#118]
+* Suggest using systemd-tmpfiles for creating and managing tmp directories
+  as storage location for plain bundles [#124] (by Jonas Licht)
+* Update and clarify python3 venv usage and dependencies for testing [#125]
+
 Release 1.1 (released Nov 15, 2021)
 -----------------------------------
 
