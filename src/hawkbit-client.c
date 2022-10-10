@@ -49,23 +49,21 @@ static const gint MAX_RETRIES_ON_API_ERROR = 10;
  * @brief String representation of HTTP methods.
  */
 static const char *HTTPMethod_STRING[] = {
-        "GET", "HEAD", "PUT", "POST", "PATCH", "DELETE"
-};
+    "GET", "HEAD", "PUT", "POST", "PATCH", "DELETE"};
 
 /**
  * @brief CURLcodes that should lead to download resuming, 0 terminated
  */
 static const gint resumable_codes[] = {
-        CURLE_OPERATION_TIMEDOUT,
-        CURLE_COULDNT_RESOLVE_HOST,
-        CURLE_COULDNT_CONNECT,
-        CURLE_PARTIAL_FILE,
-        CURLE_SEND_ERROR,
-        CURLE_RECV_ERROR,
-        CURLE_HTTP2,
-        CURLE_HTTP2_STREAM,
-        0
-};
+    CURLE_OPERATION_TIMEDOUT,
+    CURLE_COULDNT_RESOLVE_HOST,
+    CURLE_COULDNT_CONNECT,
+    CURLE_PARTIAL_FILE,
+    CURLE_SEND_ERROR,
+    CURLE_RECV_ERROR,
+    CURLE_HTTP2,
+    CURLE_HTTP2_STREAM,
+    0};
 
 static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
@@ -120,7 +118,8 @@ static gboolean get_available_space(const char *path, goffset *free_space, GErro
         g_return_val_if_fail(path, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        if (statvfs(rpath, &stat)) {
+        if (statvfs(rpath, &stat))
+        {
                 int err = errno;
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
                             "Failed to calculate free space for %s: %s", path, g_strerror(err));
@@ -128,7 +127,7 @@ static gboolean get_available_space(const char *path, goffset *free_space, GErro
         }
 
         // the available free space is f_bsize * f_bavail
-        *free_space = (goffset) stat.f_bsize * (goffset) stat.f_bavail;
+        *free_space = (goffset)stat.f_bsize * (goffset)stat.f_bavail;
         return TRUE;
 }
 
@@ -156,9 +155,11 @@ static gboolean get_file_checksum(FILE *fp, const GChecksumType type, gchar **ch
 
         fseek(fp, 0, SEEK_SET);
 
-        while (1) {
+        while (1)
+        {
                 r = fread(buf, 1, sizeof(buf), fp);
-                if (ferror(fp)) {
+                if (ferror(fp))
+                {
                         g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED, "Read failed");
                         return FALSE;
                 }
@@ -192,7 +193,8 @@ static gboolean add_curl_header(struct curl_slist **headers, const char *string,
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
         temp = curl_slist_append(*headers, string);
-        if (!temp) {
+        if (!temp)
+        {
                 curl_slist_free_all(*headers);
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
                             "Could not add header %s", string);
@@ -275,7 +277,8 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
                 g_debug("Resuming download from offset %" CURL_FORMAT_CURL_OFF_T, resume_from);
 
         fp = g_fopen(file, (resume_from) ? "ab+" : "wb+");
-        if (!fp) {
+        if (!fp)
+        {
                 int err = errno;
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
                             "Failed to open %s for download: %s", file, g_strerror(err));
@@ -283,7 +286,8 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
         }
 
         curl = curl_easy_init();
-        if (!curl) {
+        if (!curl)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
                             "Unable to start libcurl easy session");
                 return FALSE;
@@ -317,13 +321,15 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
         curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, speed);
         curl_slist_free_all(headers);
 
-        if (curl_code != CURLE_OK) {
+        if (curl_code != CURLE_OK)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, curl_code, "%s",
                             curl_easy_strerror(curl_code));
                 return FALSE;
         }
         // consider ok/partial download/range not satisfiable (EOF reached) as success
-        if (http_code != 200 && http_code != 206 && http_code != 416) {
+        if (http_code != 200 && http_code != 206 && http_code != 416)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld", http_code);
                 return FALSE;
@@ -349,8 +355,8 @@ static size_t curl_write_cb(const void *content, size_t size, size_t nmemb, void
         g_return_val_if_fail(content, 0);
         g_return_val_if_fail(data, 0);
 
-        p = (RestPayload *) data;
-        p->payload = (gchar *) g_realloc(p->payload, p->size + real_size + 1);
+        p = (RestPayload *)data;
+        p->payload = (gchar *)g_realloc(p->payload, p->size + real_size + 1);
 
         // copy content to buffer
         memcpy(&(p->payload[p->size]), content, real_size);
@@ -387,7 +393,8 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
         curl = curl_easy_init();
-        if (!curl) {
+        if (!curl)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, CURLE_FAILED_INIT,
                             "Unable to start libcurl easy session");
                 return FALSE;
@@ -406,7 +413,8 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_buffer);
 
-        if (jsonRequestBody) {
+        if (jsonRequestBody)
+        {
                 g_autoptr(JsonGenerator) generator = json_generator_new();
                 g_autoptr(JsonNode) req_root = json_builder_get_root(jsonRequestBody);
                 g_autofree gchar *json_req_str = NULL;
@@ -435,19 +443,22 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         res = curl_easy_perform(curl);
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         curl_slist_free_all(headers);
-        if (res != CURLE_OK) {
+        if (res != CURLE_OK)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, res, "%s",
                             curl_easy_strerror(res));
                 return FALSE;
         }
-        if (http_code != 200) {
+        if (http_code != 200)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld; server response: %s", http_code,
                             fetch_buffer->payload);
                 return FALSE;
         }
 
-        if (jsonResponseParser && fetch_buffer->size > 0) {
+        if (jsonResponseParser && fetch_buffer->size > 0)
+        {
                 // process JSON repsonse
                 g_autoptr(JsonParser) parser = json_parser_new_immutable();
                 JsonNode *resp_root = NULL;
@@ -490,7 +501,8 @@ static gboolean rest_request_retriable(enum HTTPMethod method, const gchar *url,
         g_return_val_if_fail(jsonResponseParser == NULL || *jsonResponseParser == NULL, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        while (1) {
+        while (1)
+        {
                 res = rest_request(method, url, jsonRequestBody, jsonResponseParser, &ierror);
                 retry = (g_error_matches(ierror, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 409) ||
                          g_error_matches(ierror, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 429)) &&
@@ -498,7 +510,7 @@ static gboolean rest_request_retriable(enum HTTPMethod method, const gchar *url,
                 if (!retry)
                         break;
 
-                g_debug("%s Trying again (%d/%d)..", ierror->message, retry_count+1,
+                g_debug("%s Trying again (%d/%d)..", ierror->message, retry_count + 1,
                         MAX_RETRIES_ON_API_ERROR);
                 g_clear_error(&ierror);
                 g_usleep(1000000);
@@ -523,7 +535,7 @@ static gboolean rest_request_retriable(enum HTTPMethod method, const gchar *url,
  * @param[in] attributes hawkBit controller attributes or NULL (feedback usecase)
  * @return JsonBuilder* with built hawkBit request
  */
-static JsonBuilder* json_build_status(const gchar *id, const gchar *detail, const gchar *finished,
+static JsonBuilder *json_build_status(const gchar *id, const gchar *detail, const gchar *finished,
                                       const gchar *execution, GHashTable *attributes)
 {
         GHashTableIter iter;
@@ -546,7 +558,8 @@ static JsonBuilder* json_build_status(const gchar *id, const gchar *detail, cons
         // build json status
         json_builder_begin_object(builder);
 
-        if (id) {
+        if (id)
+        {
                 json_builder_set_member_name(builder, "id");
                 json_builder_add_string_value(builder, id);
         }
@@ -566,7 +579,8 @@ static JsonBuilder* json_build_status(const gchar *id, const gchar *detail, cons
         json_builder_set_member_name(builder, "execution");
         json_builder_add_string_value(builder, execution);
 
-        if (detail) {
+        if (detail)
+        {
                 json_builder_set_member_name(builder, "details");
                 json_builder_begin_array(builder);
                 json_builder_add_string_value(builder, detail);
@@ -574,11 +588,13 @@ static JsonBuilder* json_build_status(const gchar *id, const gchar *detail, cons
         }
         json_builder_end_object(builder);
 
-        if (attributes) {
+        if (attributes)
+        {
                 json_builder_set_member_name(builder, "data");
                 json_builder_begin_object(builder);
                 g_hash_table_iter_init(&iter, attributes);
-                while (g_hash_table_iter_next(&iter, &key, &value)) {
+                while (g_hash_table_iter_next(&iter, &key, &value))
+                {
                         json_builder_set_member_name(builder, key);
                         json_builder_add_string_value(builder, value);
                 }
@@ -671,14 +687,16 @@ static long json_get_sleeptime(JsonNode *root)
         g_mutex_lock(&active_action->mutex);
         if (active_action->state == ACTION_STATE_PROCESSING ||
             active_action->state == ACTION_STATE_DOWNLOADING ||
-            active_action->state == ACTION_STATE_CANCEL_REQUESTED) {
+            active_action->state == ACTION_STATE_CANCEL_REQUESTED)
+        {
                 g_mutex_unlock(&active_action->mutex);
                 return 5L;
         }
         g_mutex_unlock(&active_action->mutex);
 
         sleeptime_str = json_get_string(root, "$.config.polling.sleep", &error);
-        if (!sleeptime_str) {
+        if (!sleeptime_str)
+        {
                 g_warning("Polling sleep time not found: %s. Using fallback: %ds",
                           error->message, hawkbit_config->retry_wait);
                 return hawkbit_config->retry_wait;
@@ -696,25 +714,25 @@ static long json_get_sleeptime(JsonNode *root)
  *
  * @return a newly allocated full API URL
  */
-__attribute__((__format__(__printf__, 1, 2)))
-static gchar* build_api_url(const gchar *path, ...)
+__attribute__((__format__(__printf__, 1, 2))) static gchar *build_api_url(const gchar *path, ...)
 {
         g_autofree gchar *buffer = NULL;
         va_list args;
 
-        if (path) {
+        if (path)
+        {
                 va_start(args, path);
                 buffer = g_strdup_vprintf(path, args);
                 va_end(args);
         }
 
         return g_strdup_printf(
-                "%s://%s/%s/controller/v1/%s%s%s",
-                hawkbit_config->ssl ? "https" : "http",
-                hawkbit_config->hawkbit_server, hawkbit_config->tenant_id,
-                hawkbit_config->controller_id,
-                buffer ? "/" : "",
-                buffer ? buffer : "");
+            "%s://%s/%s/controller/v1/%s%s%s",
+            hawkbit_config->ssl ? "https" : "http",
+            hawkbit_config->hawkbit_server, hawkbit_config->tenant_id,
+            hawkbit_config->controller_id,
+            buffer ? "/" : "",
+            buffer ? buffer : "");
 }
 
 gboolean hawkbit_progress(const gchar *msg)
@@ -786,11 +804,11 @@ gboolean install_complete_cb(gpointer ptr)
         active_action->state = result->install_success ? ACTION_STATE_SUCCESS : ACTION_STATE_ERROR;
         feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
         res = feedback(
-                feedback_url, active_action->id,
-                result->install_success ? "Software bundle installed successfully."
-                : "Failed to install software bundle.",
-                result->install_success ? "success" : "failure",
-                "closed", &error);
+            feedback_url, active_action->id,
+            result->install_success ? "Software bundle installed successfully."
+                                    : "Failed to install software bundle.",
+            result->install_success ? "success" : "failure",
+            "closed", &error);
 
         if (!res)
                 g_warning("%s", error->message);
@@ -798,7 +816,8 @@ gboolean install_complete_cb(gpointer ptr)
         process_deployment_cleanup();
         g_mutex_unlock(&active_action->mutex);
 
-        if (result->install_success && hawkbit_config->post_update_reboot) {
+        if (result->install_success && hawkbit_config->post_update_reboot)
+        {
                 sync();
                 if (reboot(RB_AUTOBOOT) < 0)
                         g_critical("Failed to reboot: %s", g_strerror(errno));
@@ -820,10 +839,10 @@ gboolean install_complete_cb(gpointer ptr)
 static gpointer download_thread(gpointer data)
 {
         struct on_new_software_userdata userdata = {
-                .install_progress_callback = (GSourceFunc) hawkbit_progress,
-                .install_complete_callback = install_complete_cb,
-                .file = hawkbit_config->bundle_download_location,
-                .install_success = FALSE,
+            .install_progress_callback = (GSourceFunc)hawkbit_progress,
+            .install_complete_callback = install_complete_cb,
+            .file = hawkbit_config->bundle_download_location,
+            .install_success = FALSE,
         };
         g_autoptr(GError) error = NULL, feedback_error = NULL;
         g_autofree gchar *msg = NULL, *sha1sum = NULL;
@@ -841,7 +860,8 @@ static gpointer download_thread(gpointer data)
 
         g_message("Start downloading: %s", artifact->download_url);
 
-        while (1) {
+        while (1)
+        {
                 gboolean resumable = FALSE;
                 GStatBuf bundle_stat;
                 curl_off_t resume_from = 0;
@@ -850,7 +870,7 @@ static gpointer download_thread(gpointer data)
 
                 // Download software bundle (artifact)
                 if (g_stat(hawkbit_config->bundle_download_location, &bundle_stat) == 0)
-                        resume_from = (curl_off_t) bundle_stat.st_size;
+                        resume_from = (curl_off_t)bundle_stat.st_size;
 
                 if (get_binary(artifact->download_url, hawkbit_config->bundle_download_location,
                                resume_from, &sha1sum, &speed, &error))
@@ -859,7 +879,8 @@ static gpointer download_thread(gpointer data)
                 for (const gint *code = &resumable_codes[0]; *code; code++)
                         resumable |= g_error_matches(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, *code);
 
-                if (!hawkbit_config->resume_downloads || !resumable) {
+                if (!hawkbit_config->resume_downloads || !resumable)
+                {
                         g_prefix_error(&error, "Download failed: ");
                         goto report_err;
                 }
@@ -878,16 +899,18 @@ static gpointer download_thread(gpointer data)
 
         // notify hawkbit that download is complete
         msg = g_strdup_printf("Download complete. %.2f MB/s",
-                              (double)speed/(1024*1024));
+                              (double)speed / (1024 * 1024));
         g_mutex_lock(&active_action->mutex);
-        if (!feedback_progress(artifact->feedback_url, active_action->id, msg, &error)) {
+        if (!feedback_progress(artifact->feedback_url, active_action->id, msg, &error))
+        {
                 g_warning("%s", error->message);
                 g_clear_error(&error);
         }
         g_mutex_unlock(&active_action->mutex);
 
         // validate checksum
-        if (g_strcmp0(artifact->sha1, sha1sum)) {
+        if (g_strcmp0(artifact->sha1, sha1sum))
+        {
                 g_set_error(&error, RHU_HAWKBIT_CLIENT_ERROR, RHU_HAWKBIT_CLIENT_ERROR_DOWNLOAD,
                             "Software: %s V%s. Invalid checksum: %s expected %s", artifact->name,
                             artifact->version, sha1sum, artifact->sha1);
@@ -896,7 +919,8 @@ static gpointer download_thread(gpointer data)
 
         g_mutex_lock(&active_action->mutex);
         if (!feedback_progress(artifact->feedback_url, active_action->id, "File checksum OK.",
-                               &error)) {
+                               &error))
+        {
                 g_warning("%s", error->message);
                 g_clear_error(&error);
         }
@@ -909,7 +933,8 @@ static gpointer download_thread(gpointer data)
                 goto cancel;
 
         // skip installation if hawkBit asked us to do so
-        if (!artifact->do_install) {
+        if (!artifact->do_install)
+        {
                 active_action->state = ACTION_STATE_NONE;
                 g_mutex_unlock(&active_action->mutex);
 
@@ -967,7 +992,8 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         g_return_val_if_fail(req_root, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        if (active_action->state >= ACTION_STATE_PROCESSING) {
+        if (active_action->state >= ACTION_STATE_PROCESSING)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
                             RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
                             "Deployment %s is already in progress.", active_action->id);
@@ -991,15 +1017,16 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         // handle deployment.maintenanceWindow (only available if maintenance window is defined)
         maintenance_window = json_get_string(resp_root, "$.deployment.maintenanceWindow", NULL);
         maintenance_msg = maintenance_window
-                          ? g_strdup_printf(" (maintenance window is '%s')", maintenance_window)
-                          : g_strdup("");
+                              ? g_strdup_printf(" (maintenance window is '%s')", maintenance_window)
+                              : g_strdup("");
 
         // handle deployment.download=skip
         deployment_download = json_get_string(resp_root, "$.deployment.download", error);
         if (!deployment_download)
                 goto error;
 
-        if (!g_strcmp0(deployment_download, "skip")) {
+        if (!g_strcmp0(deployment_download, "skip"))
+        {
                 g_message("hawkBit requested to skip download, not downloading yet%s.",
                           maintenance_msg);
                 active_action->state = ACTION_STATE_NONE;
@@ -1019,7 +1046,8 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         // remember deployment's action id
         temp_id = json_get_string(resp_root, "$.id", error);
 
-        if (!artifact->do_install && !g_strcmp0(temp_id, active_action->id)) {
+        if (!artifact->do_install && !g_strcmp0(temp_id, active_action->id))
+        {
                 g_debug("Deployment %s is still waiting%s.", active_action->id, maintenance_msg);
                 active_action->state = ACTION_STATE_NONE;
                 return TRUE;
@@ -1043,7 +1071,8 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         json_chunks = json_get_array(resp_root, "$.deployment.chunks", error);
         if (!json_chunks)
                 goto proc_error;
-        if (json_array_get_length(json_chunks) > 1) {
+        if (json_array_get_length(json_chunks) > 1)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR, RHU_HAWKBIT_CLIENT_ERROR_MULTI_CHUNKS,
                             "Deployment %s unsupported: cannot handle multiple chunks.", active_action->id);
                 goto proc_error;
@@ -1055,7 +1084,8 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         json_artifacts = json_get_array(json_chunk, "$.artifacts", error);
         if (!json_artifacts)
                 goto proc_error;
-        if (json_array_get_length(json_artifacts) > 1) {
+        if (json_array_get_length(json_artifacts) > 1)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR, RHU_HAWKBIT_CLIENT_ERROR_MULTI_ARTIFACTS,
                             "Deployment %s unsupported: cannot handle multiple artifacts.",
                             active_action->id);
@@ -1085,9 +1115,10 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         artifact->download_url = json_get_string(json_artifact, "$._links.download.href", NULL);
         if (!artifact->download_url)
                 artifact->download_url = json_get_string(
-                        json_artifact, "$._links.download-http.href", error);
+                    json_artifact, "$._links.download-http.href", error);
 
-        if (!artifact->download_url) {
+        if (!artifact->download_url)
+        {
                 g_prefix_error(error, "\"$._links.download{-http,}.href\": ");
                 goto proc_error;
         }
@@ -1099,7 +1130,8 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         if (!get_available_space(hawkbit_config->bundle_download_location, &freespace, error))
                 goto proc_error;
 
-        if (freespace < artifact->size) {
+        if (freespace < artifact->size)
+        {
                 // notify hawkbit that there is not enough free space
                 g_set_error(error, G_FILE_ERROR, G_FILE_ERROR_NOSPC,
                             "File size %" G_GINT64_FORMAT " exceeds available space %" G_GOFFSET_FORMAT,
@@ -1115,7 +1147,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // start download thread
         thread_download = g_thread_new("downloader", download_thread,
-                                       (gpointer) g_steal_pointer(&artifact));
+                                       (gpointer)g_steal_pointer(&artifact));
 
         return TRUE;
 
@@ -1172,7 +1204,8 @@ static gboolean process_cancel(JsonNode *req_root, GError **error)
         g_mutex_lock(&active_action->mutex);
         if (!g_strcmp0(stop_id, active_action->id) &&
             (active_action->state == ACTION_STATE_PROCESSING ||
-             active_action->state == ACTION_STATE_DOWNLOADING)) {
+             active_action->state == ACTION_STATE_DOWNLOADING))
+        {
 
                 g_debug("Action %s is in state %d, waiting for cancel request to be processed",
                         stop_id, active_action->state);
@@ -1185,7 +1218,8 @@ static gboolean process_cancel(JsonNode *req_root, GError **error)
                 active_action->state = ACTION_STATE_NONE;
 
         // send feedback
-        switch (active_action->state) {
+        switch (active_action->state)
+        {
         case ACTION_STATE_NONE:
                 // action unknown, acknowledge cancelation nonetheless
                 g_debug("Received cancelation for unprocessed action %s, acknowledging.",
@@ -1204,7 +1238,8 @@ static gboolean process_cancel(JsonNode *req_root, GError **error)
         case ACTION_STATE_INSTALLING:
                 msg = g_strdup("Cancelation impossible, installation started already.");
                 res = feedback(feedback_url, stop_id, msg, "success", "rejected", error);
-                if (res) {
+                if (res)
+                {
                         res = FALSE;
                         g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
                                     RHU_HAWKBIT_CLIENT_ERROR_CANCELATION, "%s", msg);
@@ -1230,7 +1265,8 @@ void hawkbit_init(Config *config, GSourceFunc on_install_ready)
         curl_global_init(CURL_GLOBAL_ALL);
 }
 
-typedef struct ClientData_ {
+typedef struct ClientData_
+{
         GMainLoop *loop;
         gboolean res;
         long hawkbit_interval_check_sec;
@@ -1266,13 +1302,17 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
 
         g_message("Checking for new software...");
         res = rest_request(GET, get_tasks_url, NULL, &json_response_parser, &error);
-        if (!res) {
-                if (g_error_matches(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 401)) {
+        if (!res)
+        {
+                if (g_error_matches(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, 401))
+                {
                         if (hawkbit_config->auth_token)
                                 g_warning("Failed to authenticate. Check if auth_token is correct?");
                         if (hawkbit_config->gateway_token)
                                 g_warning("Failed to authenticate. Check if gateway_token is correct?");
-                } else {
+                }
+                else
+                {
                         g_warning("Scheduled check for new software failed: %s (%d)",
                                   error->message, error->code);
                 }
@@ -1284,32 +1324,40 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         // owned by the JsonParser and should never be modified or freed
         json_root = json_parser_get_root(json_response_parser);
 
-        if (json_contains(json_root, "$._links.configData")) {
+        if (json_contains(json_root, "$._links.configData"))
+        {
                 // hawkBit has asked us to identify ourselves
                 res = identify(&error);
-                if (!res) {
+                if (!res)
+                {
                         g_warning("%s", error->message);
                         g_clear_error(&error);
                 }
         }
-        if (json_contains(json_root, "$._links.deploymentBase")) {
+        if (json_contains(json_root, "$._links.deploymentBase"))
+        {
                 // hawkBit has a new deployment for us
                 g_mutex_lock(&active_action->mutex);
                 res = process_deployment(json_root, &error);
                 g_mutex_unlock(&active_action->mutex);
-                if (!res) {
+                if (!res)
+                {
                         if (g_error_matches(error, RHU_HAWKBIT_CLIENT_ERROR,
                                             RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS))
                                 g_debug("%s", error->message);
                         else
                                 g_warning("%s", error->message);
                 }
-        } else {
+        }
+        else
+        {
                 g_message("No new software.");
         }
-        if (json_contains(json_root, "$._links.cancelAction")) {
+        if (json_contains(json_root, "$._links.cancelAction"))
+        {
                 res = process_cancel(json_root, &error);
-                if (!res) {
+                if (!res)
+                {
                         g_warning("%s", error->message);
                         g_clear_error(&error);
                 }
@@ -1319,8 +1367,10 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         data->hawkbit_interval_check_sec = json_get_sleeptime(json_root);
 
 out:
-        if (run_once) {
-                if (thread_download) {
+        if (run_once)
+        {
+                if (thread_download)
+                {
                         gpointer thread_ret = g_thread_join(thread_download);
                         res = GPOINTER_TO_INT(thread_ret);
                 }
@@ -1354,7 +1404,7 @@ int hawkbit_start_service_sync()
         // pull every second
         timeout_source = g_timeout_source_new(1000);
         g_source_set_name(timeout_source, "Add timeout");
-        g_source_set_callback(timeout_source, (GSourceFunc) hawkbit_pull_cb, &cdata, NULL);
+        g_source_set_callback(timeout_source, (GSourceFunc)hawkbit_pull_cb, &cdata, NULL);
         g_source_attach(timeout_source, ctx);
 
 #ifdef WITH_SYSTEMD
@@ -1367,7 +1417,8 @@ int hawkbit_start_service_sync()
                 goto finish;
 
         event_source = sd_source_new(event);
-        if (!event_source) {
+        if (!event_source)
+        {
                 res = -ENOMEM;
                 goto finish;
         }
@@ -1420,4 +1471,14 @@ void rest_payload_free(RestPayload *payload)
 
         g_free(payload->payload);
         g_free(payload);
+}
+
+void create_config_file(const gchar *config_file, init_Config *config)
+{
+        g_printf("%s\n", config->hawkbit_server);
+        g_printf("%s\n", config->user);
+        g_printf("%s\n", config->password);
+        /*g_printf("%s\n", config_file);
+        g_printf("%s\n", ip);
+        g_printf("Hallo\n");*/
 }

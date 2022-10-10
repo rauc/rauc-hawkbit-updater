@@ -20,31 +20,31 @@
 #define VERSION PROJECT_VERSION
 
 // program arguments
-static gchar *config_file          = NULL;
-static gboolean opt_version        = FALSE;
-static gboolean opt_debug          = FALSE;
-static gboolean opt_run_once       = FALSE;
+static gchar *config_file = NULL;
+static gchar *init_config_file = NULL;
+static gboolean opt_version = FALSE;
+static gboolean opt_debug = FALSE;
+static gboolean opt_run_once = FALSE;
 static gboolean opt_output_systemd = FALSE;
-static gboolean opt_with_gui       = FALSE;
+static gboolean opt_with_gui = FALSE;
 
 // Commandline options
 static GOptionEntry entries[] =
-{
-        { "config-file",      'c', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME, &config_file,           "Configuration file",                       NULL },
-        { "version",          'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_version,           "Version information",                      NULL },
-        { "debug",            'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_debug,             "Enable debug output",                      NULL },
-        { "run-once",         'r', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_run_once,          "Check and install new software and exit",  NULL },
-        { "with-gui",         'g', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_with_gui,          "Enable GUI support",                       NULL },
+    {
+        {"config-file", 'c', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME, &config_file, "Configuration file", NULL},
+        {"version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &opt_version, "Version information", NULL},
+        {"debug", 'd', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &opt_debug, "Enable debug output", NULL},
+        {"run-once", 'r', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &opt_run_once, "Check and install new software and exit", NULL},
+        {"with-gui", 'g', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &opt_with_gui, "Enable GUI support", NULL},
+        {"init", 'i', G_OPTION_FLAG_NONE, G_OPTION_ARG_FILENAME, &init_config_file, "Initialize controller with this config", NULL},
 #ifdef WITH_SYSTEMD
-        { "output-systemd",   's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,     &opt_output_systemd,    "Enable output to systemd",                 NULL },
+        {"output-systemd", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &opt_output_systemd, "Enable output to systemd", NULL},
 #endif
-        { NULL }
-};
+        {NULL}};
 
 // hawkbit callbacks
 static GSourceFunc notify_hawkbit_install_progress;
 static GSourceFunc notify_hawkbit_install_complete;
-
 
 /**
  * @brief GSourceFunc callback for install thread, consumes RAUC progress messages, logs them and
@@ -60,7 +60,8 @@ static gboolean on_rauc_install_progress_cb(gpointer data)
         g_return_val_if_fail(data, G_SOURCE_REMOVE);
 
         g_mutex_lock(&context->status_mutex);
-        while (!g_queue_is_empty(&context->status_messages)) {
+        while (!g_queue_is_empty(&context->status_messages))
+        {
                 g_autofree gchar *msg = g_queue_pop_head(&context->status_messages);
                 g_message("Installing: %s : %s", context->bundle, msg);
                 // notify hawkbit server about progress
@@ -120,6 +121,7 @@ int main(int argc, char **argv)
         g_auto(GStrv) args = NULL;
         GLogLevelFlags log_level;
         g_autoptr(Config) config = NULL;
+        g_autoptr(init_Config) init_config = NULL;
         GLogLevelFlags fatal_mask;
 
         fatal_mask = g_log_set_always_fatal(G_LOG_FATAL_MASK);
@@ -130,30 +132,53 @@ int main(int argc, char **argv)
 
         context = g_option_context_new("");
         g_option_context_add_main_entries(context, entries, NULL);
-        if (!g_option_context_parse_strv(context, &args, &error)) {
+        if (!g_option_context_parse_strv(context, &args, &error))
+        {
                 g_printerr("option parsing failed: %s\n", error->message);
                 return 1;
         }
 
-        if (opt_version) {
+        if (opt_version)
+        {
                 g_printf("Version %s\n", PROJECT_VERSION);
                 return 0;
         }
 
-        if (!config_file) {
+        if (!config_file)
+        {
                 g_printerr("No configuration file given\n");
                 return 2;
         }
 
-        if (!g_file_test(config_file, G_FILE_TEST_EXISTS)) {
-                g_printerr("No such configuration file: %s\n", config_file);
-                return 3;
+        if (!g_file_test(config_file, G_FILE_TEST_EXISTS))
+        {
+                if (init_config_file)
+                {
+                        if (!g_file_test(init_config_file, G_FILE_TEST_EXISTS))
+                        {
+                                g_printerr("No such configuration file: %s\n", config_file);
+                                return 5;
+                        }
+                        init_config = init_load_config_file(init_config_file, &error);
+                        if (!init_config)
+                        {
+                                g_printerr("Loading config file failed: %s\n", error->message);
+                                return 4;
+                        }
+                        create_config_file(config_file, init_config);
+                }
+                if (!g_file_test(config_file, G_FILE_TEST_EXISTS))
+                {
+                        g_printerr("No such configuration file: %s\n", config_file);
+                        return 3;
+                }
         }
 
         run_once = opt_run_once;
 
         config = load_config_file(config_file, &error);
-        if (!config) {
+        if (!config)
+        {
                 g_printerr("Loading config file failed: %s\n", error->message);
                 return 4;
         }

@@ -159,7 +159,15 @@ void rest_payload_free(RestPayload *payload);
  */
 void artifact_free(Artifact *artifact);
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free)
+/**
+ * @brief Creates Config-File
+ *
+ * @param[in] config_file Path to Config File
+ * @param[in] ip IP of hawkBit Server
+ */
+void create_config_file(const gchar *config_file, init_Config *config);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free);
 
 #endif // __HAWKBIT_CLIENT_H__

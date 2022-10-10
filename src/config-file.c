@@ -11,14 +11,13 @@
 #include <glib/gtypes.h>
 #include <stdlib.h>
 
-
-static const gint DEFAULT_CONNECTTIMEOUT  = 20;     // 20 sec.
-static const gint DEFAULT_TIMEOUT         = 60;     // 1 min.
-static const gint DEFAULT_RETRY_WAIT      = 5 * 60; // 5 min.
-static const gboolean DEFAULT_SSL         = TRUE;
-static const gboolean DEFAULT_SSL_VERIFY  = TRUE;
-static const gboolean DEFAULT_REBOOT      = FALSE;
-static const gchar* DEFAULT_LOG_LEVEL     = "message";
+static const gint DEFAULT_CONNECTTIMEOUT = 20; // 20 sec.
+static const gint DEFAULT_TIMEOUT = 60;        // 1 min.
+static const gint DEFAULT_RETRY_WAIT = 5 * 60; // 5 min.
+static const gboolean DEFAULT_SSL = TRUE;
+static const gboolean DEFAULT_SSL_VERIFY = TRUE;
+static const gboolean DEFAULT_REBOOT = FALSE;
+static const gchar *DEFAULT_LOG_LEVEL = "message";
 
 /**
  * @brief Get string value from key_file for key in group, optional default_value can be specified
@@ -45,8 +44,10 @@ static gboolean get_key_string(GKeyFile *key_file, const gchar *group, const gch
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
         val = g_key_file_get_string(key_file, group, key, error);
-        if (!val) {
-                if (default_value) {
+        if (!val)
+        {
+                if (default_value)
+                {
                         *value = g_strdup(default_value);
                         g_clear_error(error);
                         return TRUE;
@@ -85,7 +86,8 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar *group, const gchar
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
         val = g_key_file_get_string(key_file, group, key, NULL);
-        if (!val) {
+        if (!val)
+        {
                 *value = default_value;
                 return TRUE;
         }
@@ -93,13 +95,15 @@ static gboolean get_key_bool(GKeyFile *key_file, const gchar *group, const gchar
         val = g_strchomp(val);
 
         if (g_strcmp0(val, "0") == 0 || g_ascii_strcasecmp(val, "no") == 0 ||
-            g_ascii_strcasecmp(val, "false") == 0) {
+            g_ascii_strcasecmp(val, "false") == 0)
+        {
                 *value = FALSE;
                 return TRUE;
         }
 
         if (g_strcmp0(val, "1") == 0 || g_ascii_strcasecmp(val, "yes") == 0 ||
-            g_ascii_strcasecmp(val, "true") == 0) {
+            g_ascii_strcasecmp(val, "true") == 0)
+        {
                 *value = TRUE;
                 return TRUE;
         }
@@ -138,11 +142,14 @@ static gboolean get_key_int(GKeyFile *key_file, const gchar *group, const gchar 
 
         val = g_key_file_get_integer(key_file, group, key, &ierror);
 
-        if (g_error_matches(ierror, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND)) {
+        if (g_error_matches(ierror, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND))
+        {
                 g_clear_error(&ierror);
                 *value = default_value;
                 return TRUE;
-        } else if (ierror) {
+        }
+        else if (ierror)
+        {
                 g_propagate_error(error, ierror);
                 return FALSE;
         }
@@ -179,13 +186,15 @@ static gboolean get_group(GKeyFile *key_file, const gchar *group, GHashTable **h
         if (!keys)
                 return FALSE;
 
-        if (!num_keys) {
+        if (!num_keys)
+        {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_PARSE,
                             "Group '%s' has no keys set", group);
                 return FALSE;
         }
 
-        for (key = 0; key < num_keys; key++) {
+        for (key = 0; key < num_keys; key++)
+        {
                 g_autofree gchar *value = g_key_file_get_value(key_file, group, keys[key], error);
                 if (!value)
                         return FALSE;
@@ -208,32 +217,45 @@ static GLogLevelFlags log_level_from_string(const gchar *log_level)
 {
         g_return_val_if_fail(log_level, 0);
 
-        if (g_strcmp0(log_level, "error") == 0) {
+        if (g_strcmp0(log_level, "error") == 0)
+        {
                 return G_LOG_LEVEL_ERROR;
-        } else if (g_strcmp0(log_level, "critical") == 0) {
+        }
+        else if (g_strcmp0(log_level, "critical") == 0)
+        {
                 return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
-        } else if (g_strcmp0(log_level, "warning") == 0) {
+        }
+        else if (g_strcmp0(log_level, "warning") == 0)
+        {
                 return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL |
                        G_LOG_LEVEL_WARNING;
-        } else if (g_strcmp0(log_level, "message") == 0) {
+        }
+        else if (g_strcmp0(log_level, "message") == 0)
+        {
                 return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL |
                        G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE;
-        } else if (g_strcmp0(log_level, "info") == 0) {
+        }
+        else if (g_strcmp0(log_level, "info") == 0)
+        {
                 return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL |
                        G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE |
                        G_LOG_LEVEL_INFO;
-        } else if (g_strcmp0(log_level, "debug") == 0) {
+        }
+        else if (g_strcmp0(log_level, "debug") == 0)
+        {
                 return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL |
                        G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE |
                        G_LOG_LEVEL_INFO | G_LOG_LEVEL_DEBUG;
-        } else {
+        }
+        else
+        {
                 g_warning("Invalid log level given, defaulting to level \"message\"");
                 return G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL |
                        G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE;
         }
 }
 
-Config* load_config_file(const gchar *config_file, GError **error)
+Config *load_config_file(const gchar *config_file, GError **error)
 {
         g_autoptr(Config) config = NULL;
         g_autofree gchar *val = NULL;
@@ -258,12 +280,14 @@ Config* load_config_file(const gchar *config_file, GError **error)
                                                &config->auth_token, NULL, NULL);
         key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token",
                                                   &config->gateway_token, NULL, NULL);
-        if (!key_auth_token_exists && !key_gateway_token_exists) {
+        if (!key_auth_token_exists && !key_gateway_token_exists)
+        {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
                             "Neither auth_token nor gateway_token is set in the config.");
                 return NULL;
         }
-        if (key_auth_token_exists && key_gateway_token_exists) {
+        if (key_auth_token_exists && key_gateway_token_exists)
+        {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
                             "Both auth_token and gateway_token are set in the config.");
                 return NULL;
@@ -308,7 +332,8 @@ Config* load_config_file(const gchar *config_file, GError **error)
                 return NULL;
 
         if (config->timeout > 0 && config->connect_timeout > 0 &&
-            config->timeout < config->connect_timeout) {
+            config->timeout < config->connect_timeout)
+        {
                 g_set_error(error,
                             G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
                             "timeout (%d) must be greater than connect_timeout (%d)",
@@ -332,5 +357,46 @@ void config_file_free(Config *config)
         g_free(config->bundle_download_location);
         if (config->device)
                 g_hash_table_destroy(config->device);
+        g_free(config);
+}
+
+init_Config *init_load_config_file(const gchar *config_file, GError **error)
+{
+        g_autoptr(init_Config) config = NULL;
+        g_autofree gchar *val = NULL;
+        g_autoptr(GKeyFile) ini_file = NULL;
+
+        g_return_val_if_fail(config_file, NULL);
+        g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+        config = g_new0(init_Config, 1);
+        ini_file = g_key_file_new();
+
+        if (!g_key_file_load_from_file(ini_file, config_file, G_KEY_FILE_NONE, error))
+                return NULL;
+
+        if (!get_key_string(ini_file, "server", "hawkbit_server", &config->hawkbit_server, NULL,
+                            error))
+                return NULL;
+
+        if (!get_key_string(ini_file, "server", "user", &config->user, NULL,
+                            error))
+                return NULL;
+
+        if (!get_key_string(ini_file, "server", "password", &config->password, NULL,
+                            error))
+                return NULL;
+
+        return g_steal_pointer(&config);
+}
+
+void init_config_file_free(init_Config *config)
+{
+        if (!config)
+                return;
+
+        g_free(config->hawkbit_server);
+        g_free(config->user);
+        g_free(config->password);
         g_free(config);
 }
