@@ -16,7 +16,8 @@
 #define RHU_HAWKBIT_CLIENT_ERROR rhu_hawkbit_client_error_quark()
 GQuark rhu_hawkbit_client_error_quark(void);
 
-typedef enum {
+typedef enum
+{
         RHU_HAWKBIT_CLIENT_ERROR_ALREADY_IN_PROGRESS,
         RHU_HAWKBIT_CLIENT_ERROR_JSON_RESPONSE_PARSE,
         RHU_HAWKBIT_CLIENT_ERROR_MULTI_CHUNKS,
@@ -33,17 +34,18 @@ GQuark rhu_hawkbit_client_curl_error_quark(void);
 #define RHU_HAWKBIT_CLIENT_HTTP_ERROR rhu_hawkbit_client_http_error_quark()
 GQuark rhu_hawkbit_client_http_error_quark(void);
 
-#define HAWKBIT_USERAGENT                 "rauc-hawkbit-c-agent/1.0"
-#define DEFAULT_CURL_REQUEST_BUFFER_SIZE  512
+#define HAWKBIT_USERAGENT "rauc-hawkbit-c-agent/1.0"
+#define DEFAULT_CURL_REQUEST_BUFFER_SIZE 512
 #define DEFAULT_CURL_DOWNLOAD_BUFFER_SIZE 64 * 1024 // 64KB
 
-extern gboolean run_once;                  /**< only run software check once and exit */
-extern gboolean with_gui;                  /**< enable custom Epis GUI support */
+extern gboolean run_once; /**< only run software check once and exit */
+extern gboolean with_gui; /**< enable custom Epis GUI support */
 
 /**
  * @brief HTTP methods.
  */
-enum HTTPMethod {
+enum HTTPMethod
+{
         GET,
         HEAD,
         PUT,
@@ -52,7 +54,8 @@ enum HTTPMethod {
         DELETE
 };
 
-enum ActionState {
+enum ActionState
+{
         ACTION_STATE_NONE,
         ACTION_STATE_CANCELED,
         ACTION_STATE_ERROR,
@@ -66,49 +69,54 @@ enum ActionState {
 /**
  * @brief struct that contains the context of an HawkBit action.
  */
-struct HawkbitAction {
-        gchar *id;                    /**< HawkBit action id */
-        GMutex mutex;                 /**< mutex used for accessing all other members */
-        enum ActionState state;       /**< state of this action */
-        GCond cond;                   /**< condition on state */
+struct HawkbitAction
+{
+        gchar *id;              /**< HawkBit action id */
+        GMutex mutex;           /**< mutex used for accessing all other members */
+        enum ActionState state; /**< state of this action */
+        GCond cond;             /**< condition on state */
 };
 
 /**
  * @brief struct containing the payload and size of REST body.
  */
-typedef struct RestPayload_ {
-        gchar *payload;               /**< string representation of payload */
-        size_t size;                  /**< size of payload */
+typedef struct RestPayload_
+{
+        gchar *payload; /**< string representation of payload */
+        size_t size;    /**< size of payload */
 } RestPayload;
 
 /**
  * @brief struct containing
  */
-typedef struct Artifact_ {
-        gchar *name;                  /**< name of software */
-        gchar *version;               /**< software version */
-        gint64 size;                  /**< size of software bundle file */
-        gchar *download_url;          /**< download URL of software bundle file */
-        gchar *feedback_url;          /**< URL status feedback should be sent to */
-        gchar *sha1;                  /**< sha1 checksum of software bundle file */
-        gboolean do_install;          /**< whether the installation should be started or not */
+typedef struct Artifact_
+{
+        gchar *name;         /**< name of software */
+        gchar *version;      /**< software version */
+        gint64 size;         /**< size of software bundle file */
+        gchar *download_url; /**< download URL of software bundle file */
+        gchar *feedback_url; /**< URL status feedback should be sent to */
+        gchar *sha1;         /**< sha1 checksum of software bundle file */
+        gboolean do_install; /**< whether the installation should be started or not */
 } Artifact;
 
 /**
  * @brief struct containing the new downloaded file.
  */
-struct on_new_software_userdata {
-        GSourceFunc install_progress_callback;  /**< callback function to be called when new progress */
-        GSourceFunc install_complete_callback;  /**< callback function to be called when installation is complete */
-        gchar *file;                            /**< downloaded new software file */
-        gboolean install_success;               /**< whether the installation succeeded or not (only meaningful for run_once mode!) */
+struct on_new_software_userdata
+{
+        GSourceFunc install_progress_callback; /**< callback function to be called when new progress */
+        GSourceFunc install_complete_callback; /**< callback function to be called when installation is complete */
+        gchar *file;                           /**< downloaded new software file */
+        gboolean install_success;              /**< whether the installation succeeded or not (only meaningful for run_once mode!) */
 };
 
 /**
  * @brief struct containing the result of the installation.
  */
-struct on_install_complete_userdata {
-        gboolean install_success;               /**< status of installation */
+struct on_install_complete_userdata
+{
+        gboolean install_success; /**< status of installation */
 };
 
 /**
@@ -163,9 +171,9 @@ void artifact_free(Artifact *artifact);
  * @brief Creates Config-File
  *
  * @param[in] config_file Path to Config File
- * @param[in] ip IP of hawkBit Server
+ * @param[in] config init configuration
  */
-void create_config_file(const gchar *config_file, init_Config *config);
+gboolean create_config_file(const gchar *config_file, init_Config *config, GError **error);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free);

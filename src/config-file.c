@@ -1,5 +1,6 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
+ * SPDX-FileCopyrightText: 2022 Lukas Reinecke <lukas.reinecke@epis.de>, Epis (https://www.epis.de)
  * SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
@@ -375,17 +376,65 @@ init_Config *init_load_config_file(const gchar *config_file, GError **error)
         if (!g_key_file_load_from_file(ini_file, config_file, G_KEY_FILE_NONE, error))
                 return NULL;
 
-        if (!get_key_string(ini_file, "server", "hawkbit_server", &config->hawkbit_server, NULL,
+        if (!get_key_string(ini_file, "client", "hawkbit_server", &config->hawkbit_server, NULL,
                             error))
                 return NULL;
 
-        if (!get_key_string(ini_file, "server", "user", &config->user, NULL,
+        if (!get_key_string(ini_file, "client", "user", &config->user, NULL,
                             error))
                 return NULL;
 
-        if (!get_key_string(ini_file, "server", "password", &config->password, NULL,
+        if (!get_key_string(ini_file, "client", "password", &config->password, NULL,
                             error))
                 return NULL;
+
+        if (!get_key_bool(ini_file, "client", "ssl", &config->ssl, FALSE,
+                          error))
+                return NULL;
+
+        if (!get_key_string(ini_file, "client", "tenant_id", &config->tenant_id, "DEFAULT", error))
+                return NULL;
+        if (!get_key_string(ini_file, "client", "bundle_download_location",
+                            &config->bundle_download_location, NULL, error))
+                return NULL;
+        if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify,
+                          DEFAULT_SSL_VERIFY, error))
+                return NULL;
+        if (!get_key_int(ini_file, "client", "connect_timeout", &config->connect_timeout,
+                         DEFAULT_CONNECTTIMEOUT, error))
+                return NULL;
+        if (!get_key_int(ini_file, "client", "timeout", &config->timeout, DEFAULT_TIMEOUT, error))
+                return NULL;
+        if (!get_key_int(ini_file, "client", "retry_wait", &config->retry_wait, DEFAULT_RETRY_WAIT,
+                         error))
+                return NULL;
+        if (!get_key_int(ini_file, "client", "low_speed_rate", &config->low_speed_rate, 100,
+                         error))
+                return NULL;
+        if (!get_key_int(ini_file, "client", "low_speed_time", &config->low_speed_time, 60, error))
+                return NULL;
+        if (!get_key_bool(ini_file, "client", "resume_downloads", &config->resume_downloads, FALSE,
+                          error))
+                return NULL;
+        if (!get_key_string(ini_file, "client", "mac_interface", &config->mac_interface, NULL, error))
+                return NULL;
+        if (!get_key_string(ini_file, "client", "log_level", &val, DEFAULT_LOG_LEVEL, error))
+                return NULL;
+        config->log_level = log_level_from_string(val);
+        if (!get_group(ini_file, "device", &config->device, error))
+                return NULL;
+        if (!get_key_bool(ini_file, "client", "post_update_reboot", &config->post_update_reboot, DEFAULT_REBOOT, error))
+                return NULL;
+
+        if (config->timeout > 0 && config->connect_timeout > 0 &&
+            config->timeout < config->connect_timeout)
+        {
+                g_set_error(error,
+                            G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                            "timeout (%d) must be greater than connect_timeout (%d)",
+                            config->timeout, config->connect_timeout);
+                return NULL;
+        }
 
         return g_steal_pointer(&config);
 }
@@ -398,5 +447,10 @@ void init_config_file_free(init_Config *config)
         g_free(config->hawkbit_server);
         g_free(config->user);
         g_free(config->password);
+        g_free(config->tenant_id);
+        g_free(config->mac_interface);
+        g_free(config->bundle_download_location);
+        if (config->device)
+                g_hash_table_destroy(config->device);
         g_free(config);
 }

@@ -157,7 +157,7 @@ int main(int argc, char **argv)
                         if (!g_file_test(init_config_file, G_FILE_TEST_EXISTS))
                         {
                                 g_printerr("No such configuration file: %s\n", config_file);
-                                return 5;
+                                return 3;
                         }
                         init_config = init_load_config_file(init_config_file, &error);
                         if (!init_config)
@@ -165,9 +165,13 @@ int main(int argc, char **argv)
                                 g_printerr("Loading config file failed: %s\n", error->message);
                                 return 4;
                         }
-                        create_config_file(config_file, init_config);
+                        if (!create_config_file(config_file, init_config, &error))
+                        {
+                                g_printerr("Creating config file failed: %s\n", error->message);
+                                return 5;
+                        }
                 }
-                if (!g_file_test(config_file, G_FILE_TEST_EXISTS))
+                else
                 {
                         g_printerr("No such configuration file: %s\n", config_file);
                         return 3;
@@ -175,6 +179,9 @@ int main(int argc, char **argv)
         }
 
         run_once = opt_run_once;
+        
+        g_free(error);
+        error = NULL;
 
         config = load_config_file(config_file, &error);
         if (!config)

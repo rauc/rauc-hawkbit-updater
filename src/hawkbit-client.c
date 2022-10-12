@@ -30,6 +30,10 @@
 #include <gio/gio.h>
 #include <sys/reboot.h>
 
+// Includes for gathering MAC address
+#include <ifaddrs.h>
+#include <netpacket/packet.h>
+
 #include "json-helper.h"
 #ifdef WITH_SYSTEMD
 #include "sd-helper.h"
@@ -69,6 +73,10 @@ static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static struct HawkbitAction *active_action = NULL;
 static GThread *thread_download = NULL;
+static gboolean init_values = FALSE;
+static gint init_timeout;
+static gboolean init_ssl_verify;
+static gint init_connect_timeout;
 
 GQuark rhu_hawkbit_client_error_quark(void)
 {
@@ -241,11 +249,20 @@ static gboolean set_auth_curl_header(struct curl_slist **headers, GError **error
 static void set_default_curl_opts(CURL *curl)
 {
         g_return_if_fail(curl);
-
-        curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
+        if (init_values)
+        {
+                curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
+                curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, init_connect_timeout);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, init_ssl_verify ? 1L : 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, init_ssl_verify ? 1L : 0L);
+        }
+        else
+        {
+                curl_easy_setopt(curl, CURLOPT_USERAGENT, HAWKBIT_USERAGENT);
+                curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
+                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
+        }
 }
 
 /**
@@ -377,9 +394,9 @@ static size_t curl_write_cb(const void *content, size_t size, size_t nmemb, void
  * @param[out] error              Error
  * @return TRUE if request and response parser (if given) suceeded, FALSE otherwise (error set).
  */
-static gboolean rest_request(enum HTTPMethod method, const gchar *url,
-                             JsonBuilder *jsonRequestBody, JsonParser **jsonResponseParser,
-                             GError **error)
+static gboolean rest_request_with_auth(enum HTTPMethod method, const gchar *url,
+                                       JsonBuilder *jsonRequestBody, JsonParser **jsonResponseParser,
+                                       const gchar *user, const gchar *pw, GError **error)
 {
         g_autofree gchar *postdata = NULL;
         g_autoptr(RestPayload) fetch_buffer = NULL;
@@ -409,7 +426,10 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         set_default_curl_opts(curl);
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, HTTPMethod_STRING[method]);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, hawkbit_config->timeout);
+        if (init_values)
+                curl_easy_setopt(curl, CURLOPT_TIMEOUT, init_timeout);
+        else
+                curl_easy_setopt(curl, CURLOPT_TIMEOUT, hawkbit_config->timeout);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_buffer);
 
@@ -430,14 +450,23 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         if (!add_curl_header(&headers, "Accept: application/json;charset=UTF-8", error))
                 return FALSE;
 
-        if (!set_auth_curl_header(&headers, error))
-                return FALSE;
+        if (user == NULL || pw == NULL)
+        {
+                if (!set_auth_curl_header(&headers, error))
+                        return FALSE;
+        }
 
         if (jsonRequestBody &&
             !add_curl_header(&headers, "Content-Type: application/json;charset=UTF-8", error))
                 return FALSE;
 
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        if (user != NULL && pw != NULL)
+        {
+                curl_easy_setopt(curl, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
+                curl_easy_setopt(curl, CURLOPT_USERPWD, g_strdup_printf("%s:%s", user, pw));
+        }
 
         // perform request
         res = curl_easy_perform(curl);
@@ -449,7 +478,7 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
                             curl_easy_strerror(res));
                 return FALSE;
         }
-        if (http_code != 200)
+        if (http_code != 200 && http_code != 201)
         {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld; server response: %s", http_code,
@@ -475,6 +504,13 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         }
 
         return TRUE;
+}
+
+static gboolean rest_request(enum HTTPMethod method, const gchar *url,
+                             JsonBuilder *jsonRequestBody, JsonParser **jsonResponseParser,
+                             GError **error)
+{
+        return rest_request_with_auth(method, url, jsonRequestBody, jsonResponseParser, NULL, NULL, error);
 }
 
 /**
@@ -1473,12 +1509,62 @@ void rest_payload_free(RestPayload *payload)
         g_free(payload);
 }
 
-void create_config_file(const gchar *config_file, init_Config *config)
+GHashTable *load_mac_addresses(GError **error)
 {
-        g_printf("%s\n", config->hawkbit_server);
-        g_printf("%s\n", config->user);
-        g_printf("%s\n", config->password);
-        /*g_printf("%s\n", config_file);
-        g_printf("%s\n", ip);
-        g_printf("Hallo\n");*/
+        // Modify this for different methot to gather device info
+        g_autoptr(GHashTable) tmp_hash = NULL;
+        tmp_hash = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+        struct ifaddrs *ifaddr = NULL;
+        struct ifaddrs *ifa = NULL;
+        if (getifaddrs(&ifaddr) == -1)
+        {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR, 0, "Couldn't get MAC-Addresses");
+                return NULL;
+        }
+
+        for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
+        {
+                if ((ifa->ifa_addr) && (ifa->ifa_addr->sa_family == AF_PACKET))
+                {
+                        g_autofree gchar *ethernet_interface = NULL;
+                        g_autofree gchar *mac = NULL;
+                        struct sockaddr_ll *s = (struct sockaddr_ll *)ifa->ifa_addr;
+                        ethernet_interface = g_strdup_printf("%s", ifa->ifa_name);
+                        mac = g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x", s->sll_addr[0], s->sll_addr[1], s->sll_addr[2], s->sll_addr[3], s->sll_addr[4], s->sll_addr[5]);
+                        g_hash_table_insert(tmp_hash, g_strdup_printf("interface_%s", ethernet_interface), g_strdup(mac));
+                }
+        }
+        freeifaddrs(ifaddr);
+        return g_steal_pointer(&tmp_hash);
+}
+
+gboolean create_config_file(const gchar *config_file, init_Config *config, GError **error)
+{
+        g_autoptr(GHashTable) macs = NULL;
+        g_autofree gchar *name = g_strdup("Test123");
+        g_autoptr(JsonParser) json_response_parser = NULL;
+        g_autofree gchar *url = g_strdup_printf("http%s://%s/rest/v1/targets", config->ssl ? "s" : "", config->hawkbit_server);
+        macs = load_mac_addresses(error);
+        if (!macs)
+                return FALSE;
+        g_autoptr(JsonBuilder) builder = NULL;
+        builder = json_builder_new();
+        json_builder_begin_array(builder);
+        json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "controllerId");
+        json_builder_add_string_value(builder, g_strdup(name));
+        json_builder_set_member_name(builder, "name");
+        json_builder_add_string_value(builder, g_strdup(name));
+        json_builder_set_member_name(builder, "description");
+        json_builder_add_string_value(builder, g_strdup("Auto generated Device"));
+        json_builder_end_object(builder);
+        json_builder_end_array(builder);
+        init_timeout = config->timeout;
+        init_ssl_verify = config->ssl_verify;
+        init_connect_timeout = config->connect_timeout;
+        init_values = TRUE;
+        if (!rest_request_with_auth(POST, url, builder, &json_response_parser, config->user, config->password, error))
+                return FALSE;
+        init_values = FALSE;
+        return TRUE;
 }
