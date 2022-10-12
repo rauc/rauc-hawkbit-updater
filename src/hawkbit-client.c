@@ -1531,7 +1531,7 @@ GHashTable *load_mac_addresses(GError **error)
                         struct sockaddr_ll *s = (struct sockaddr_ll *)ifa->ifa_addr;
                         ethernet_interface = g_strdup_printf("%s", ifa->ifa_name);
                         mac = g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x", s->sll_addr[0], s->sll_addr[1], s->sll_addr[2], s->sll_addr[3], s->sll_addr[4], s->sll_addr[5]);
-                        g_hash_table_insert(tmp_hash, g_strdup_printf("interface_%s", ethernet_interface), g_strdup(mac));
+                        g_hash_table_insert(tmp_hash, g_strdup(ethernet_interface), g_strdup(mac));
                 }
         }
         freeifaddrs(ifaddr);
@@ -1541,12 +1541,13 @@ GHashTable *load_mac_addresses(GError **error)
 gboolean create_config_file(const gchar *config_file, init_Config *config, GError **error)
 {
         g_autoptr(GHashTable) macs = NULL;
-        g_autofree gchar *name = g_strdup("Test123");
+        g_autofree gchar *name = NULL;
         g_autoptr(JsonParser) json_response_parser = NULL;
         g_autofree gchar *url = g_strdup_printf("http%s://%s/rest/v1/targets", config->ssl ? "s" : "", config->hawkbit_server);
         macs = load_mac_addresses(error);
         if (!macs)
                 return FALSE;
+        name = g_strdup_printf("%s|%s", config->nummer_shuttle_SPS, (gchar *)g_hash_table_lookup(macs, config->mac_interface));
         g_autoptr(JsonBuilder) builder = NULL;
         builder = json_builder_new();
         json_builder_begin_array(builder);
@@ -1566,5 +1567,36 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         if (!rest_request_with_auth(POST, url, builder, &json_response_parser, config->user, config->password, error))
                 return FALSE;
         init_values = FALSE;
+        JsonNode *resp_root = NULL;
+        resp_root = json_parser_get_root(json_response_parser);
+        g_autofree gchar *new_hawkbit_server = g_strdup_printf("hawkbit_server = %s\n", config->hawkbit_server);
+        g_autofree gchar *new_ssl = g_strdup_printf("ssl = %s\n", config->ssl ? "true" : "false");
+        g_autofree gchar *new_ssl_verify = g_strdup_printf("ssl_verify = %s\n", config->ssl_verify ? "true" : "false");
+        g_autofree gchar *new_post_update_reboot = g_strdup_printf("post_update_reboot = %s\n", config->post_update_reboot ? "true" : "false");
+        g_autofree gchar *new_resume_downloads = g_strdup_printf("resume_downloads = %s\n", config->resume_downloads ? "true" : "false");
+        g_autofree gchar *new_auth_token = g_strdup_printf("auth_token = %s\n", json_get_string(resp_root, "$[0].securityToken", NULL));
+        g_autofree gchar *new_tenant_id = g_strdup_printf("tenant_id = %s\n", config->tenant_id);
+        g_autofree gchar *new_controller_id = g_strdup_printf("target_name = %s\n", name);
+        g_autofree gchar *new_bundle_download_location = g_strdup_printf("bundle_download_location = %s\n", config->bundle_download_location);
+        g_autofree gchar *new_log_level = g_strdup_printf("log_level = %s\n", config->log_level);
+        g_autofree gchar *new_connect_timeout = g_strdup_printf("connect_timeout = %d\n", config->connect_timeout);
+        g_autofree gchar *new_timeout = g_strdup_printf("timeout = %d\n", config->timeout);
+        g_autofree gchar *new_retry_wait = g_strdup_printf("retry_wait = %d\n", config->retry_wait);
+        g_autofree gchar *new_low_speed_time = g_strdup_printf("low_speed_time = %d\n", config->low_speed_time);
+        g_autofree gchar *new_low_speed_rate = g_strdup_printf("low_speed_rate = %d\n", config->low_speed_rate);
+        g_autofree gchar *new_client = g_strdup_printf("[client]\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", new_hawkbit_server, new_ssl, new_ssl_verify,
+                                                       new_post_update_reboot, new_resume_downloads, new_auth_token, new_tenant_id, new_controller_id,
+                                                       new_bundle_download_location, new_log_level, new_connect_timeout, new_timeout, new_retry_wait,
+                                                       new_low_speed_time, new_low_speed_rate);
+        g_autofree gchar *new_device = "[device]\n";
+        g_autofree gchar **device_keys = (gchar **)g_hash_table_get_keys_as_array(macs, NULL);
+        for (gint i = 0; device_keys[i]; i++)
+                new_device = g_strconcat(new_device, g_strdup_printf("interface_%s = %s\n", device_keys[i], (gchar *)g_hash_table_lookup(macs, device_keys[i])), NULL);
+        g_autofree gchar **init_device_keys = (gchar **)g_hash_table_get_keys_as_array(config->device, NULL);
+        for (gint i = 0; init_device_keys[i]; i++)
+                new_device = g_strconcat(new_device, g_strdup_printf("%s = %s\n", init_device_keys[i], (gchar *)g_hash_table_lookup(config->device, init_device_keys[i])), NULL);
+        new_device = g_strconcat(new_device, g_strdup_printf("nummer_shuttle_SPS = %s\nkomponentennummer = %s\nvariante = %s\nrevision = %s\n", config->nummer_shuttle_SPS, config->komponentennummer, config->variante, config->revision), NULL);
+        if (!g_file_set_contents(config_file, g_strconcat(new_client, new_device, NULL), -1, error))
+                return FALSE;
         return TRUE;
 }

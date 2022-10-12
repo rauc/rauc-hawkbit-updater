@@ -364,7 +364,6 @@ void config_file_free(Config *config)
 init_Config *init_load_config_file(const gchar *config_file, GError **error)
 {
         g_autoptr(init_Config) config = NULL;
-        g_autofree gchar *val = NULL;
         g_autoptr(GKeyFile) ini_file = NULL;
 
         g_return_val_if_fail(config_file, NULL);
@@ -418,9 +417,8 @@ init_Config *init_load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         if (!get_key_string(ini_file, "client", "mac_interface", &config->mac_interface, NULL, error))
                 return NULL;
-        if (!get_key_string(ini_file, "client", "log_level", &val, DEFAULT_LOG_LEVEL, error))
+        if (!get_key_string(ini_file, "client", "log_level", &config->log_level, DEFAULT_LOG_LEVEL, error))
                 return NULL;
-        config->log_level = log_level_from_string(val);
         if (!get_group(ini_file, "device", &config->device, error))
                 return NULL;
         if (!get_key_bool(ini_file, "client", "post_update_reboot", &config->post_update_reboot, DEFAULT_REBOOT, error))
@@ -435,7 +433,18 @@ init_Config *init_load_config_file(const gchar *config_file, GError **error)
                             config->timeout, config->connect_timeout);
                 return NULL;
         }
-
+        if (!get_key_string(ini_file, "client", "nummer_shuttle_SPS",
+                            &config->nummer_shuttle_SPS, NULL, error))
+                return NULL;
+        if (!get_key_string(ini_file, "client", "komponentennummer",
+                            &config->komponentennummer, NULL, error))
+                return NULL;
+        if (!get_key_string(ini_file, "client", "variante",
+                            &config->variante, NULL, error))
+                return NULL;
+        if (!get_key_string(ini_file, "client", "revision",
+                            &config->revision, NULL, error))
+                return NULL;
         return g_steal_pointer(&config);
 }
 
