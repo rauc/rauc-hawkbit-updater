@@ -1,0 +1,23 @@
+# feature options
+option(
+  'systemd',
+  type : 'feature',
+  value : 'disabled',
+  description : 'Build for systemd (sd-notify support)')
+option(
+  'doc',
+  type : 'feature',
+  value : 'auto',
+  description : 'Build user documentation')
+option(
+  'apidoc',
+  type : 'feature',
+  value : 'auto',
+  description : 'Build API documentation (doxygen)')
+
+# path options
+option(
+  'systemdsystemunitdir',
+  type : 'string',
+  value : '',
+  description : 'Directory for systemd service files')

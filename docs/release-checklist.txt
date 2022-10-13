@@ -6,7 +6,7 @@ Preparation
 - check for GitHub milestone to be completed
   - review & merge open PRs if necessary
 - update CHANGES
-- update version in docs/conf.py and CMakeLists.txt
+- update version in docs/conf.py and meson.build
 - create preparation PR, merge PR
 
 Release
@@ -16,14 +16,17 @@ Release
 
     git tag -m 'release v1.0' -s -u 925F79DAA74AF221 v1.0
 
-- create source tar archive::
+- create release tar archive::
 
-    git archive --format=tar.gz -o rauc-hawkbit-updater-1.0.tar.gz --prefix=rauc-hawkbit-updater-1.0/ v1.0
+    meson setup build
+    ninja -C build dist
+
+  The resulting archive will be placed at build/meson-dist/rauc-hawkbit-updater-<version>.tar.xz
 
 - sign (and verify) source archive::
 
-    gpg --detach-sign -u 925F79DAA74AF221 --armor rauc-hawkbit-updater-1.0.tar.gz
-    gpg --verify rauc-hawkbit-updater-1.0.tar.gz.asc
+    gpg --detach-sign -u 925F79DAA74AF221 --armor build/meson-dist/rauc-hawkbit-updater-<version>.tar.xz
+    gpg --verify build/meson-dist/rauc-hawkbit-updater-<version>.tar.xz.asc
 
 - push master commit (if necessary)
 - push signed git tag

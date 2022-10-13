@@ -1,5 +1,5 @@
 PROJECT_NAME           = "RAUC HawkBit updater"
 PROJECT_BRIEF          = "The RAUC hawkBit updater is a simple commandline tool and daemon."
-OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs/
-INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/src/ @CMAKE_CURRENT_SOURCE_DIR@/include/
+OUTPUT_DIRECTORY       = @DOXYGEN_OUTPUT@
+INPUT                  = @DOXYGEN_INPUT@
 OPTIMIZE_OUTPUT_FOR_C  = YES
