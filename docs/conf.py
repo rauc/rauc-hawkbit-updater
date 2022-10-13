@@ -22,7 +22,7 @@ copyright = '2018-2022, Lasse Klok Mikkelsen, Enrico Jörns, Bastian Krause'
 author = 'Lasse Klok Mikkelsen, Enrico Jörns, Bastian Krause'
 
 # The full version, including alpha/beta/rc tags
-release = '1.2'
+release = '1.3'
 
 
 # -- General configuration ---------------------------------------------------
