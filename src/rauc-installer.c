@@ -113,6 +113,7 @@ static void install_context_free(struct install_context *context)
                 return;
 
         g_free(context->bundle);
+        g_free(context->auth_header);
         g_mutex_clear(&context->status_mutex);
 
         // make sure all pending events are processed
@@ -145,6 +146,14 @@ static gpointer install_loop_thread(gpointer data)
 
         context = data;
         g_main_context_push_thread_default(context->loop_context);
+
+        if (context->auth_header) {
+                gchar *headers[2] = {NULL, NULL};
+                headers[0] = context->auth_header;
+                g_variant_dict_insert(&args, "http-headers", "^as", headers);
+
+                g_variant_dict_insert(&args, "tls-no-verify", "b", !context->ssl_verify);
+        }
 
         g_debug("Creating RAUC DBUS proxy");
         r_installer_proxy = r_installer_proxy_new_for_bus_sync(
@@ -191,8 +200,9 @@ notify_complete:
         return NULL;
 }
 
-gboolean rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
-                      GSourceFunc on_install_complete, gboolean wait)
+gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ssl_verify,
+                      GSourceFunc on_install_notify, GSourceFunc on_install_complete,
+                      gboolean wait)
 {
         GMainContext *loop_context = NULL;
         struct install_context *context = NULL;
@@ -202,6 +212,8 @@ gboolean rauc_install(const gchar *bundle, GSourceFunc on_install_notify,
         loop_context = g_main_context_new();
         context = install_context_new();
         context->bundle = g_strdup(bundle);
+        context->auth_header = g_strdup(auth_header);
+        context->ssl_verify = ssl_verify;
         context->notify_event = on_install_notify;
         context->notify_complete = on_install_complete;
         context->mainloop = g_main_loop_new(loop_context, FALSE);

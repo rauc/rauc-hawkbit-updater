@@ -65,6 +65,8 @@ Mandatory options:
   E.g. set to ``/tmp/_bundle.raucb`` to let rauc-hawkbit-updater use this
   location within ``/tmp``.
 
+  .. note:: Option can be ommited if ``stream_bundle`` is enabled.
+
 Optional options:
 
 ``tenant_id=<ID>``
@@ -81,6 +83,7 @@ Optional options:
 ``connect_timeout=<seconds>``
   HTTP connection setup timeout [seconds].
   Defaults to ``20`` seconds.
+  Has no effect on bundle downloading when used with ``stream_bundle=true``.
 
 ``timeout=<seconds>``
   HTTP request timeout [seconds].
@@ -94,16 +97,25 @@ Optional options:
   Time to be below ``low_speed_rate`` to trigger the low speed abort.
   Defaults to ``60``.
   See https://curl.se/libcurl/c/CURLOPT_LOW_SPEED_TIME.html.
+  Has no effect when used with ``stream_bundle=true``.
 
 ``low_speed_rate=<bytes per second>``
   Average transfer speed to be below during ``low_speed_time`` seconds to
   consider transfer as "too slow" and abort it.
   Defaults to ``100``.
   See https://curl.se/libcurl/c/CURLOPT_LOW_SPEED_LIMIT.html.
+  Has no effect when used with ``stream_bundle=true``.
 
 ``resume_downloads=<boolean>``
   Whether to resume aborted downloads or not.
   Defaults to ``false``.
+  Has no effect when used with ``stream_bundle=true``.
+
+``stream_bundle=<boolean>``
+  Whether to install bundles via
+  `RAUC's HTTP streaming installation support <https://rauc.readthedocs.io/en/latest/advanced.html#http-streaming>`_.
+  rauc-hawkbit-updater does not download the bundle in this case, but rather
+  hands the hawkBit bundle URL and the :ref:`authentication header <authentication-section>` to RAUC.
 
 ``post_update_reboot=<boolean>``
   Whether to reboot the system after a successful update.

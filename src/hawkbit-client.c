@@ -202,6 +202,25 @@ static gboolean add_curl_header(struct curl_slist **headers, const char *string,
 }
 
 /**
+ * @brief Returns the header required to authenticate against hawkBit, either target or gateway
+ *        token.
+ *
+ * @return header required to authenticate against hawkBit
+ */
+static char* get_auth_header()
+{
+        if (hawkbit_config->auth_token)
+                return g_strdup_printf("Authorization: TargetToken %s",
+                                       hawkbit_config->auth_token);
+
+        if (hawkbit_config->gateway_token)
+                return g_strdup_printf("Authorization: GatewayToken %s",
+                                       hawkbit_config->gateway_token);
+
+        g_return_val_if_reached(NULL);
+}
+
+/**
  * @brief Add hawkBit authorization header to Curl headers.
  *
  * @param[out] headers curl_slist** of already set headers
@@ -216,12 +235,7 @@ static gboolean set_auth_curl_header(struct curl_slist **headers, GError **error
 
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-        if (hawkbit_config->auth_token)
-                token = g_strdup_printf("Authorization: TargetToken %s",
-                                        hawkbit_config->auth_token);
-        else if (hawkbit_config->gateway_token)
-                token = g_strdup_printf("Authorization: GatewayToken %s",
-                                        hawkbit_config->gateway_token);
+        token = get_auth_header();
         if (token)
                 res = add_curl_header(headers, token, error);
 
@@ -821,6 +835,8 @@ static gpointer download_thread(gpointer data)
                 .install_progress_callback = (GSourceFunc) hawkbit_progress,
                 .install_complete_callback = install_complete_cb,
                 .file = hawkbit_config->bundle_download_location,
+                .auth_header = NULL,
+                .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
         };
         g_autoptr(GError) error = NULL, feedback_error = NULL;
@@ -941,6 +957,61 @@ cancel:
         g_mutex_unlock(&active_action->mutex);
 
         return GINT_TO_POINTER(FALSE);
+}
+
+/**
+ * @brief Start a RAUC HTTP streaming installation without prior bundle download.
+ *        This skips the download thread and starts the install thread (via rauc_install()
+ *        directly).
+ *        Must be called under locked active_action->mutex.
+ *
+ * @param[in]  artifcat Artifact* to install
+ * @param[out] error    Error
+ * @return TRUE if installation prcessing succeeded, FALSE otherwise (error set).
+ *         Note that this functions returns TRUE even for canceled/skipped installations.
+ */
+static gboolean start_streaming_installation(Artifact *artifact, GError **error)
+{
+        g_autofree gchar *auth_header = get_auth_header();
+        struct on_new_software_userdata userdata = {
+                .install_progress_callback = (GSourceFunc) hawkbit_progress,
+                .install_complete_callback = install_complete_cb,
+                .file = artifact->download_url,
+                .auth_header = auth_header,
+                .ssl_verify = hawkbit_config->ssl_verify,
+                .install_success = FALSE,
+        };
+
+        // installation might already be canceled
+        if (active_action->state == ACTION_STATE_CANCEL_REQUESTED) {
+                active_action->state = ACTION_STATE_CANCELED;
+                g_cond_signal(&active_action->cond);
+                return TRUE;
+        }
+
+        // skip installation if hawkBit asked us to do so
+        if (!artifact->do_install) {
+                active_action->state = ACTION_STATE_NONE;
+                return TRUE;
+        }
+
+        active_action->state = ACTION_STATE_INSTALLING;
+        g_cond_signal(&active_action->cond);
+        g_mutex_unlock(&active_action->mutex);
+
+        software_ready_cb(&userdata);
+
+        g_mutex_lock(&active_action->mutex);
+
+        // in case of run_once, userdata.install_access is set and must be passed on
+        if (!userdata.install_success) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
+                            RHU_HAWKBIT_CLIENT_ERROR_STREAM_INSTALL,
+                            "Streaming installation failed");
+                return FALSE;
+        }
+
+        return TRUE;
 }
 
 /**
@@ -1106,6 +1177,10 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         }
 
         artifact->feedback_url = g_steal_pointer(&feedback_url);
+
+        // stream_bundle path exits early
+        if (hawkbit_config->stream_bundle)
+                return start_streaming_installation(artifact, error);
 
         // unref/free previous download thread by joining it
         if (thread_download)
