@@ -261,12 +261,12 @@ Config* load_config_file(const gchar *config_file, GError **error)
                                                   &config->gateway_token, NULL, NULL);
         if (!key_auth_token_exists && !key_gateway_token_exists) {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "Neither auth_token nor gateway_token is set in the config.");
+                            "Neither 'auth_token' nor 'gateway_token' set");
                 return NULL;
         }
         if (key_auth_token_exists && key_gateway_token_exists) {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "Both auth_token and gateway_token are set in the config.");
+                            "Both 'auth_token' and 'gateway_token' set");
                 return NULL;
         }
 
@@ -314,7 +314,7 @@ Config* load_config_file(const gchar *config_file, GError **error)
             config->timeout < config->connect_timeout) {
                 g_set_error(error,
                             G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "timeout (%d) must be greater than connect_timeout (%d)",
+                            "'timeout' (%d) must be greater than 'connect_timeout' (%d)",
                             config->timeout, config->connect_timeout);
                 return NULL;
         }

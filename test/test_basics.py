@@ -50,7 +50,7 @@ def test_config_no_auth_token(adjust_config):
     assert exitcode == 4
     assert out == ''
     assert err.strip() == \
-            'Loading config file failed: Neither auth_token nor gateway_token is set in the config.'
+            "Loading config file failed: Neither 'auth_token' nor 'gateway_token' set"
 
 def test_config_multiple_auth_methods(adjust_config):
     """Test config with auth_token and gateway_token options in client section."""
@@ -61,7 +61,7 @@ def test_config_multiple_auth_methods(adjust_config):
     assert exitcode == 4
     assert out == ''
     assert err.strip() == \
-            'Loading config file failed: Both auth_token and gateway_token are set in the config.'
+            "Loading config file failed: Both 'auth_token' and 'gateway_token' set"
 
 def test_register_and_check_invalid_gateway_token(adjust_config):
     """Test config with invalid gateway_token."""
