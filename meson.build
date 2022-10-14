@@ -1,7 +1,7 @@
 project(
   'rauc-hawkbit-updater',
   'c',
-  version : '1.2',
+  version : '1.3',
   meson_version : '>=0.50',
   default_options: [
     'warning_level=3',
