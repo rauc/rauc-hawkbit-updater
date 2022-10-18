@@ -9,10 +9,11 @@ jobs:
       fail-fast: false
       matrix:
         options:
-        - -DWITH_SYSTEMD=ON
-        - -DWITH_SYSTEMD=OFF
-        - -DWITH_SYSTEMD=ON -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak"
-        - -DWITH_SYSTEMD=OFF -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak"
+        - -Dsystemd=enabled
+        - -Dsystemd=disabled
+        flags:
+        - null
+        - CFLAGS="-fsanitize=address -fsanitize=leak -g" LDFLAGS="-fsanitize=address -fsanitize=leak"
     steps:
     - name: Inspect environment
       run: |
@@ -24,15 +25,16 @@ jobs:
     - name: Install required packages
       run: |
         sudo apt-get update
-        sudo apt-get install libcurl4-openssl-dev libsystemd-dev libjson-glib-dev
+        sudo apt-get install meson libcurl4-openssl-dev libsystemd-dev libjson-glib-dev
 
-    - name: Build (with ${{ matrix.options }})
+    - name: Build (with ${{ matrix.options }} ${{ matrix.flags }})
       run: |
-        mkdir -p build
-        cd build
-        cmake ${{ matrix.options }} -DQA_BUILD=ON ..
-        make
-        cd -
+        ${{ matrix.flags }} meson build ${{ matrix.options }} -Dwerror=true
+        ninja -C build
+
+    - name: Build release
+      run: |
+        ninja -C build dist
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -55,7 +57,9 @@ jobs:
     - name: Update/launch hawkBit docker container
       run: |
         docker pull hawkbit/hawkbit-update-server
-        docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server
+        docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server \
+          --hawkbit.server.security.dos.filter.enabled=false \
+          --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1
 
     - name: Run test suite
       run: |
@@ -70,16 +74,13 @@ jobs:
     - name: Install required packages
       run: |
         sudo apt-get update
-        sudo apt-get install libcurl4-openssl-dev libjson-glib-dev python3-sphinx python3-sphinx-rtd-theme doxygen
+        sudo apt-get install meson libcurl4-openssl-dev libjson-glib-dev python3-sphinx python3-sphinx-rtd-theme doxygen
 
-    - name: Build documentation (Sphinx & Doxygen)
+    - name: Meson Build documentation (Sphinx & Doxygen)
       run: |
-        mkdir -p build
-        cd build
-        cmake -DBUILD_DOC=ON -DSPHINX_OPTIONS=-W ..
-        make doc_doxygen
-        make doc
-        cd -
+        meson build
+        ninja -C build docs/html
+        ninja -C build doxygen
 
   uncrustify:
     runs-on: ubuntu-latest

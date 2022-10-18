@@ -1,7 +1,7 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
  * SPDX-FileCopyrightText: 2022 Lukas Reinecke <lukas.reinecke@epis.de>, Epis (https://www.epis.de)
- * SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
+ * SPDX-FileCopyrightText: 2021-2022 Bastian Krause <bst@pengutronix.de>, Pengutronix
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
  * @file
@@ -95,7 +95,8 @@ static gboolean on_rauc_install_complete_cb(gpointer data)
 }
 
 /**
- * @brief GSourceFunc callback for download thread, triggers RAUC installation.
+ * @brief GSourceFunc callback for download thread, or main thread in case of HTTP streaming
+ *        installation. Triggers RAUC installation.
  *
  * @param[in] data on_new_software_userdata pointer
  * @return G_SOURCE_REMOVE is always returned
@@ -108,7 +109,9 @@ static gboolean on_new_software_ready_cb(gpointer data)
 
         notify_hawkbit_install_progress = userdata->install_progress_callback;
         notify_hawkbit_install_complete = userdata->install_complete_callback;
-        userdata->install_success = rauc_install(userdata->file, on_rauc_install_progress_cb,
+        userdata->install_success = rauc_install(userdata->file, userdata->auth_header,
+                                                 userdata->ssl_verify,
+                                                 on_rauc_install_progress_cb,
                                                  on_rauc_install_complete_cb, run_once);
 
         return G_SOURCE_REMOVE;

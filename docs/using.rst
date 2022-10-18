@@ -1,6 +1,8 @@
 Using the RAUC hawkbit Updater
 ==============================
 
+.. _authentication-section:
+
 Authentication
 --------------
 
@@ -21,6 +23,20 @@ In the RAUC hawkBit updater's configuration file it's called ``gateway_token``.
 Although gateway token is very handy during development or testing, it's
 recommended to use this token with care because it can be used to
 authenticate any device.
+
+Streaming Support
+-----------------
+
+By default, rauc-hawkbit-updater downloads the bundle to a temporary
+storage location and then invokes RAUC to install the bundle.
+In order to save bundle storage and also potentially download bandwidth
+(when combined with adaptive updates), rauc-hawkbit-updater can also leverage
+`RAUC's built-in HTTP streaming support <https://rauc.readthedocs.io/en/latest/advanced.html#http-streaming>`_.
+
+To enable it, set ``stream_bundle=true`` in the :ref:`sec_ref_config_file`.
+
+.. note:: rauc-hawkbit-updater will add required authentication headers and
+   options to its RAUC D-Bus `InstallBundle API call <https://rauc.readthedocs.io/en/latest/reference.html#gdbus-method-de-pengutronix-rauc-installer-installbundle>`_.
 
 Plain Bundle Support
 --------------------

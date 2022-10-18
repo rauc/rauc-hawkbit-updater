@@ -42,6 +42,7 @@ Setup target (device) configuration file:
   timeout                   = 60
   log_level                 = debug
   post_update_reboot        = false
+  #enable_streaming         = true
 
   [device]
   product                   = Terminator
@@ -77,11 +78,8 @@ Compile
 -------
 
 ```shell
-  mkdir build
-  cd build
-  cmake ..
-  make
-  cd ..
+  meson setup build
+  ninja -C build
 ```
 
 Test Suite
@@ -101,7 +99,9 @@ Run hawkBit docker container:
 
 ```shell
 $ docker pull hawkbit/hawkbit-update-server
-$ docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server
+$ docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server \
+    --hawkbit.server.security.dos.filter.enabled=false \
+    --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1
 ```
 
 Run test suite:

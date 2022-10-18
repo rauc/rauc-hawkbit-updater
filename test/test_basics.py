@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-only
 # SPDX-FileCopyrightText: 2021 Enrico Jörns <e.joerns@pengutronix.de>, Pengutronix
-# SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
+# SPDX-FileCopyrightText: 2021-2022 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
 import re
 from configparser import ConfigParser
@@ -50,7 +50,7 @@ def test_config_no_auth_token(adjust_config):
     assert exitcode == 4
     assert out == ''
     assert err.strip() == \
-            'Loading config file failed: Neither auth_token nor gateway_token is set in the config.'
+            "Loading config file failed: Neither 'auth_token' nor 'gateway_token' set"
 
 def test_config_multiple_auth_methods(adjust_config):
     """Test config with auth_token and gateway_token options in client section."""
@@ -61,7 +61,7 @@ def test_config_multiple_auth_methods(adjust_config):
     assert exitcode == 4
     assert out == ''
     assert err.strip() == \
-            'Loading config file failed: Both auth_token and gateway_token are set in the config.'
+            "Loading config file failed: Both 'auth_token' and 'gateway_token' set"
 
 def test_register_and_check_invalid_gateway_token(adjust_config):
     """Test config with invalid gateway_token."""
@@ -113,6 +113,16 @@ def test_register_and_check_valid_auth_token(adjust_config, trailing_space):
     assert exitcode == 0
     assert 'MESSAGE: Checking for new software...' in out
     assert err == ''
+
+def test_register_and_check_no_download_location_no_streaming(adjust_config):
+    """Test config without bundle_download_location and without stream_bundle."""
+    config = adjust_config(remove={'client': 'bundle_download_location'})
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert exitcode == 4
+    assert out == ''
+    assert err.strip() == \
+            "Loading config file failed: 'bundle_download_location' is required if 'stream_bundle' is disabled"
 
 def test_identify(hawkbit, config):
     """

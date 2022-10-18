@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-2.1-only
 # SPDX-FileCopyrightText: 2021 Enrico Jörns <e.joerns@pengutronix.de>, Pengutronix
-# SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
+# SPDX-FileCopyrightText: 2021-2022 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
 import os
 import sys
@@ -37,6 +37,7 @@ def hawkbit(pytestconfig):
     client.set_config('authentication.targettoken.enabled', True)
     client.set_config('authentication.gatewaytoken.enabled', True)
     client.set_config('authentication.gatewaytoken.key', uuid4().hex)
+    client.set_config('anonymous.download.enabled', False)
 
     return client
 

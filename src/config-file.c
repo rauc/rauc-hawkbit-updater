@@ -1,7 +1,7 @@
 /**
  * SPDX-License-Identifier: LGPL-2.1-only
  * SPDX-FileCopyrightText: 2022 Lukas Reinecke <lukas.reinecke@epis.de>, Epis (https://www.epis.de)
- * SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
+ * SPDX-FileCopyrightText: 2021-2022 Bastian Krause <bst@pengutronix.de>, Pengutronix
  * SPDX-FileCopyrightText: 2018-2020 Lasse K. Mikkelsen <lkmi@prevas.dk>, Prevas A/S (www.prevas.com)
  *
  * @file
@@ -263,6 +263,7 @@ Config *load_config_file(const gchar *config_file, GError **error)
         g_autoptr(GKeyFile) ini_file = NULL;
         gboolean key_auth_token_exists = FALSE;
         gboolean key_gateway_token_exists = FALSE;
+        gboolean bundle_location_given = FALSE;
 
         g_return_val_if_fail(config_file, NULL);
         g_return_val_if_fail(error == NULL || *error == NULL, NULL);
@@ -284,13 +285,13 @@ Config *load_config_file(const gchar *config_file, GError **error)
         if (!key_auth_token_exists && !key_gateway_token_exists)
         {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "Neither auth_token nor gateway_token is set in the config.");
+                            "Neither 'auth_token' nor 'gateway_token' set");
                 return NULL;
         }
         if (key_auth_token_exists && key_gateway_token_exists)
         {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "Both auth_token and gateway_token are set in the config.");
+                            "Both 'auth_token' and 'gateway_token' set");
                 return NULL;
         }
 
@@ -299,9 +300,8 @@ Config *load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         if (!get_key_string(ini_file, "client", "tenant_id", &config->tenant_id, "DEFAULT", error))
                 return NULL;
-        if (!get_key_string(ini_file, "client", "bundle_download_location",
-                            &config->bundle_download_location, NULL, error))
-                return NULL;
+        bundle_location_given = get_key_string(ini_file, "client", "bundle_download_location",
+                                               &config->bundle_download_location, NULL, NULL);
         if (!get_key_bool(ini_file, "client", "ssl", &config->ssl, DEFAULT_SSL, error))
                 return NULL;
         if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify,
@@ -325,6 +325,9 @@ Config *load_config_file(const gchar *config_file, GError **error)
         if (!get_key_bool(ini_file, "client", "resume_downloads", &config->resume_downloads, FALSE,
                           error))
                 return NULL;
+        if (!get_key_bool(ini_file, "client", "stream_bundle", &config->stream_bundle, FALSE,
+                          error))
+                return NULL;
         if (!get_key_string(ini_file, "client", "log_level", &val, DEFAULT_LOG_LEVEL, error))
                 return NULL;
         config->log_level = log_level_from_string(val);
@@ -337,8 +340,14 @@ Config *load_config_file(const gchar *config_file, GError **error)
         {
                 g_set_error(error,
                             G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "timeout (%d) must be greater than connect_timeout (%d)",
+                            "'timeout' (%d) must be greater than 'connect_timeout' (%d)",
                             config->timeout, config->connect_timeout);
+                return NULL;
+        }
+
+        if (!bundle_location_given && !config->stream_bundle) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND,
+                            "'bundle_download_location' is required if 'stream_bundle' is disabled");
                 return NULL;
         }
 

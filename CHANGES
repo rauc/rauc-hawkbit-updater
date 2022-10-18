@@ -1,3 +1,17 @@
+Release 1.3 (released Oct 14, 2022)
+-----------------------------------
+
+.. rubric:: Enhancements
+
+* Add option ``stream_bundle=true`` to allow using RAUC's HTTP(S) bundle
+  streaming capabilities instead of downloading and storing bundles separately.
+  [#130]
+* Make error messages more consistent. [#138]
+
+.. rubric:: Build System
+
+* Switch to meson [#113]
+
 Release 1.2 (released Jul 1, 2022)
 ----------------------------------
 

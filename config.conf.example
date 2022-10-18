@@ -23,6 +23,9 @@ auth_token                = cb115a721af28f781b493fa467819ef5
 # Temporay file RAUC bundle should be downloaded to
 bundle_download_location  = /tmp/bundle.raucb
 
+# Do not download bundle, let RAUC use its HTTP streaming feature instead
+#stream_bundle             = true
+
 # time in seconds to wait before retrying
 retry_wait                = 60
 

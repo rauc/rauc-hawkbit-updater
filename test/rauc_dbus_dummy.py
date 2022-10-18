@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-2.1-only
-# SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
+# SPDX-FileCopyrightText: 2021-2022 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
 import hashlib
 import time
@@ -8,6 +8,7 @@ from pathlib import Path
 
 from gi.repository import GLib
 from pydbus.generic import signal
+import requests
 
 
 class Installer:
@@ -77,9 +78,13 @@ class Installer:
             return False
 
         print(f'installing {source}')
-
-        # check bundle checksum matches expected checksum (passed to constructor)
-        assert self._get_bundle_sha1(source) == self._get_bundle_sha1(self._bundle)
+        try:
+            self._check_install_requirements(source, args)
+        except Exception as e:
+            self.Completed(1)
+            self.LastError = f'Installation error: {e}'
+            self.Operation = 'idle'
+            raise
 
         GLib.timeout_add_seconds(interval=1, function=mimic_install)
 
@@ -96,6 +101,49 @@ class Installer:
                 sha1.update(chunk)
 
         return sha1.hexdigest()
+
+    @staticmethod
+    def _get_http_bundle_sha1(url, auth_header):
+        """Download file from URL using HTTP range requests and compute its sha1 checksum."""
+        sha1 = hashlib.sha1()
+        headers = auth_header
+        range_size = 128 * 1024  # default squashfs block size
+
+        offset = 0
+        while True:
+            headers['Range'] = f'bytes={offset}-{offset + range_size - 1}'
+            r = requests.get(url, headers=headers)
+            try:
+                r.raise_for_status()
+                sha1.update(r.content)
+            except requests.HTTPError:
+                if r.status_code == 416:  # range not satisfiable, assuming download completed
+                    break
+                raise
+
+            offset += range_size
+
+        return sha1.hexdigest()
+
+    def _check_install_requirements(self, source, args):
+        """
+        Check that required headers are set, bundle is accessible (HTTP or locally) and its
+        checksum matches.
+        """
+        if 'http-headers' in args:
+            assert len(args['http-headers']) == 1
+
+            [auth_header] = args['http-headers']
+            key, value = auth_header.split(': ', maxsplit=1)
+            http_bundle_sha1 = self._get_http_bundle_sha1(source, {key: value})
+            assert http_bundle_sha1 == self._get_bundle_sha1(self._bundle)
+
+            # assume ssl_verify=false is set in test setup
+            assert args['tls-no-verify'] is True
+
+        else:
+            # check bundle checksum matches expected checksum
+            assert self._get_bundle_sha1(source) == self._get_bundle_sha1(self._bundle)
 
     @property
     def Operation(self):

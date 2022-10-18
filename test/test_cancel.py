@@ -1,17 +1,22 @@
 # SPDX-License-Identifier: LGPL-2.1-only
-# SPDX-FileCopyrightText: 2021 Bastian Krause <bst@pengutronix.de>, Pengutronix
+# SPDX-FileCopyrightText: 2021-2022 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
 from pexpect import TIMEOUT, EOF
+import pytest
 
 from helper import run, run_pexpect
 
-def test_cancel_before_poll(hawkbit, config, bundle_assigned, rauc_dbus_install_success):
+@pytest.mark.parametrize('mode', ('download', 'streaming'))
+def test_cancel_before_poll(hawkbit, adjust_config, bundle_assigned, rauc_dbus_install_success,
+                            mode):
     """
     Assign distribution containing bundle to target and cancel it right away. Then run
     rauc-hawkbit-updater and make sure it acknowledges the not yet processed action.
     """
     hawkbit.cancel_action()
 
+    config_params = {'client': {'stream_bundle': 'true'}} if mode == 'streaming' else {}
+    config = adjust_config(config_params)
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
 
     assert f'Received cancelation for unprocessed action {hawkbit.id["action"]}, acknowledging.' \
@@ -35,7 +40,9 @@ def test_cancel_during_download(hawkbit, adjust_config, bundle_assigned, rate_li
     started and make sure the cancelation is acknowledged and no installation is started.
     """
     port = rate_limited_port('70k')
-    config = adjust_config({'client': {'hawkbit_server': f'{hawkbit.host}:{port}'}})
+
+    config_params = {'client': {'hawkbit_server': f'{hawkbit.host}:{port}'}}
+    config = adjust_config(config_params)
 
     # note: we cannot use -r here since that prevents further polling of the base resource
     # announcing the cancelation
@@ -65,12 +72,17 @@ def test_cancel_during_download(hawkbit, adjust_config, bundle_assigned, rate_li
     assert cancel_status[0]['type'] == 'canceled'
     assert 'Action canceled.' in cancel_status[0]['messages']
 
-def test_cancel_during_install(hawkbit, config, bundle_assigned, rauc_dbus_install_success):
+@pytest.mark.parametrize('mode', ('download', 'streaming'))
+def test_cancel_during_install(hawkbit, adjust_config, bundle_assigned, rauc_dbus_install_success,
+                               mode):
     """
     Assign distribution containing bundle to target. Run rauc-hawkbit-updater and cancel the
     assignment once the installation started. Make sure the cancelation does not disrupt the
     installation.
     """
+    config_params = {'client': {'stream_bundle': 'true'}} if mode == 'streaming' else {}
+    config = adjust_config(config_params)
+
     proc = run_pexpect(f'rauc-hawkbit-updater -c "{config}"')
     proc.expect('MESSAGE: Installing: ')
 
