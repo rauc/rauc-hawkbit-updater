@@ -478,7 +478,7 @@ static gboolean rest_request_with_auth(enum HTTPMethod method, const gchar *url,
                             curl_easy_strerror(res));
                 return FALSE;
         }
-        if (http_code != 200 && http_code != 201)
+        if (http_code != 200 && ((user == NULL || pw == NULL) || (http_code != 201 && http_code != 409)))
         {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_HTTP_ERROR, http_code,
                             "HTTP request failed: %ld; server response: %s", http_code,
@@ -1552,6 +1552,8 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         builder = json_builder_new();
         json_builder_begin_array(builder);
         json_builder_begin_object(builder);
+        json_builder_set_member_name(builder, "securityToken");
+        json_builder_add_string_value(builder, (gchar *)g_hash_table_lookup(macs, config->mac_interface));
         json_builder_set_member_name(builder, "controllerId");
         json_builder_add_string_value(builder, g_strdup(name));
         json_builder_set_member_name(builder, "name");
@@ -1567,14 +1569,12 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         if (!rest_request_with_auth(POST, url, builder, &json_response_parser, config->user, config->password, error))
                 return FALSE;
         init_values = FALSE;
-        JsonNode *resp_root = NULL;
-        resp_root = json_parser_get_root(json_response_parser);
         g_autofree gchar *new_hawkbit_server = g_strdup_printf("hawkbit_server = %s\n", config->hawkbit_server);
         g_autofree gchar *new_ssl = g_strdup_printf("ssl = %s\n", config->ssl ? "true" : "false");
         g_autofree gchar *new_ssl_verify = g_strdup_printf("ssl_verify = %s\n", config->ssl_verify ? "true" : "false");
         g_autofree gchar *new_post_update_reboot = g_strdup_printf("post_update_reboot = %s\n", config->post_update_reboot ? "true" : "false");
         g_autofree gchar *new_resume_downloads = g_strdup_printf("resume_downloads = %s\n", config->resume_downloads ? "true" : "false");
-        g_autofree gchar *new_auth_token = g_strdup_printf("auth_token = %s\n", json_get_string(resp_root, "$[0].securityToken", NULL));
+        g_autofree gchar *new_auth_token = g_strdup_printf("auth_token = %s\n", (gchar *)g_hash_table_lookup(macs, config->mac_interface));
         g_autofree gchar *new_tenant_id = g_strdup_printf("tenant_id = %s\n", config->tenant_id);
         g_autofree gchar *new_controller_id = g_strdup_printf("target_name = %s\n", name);
         g_autofree gchar *new_bundle_download_location = g_strdup_printf("bundle_download_location = %s\n", config->bundle_download_location);
