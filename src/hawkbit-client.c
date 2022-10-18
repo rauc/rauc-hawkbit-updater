@@ -1649,6 +1649,7 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         g_autofree gchar *new_ssl_verify = g_strdup_printf("ssl_verify = %s\n", config->ssl_verify ? "true" : "false");
         g_autofree gchar *new_post_update_reboot = g_strdup_printf("post_update_reboot = %s\n", config->post_update_reboot ? "true" : "false");
         g_autofree gchar *new_resume_downloads = g_strdup_printf("resume_downloads = %s\n", config->resume_downloads ? "true" : "false");
+        g_autofree gchar *new_resume_downloads = g_strdup_printf("stream_bundle = %s\n", config->stream_bundle ? "true" : "false");
         g_autofree gchar *new_auth_token = g_strdup_printf("auth_token = %s\n", (gchar *)g_hash_table_lookup(macs, config->mac_interface));
         g_autofree gchar *new_tenant_id = g_strdup_printf("tenant_id = %s\n", config->tenant_id);
         g_autofree gchar *new_controller_id = g_strdup_printf("target_name = %s\n", name);

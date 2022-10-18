@@ -345,7 +345,8 @@ Config *load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         }
 
-        if (!bundle_location_given && !config->stream_bundle) {
+        if (!bundle_location_given && !config->stream_bundle)
+        {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND,
                             "'bundle_download_location' is required if 'stream_bundle' is disabled");
                 return NULL;
@@ -418,6 +419,9 @@ init_Config *init_load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         if (!get_key_int(ini_file, "client", "low_speed_rate", &config->low_speed_rate, 100,
                          error))
+                return NULL;
+        if (!get_key_bool(ini_file, "client", "stream_bundle", &config->stream_bundle, FALSE,
+                          error))
                 return NULL;
         if (!get_key_int(ini_file, "client", "low_speed_time", &config->low_speed_time, 60, error))
                 return NULL;
