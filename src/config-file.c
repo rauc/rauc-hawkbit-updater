@@ -446,8 +446,8 @@ init_Config *init_load_config_file(const gchar *config_file, GError **error)
                             config->timeout, config->connect_timeout);
                 return NULL;
         }
-        if (!get_key_string(ini_file, "client", "nummer_shuttle_SPS",
-                            &config->nummer_shuttle_SPS, NULL, error))
+        if (!get_key_string(ini_file, "client", "name",
+                            &config->name, NULL, error))
                 return NULL;
         if (!get_key_string(ini_file, "client", "komponentennummer",
                             &config->komponentennummer, NULL, error))

@@ -12,25 +12,26 @@
 /**
  * @brief struct that contains the Rauc HawkBit configuration.
  */
-typedef struct Config_ {
-        gchar* hawkbit_server;            /**< hawkBit host or IP and port */
-        gboolean ssl;                     /**< use https or http */
-        gboolean ssl_verify;              /**< verify https certificate */
-        gboolean post_update_reboot;      /**< reboot system after successful update */
-        gboolean resume_downloads;        /**< resume downloads or not */
-        gboolean stream_bundle;           /**< streaming installation or not */
-        gchar* auth_token;                /**< hawkBit target security token */
-        gchar* gateway_token;             /**< hawkBit gateway security token */
-        gchar* tenant_id;                 /**< hawkBit tenant id */
-        gchar* controller_id;             /**< hawkBit controller id*/
-        gchar* bundle_download_location;  /**< file to download rauc bundle to */
-        int connect_timeout;              /**< connection timeout */
-        int timeout;                      /**< reply timeout */
-        int retry_wait;                   /**< wait between retries */
-        int low_speed_time;               /**< time to be below the speed to trigger low speed abort */
-        int low_speed_rate;               /**< low speed limit to abort transfer */
-        GLogLevelFlags log_level;         /**< log level */
-        GHashTable* device;               /**< Additional attributes sent to hawkBit */
+typedef struct Config_
+{
+        gchar *hawkbit_server;           /**< hawkBit host or IP and port */
+        gboolean ssl;                    /**< use https or http */
+        gboolean ssl_verify;             /**< verify https certificate */
+        gboolean post_update_reboot;     /**< reboot system after successful update */
+        gboolean resume_downloads;       /**< resume downloads or not */
+        gboolean stream_bundle;          /**< streaming installation or not */
+        gchar *auth_token;               /**< hawkBit target security token */
+        gchar *gateway_token;            /**< hawkBit gateway security token */
+        gchar *tenant_id;                /**< hawkBit tenant id */
+        gchar *controller_id;            /**< hawkBit controller id*/
+        gchar *bundle_download_location; /**< file to download rauc bundle to */
+        int connect_timeout;             /**< connection timeout */
+        int timeout;                     /**< reply timeout */
+        int retry_wait;                  /**< wait between retries */
+        int low_speed_time;              /**< time to be below the speed to trigger low speed abort */
+        int low_speed_rate;              /**< low speed limit to abort transfer */
+        GLogLevelFlags log_level;        /**< log level */
+        GHashTable *device;              /**< Additional attributes sent to hawkBit */
 } Config;
 
 /**
@@ -45,7 +46,7 @@ typedef struct init_Config_
         gboolean ssl_verify;             /**< verify https certificate */
         gboolean post_update_reboot;     /**< reboot system after successful update */
         gboolean resume_downloads;       /**< resume downloads or not */
-        gboolean stream_bundle;           /**< streaming installation or not */
+        gboolean stream_bundle;          /**< streaming installation or not */
         gchar *tenant_id;                /**< hawkBit tenant id */
         gchar *bundle_download_location; /**< file to download rauc bundle to */
         int connect_timeout;             /**< connection timeout */
@@ -56,7 +57,7 @@ typedef struct init_Config_
         gchar *log_level;                /**< log level */
         GHashTable *device;              /**< Additional attributes sent to hawkBit */
         gchar *mac_interface;            /**< Interface for MAC Address */
-        gchar *nummer_shuttle_SPS;       /**< Nummer der SPS */
+        gchar *name;                     /**< Name der SPS */
         gchar *komponentennummer;        /**<  */
         gchar *variante;                 /**<  */
         gchar *revision;                 /**<  */

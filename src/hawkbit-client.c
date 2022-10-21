@@ -219,7 +219,7 @@ static gboolean add_curl_header(struct curl_slist **headers, const char *string,
  *
  * @return header required to authenticate against hawkBit
  */
-static char* get_auth_header()
+static char *get_auth_header()
 {
         if (hawkbit_config->auth_token)
                 return g_strdup_printf("Authorization: TargetToken %s",
@@ -892,8 +892,8 @@ static gpointer download_thread(gpointer data)
             .install_progress_callback = (GSourceFunc)hawkbit_progress,
             .install_complete_callback = install_complete_cb,
             .file = hawkbit_config->bundle_download_location,
-                .auth_header = NULL,
-                .ssl_verify = hawkbit_config->ssl_verify,
+            .auth_header = NULL,
+            .ssl_verify = hawkbit_config->ssl_verify,
             .install_success = FALSE,
         };
         g_autoptr(GError) error = NULL, feedback_error = NULL;
@@ -1037,23 +1037,25 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
 {
         g_autofree gchar *auth_header = get_auth_header();
         struct on_new_software_userdata userdata = {
-                .install_progress_callback = (GSourceFunc) hawkbit_progress,
-                .install_complete_callback = install_complete_cb,
-                .file = artifact->download_url,
-                .auth_header = auth_header,
-                .ssl_verify = hawkbit_config->ssl_verify,
-                .install_success = FALSE,
+            .install_progress_callback = (GSourceFunc)hawkbit_progress,
+            .install_complete_callback = install_complete_cb,
+            .file = artifact->download_url,
+            .auth_header = auth_header,
+            .ssl_verify = hawkbit_config->ssl_verify,
+            .install_success = FALSE,
         };
 
         // installation might already be canceled
-        if (active_action->state == ACTION_STATE_CANCEL_REQUESTED) {
+        if (active_action->state == ACTION_STATE_CANCEL_REQUESTED)
+        {
                 active_action->state = ACTION_STATE_CANCELED;
                 g_cond_signal(&active_action->cond);
                 return TRUE;
         }
 
         // skip installation if hawkBit asked us to do so
-        if (!artifact->do_install) {
+        if (!artifact->do_install)
+        {
                 active_action->state = ACTION_STATE_NONE;
                 return TRUE;
         }
@@ -1067,7 +1069,8 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
         g_mutex_lock(&active_action->mutex);
 
         // in case of run_once, userdata.install_access is set and must be passed on
-        if (!userdata.install_success) {
+        if (!userdata.install_success)
+        {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
                             RHU_HAWKBIT_CLIENT_ERROR_STREAM_INSTALL,
                             "Streaming installation failed");
@@ -1603,8 +1606,7 @@ GHashTable *load_mac_addresses(GError **error)
                 {
                         g_autofree gchar *ethernet_interface = NULL;
                         g_autofree gchar *mac = NULL;
-                        struct sockaddr_ll *s = NULL;
-                        memcpy(&s, ifa->ifa_addr, sizeof(s));
+                        struct sockaddr_ll *s = (struct sockaddr_ll *)ifa->ifa_addr;
                         ethernet_interface = g_strdup_printf("%s", ifa->ifa_name);
                         mac = g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x", s->sll_addr[0], s->sll_addr[1], s->sll_addr[2], s->sll_addr[3], s->sll_addr[4], s->sll_addr[5]);
                         g_hash_table_insert(tmp_hash, g_strdup(ethernet_interface), g_strdup(mac));
@@ -1623,7 +1625,9 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         macs = load_mac_addresses(error);
         if (!macs)
                 return FALSE;
-        name = g_strdup_printf("%s|%s", config->nummer_shuttle_SPS, (gchar *)g_hash_table_lookup(macs, config->mac_interface));
+        g_autofree gchar *mac = (gchar *)g_hash_table_lookup(macs, config->mac_interface);
+        g_string_replace(mac, ":", "", 0);
+        name = g_strdup_printf("%s_%s_%s_%s", config->name, config->komponentennummer, config->variante, mac);
         g_autoptr(JsonBuilder) builder = NULL;
         builder = json_builder_new();
         json_builder_begin_array(builder);
@@ -1672,7 +1676,7 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         g_autofree gchar **init_device_keys = (gchar **)g_hash_table_get_keys_as_array(config->device, NULL);
         for (gint i = 0; init_device_keys[i]; i++)
                 new_device = g_strconcat(new_device, g_strdup_printf("%s = %s\n", init_device_keys[i], (gchar *)g_hash_table_lookup(config->device, init_device_keys[i])), NULL);
-        new_device = g_strconcat(new_device, g_strdup_printf("nummer_shuttle_SPS = %s\nkomponentennummer = %s\nvariante = %s\nrevision = %s\n", config->nummer_shuttle_SPS, config->komponentennummer, config->variante, config->revision), NULL);
+        new_device = g_strconcat(new_device, g_strdup_printf("name = %s\nkomponentennummer = %s\nvariante = %s\nrevision = %s\n", config->name, config->komponentennummer, config->variante, config->revision), NULL);
         if (!g_file_set_contents(config_file, g_strconcat(new_client, new_device, NULL), -1, error))
                 return FALSE;
         return TRUE;
