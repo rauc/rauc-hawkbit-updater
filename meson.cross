@@ -1,0 +1,20 @@
+[binaries]
+c = ['arm-ostl-linux-gnueabi-gcc', '-mthumb', '-mfpu=neon-vfpv4', '-mfloat-abi=hard', '-mcpu=cortex-a7', '--sysroot=/opt/st/osd32mp157c-epis/3.1-snapshot/sysroots/cortexa7t2hf-neon-vfpv4-ostl-linux-gnueabi']
+cpp = ['arm-ostl-linux-gnueabi-g++', '-mthumb', '-mfpu=neon-vfpv4', '-mfloat-abi=hard', '-mcpu=cortex-a7', '--sysroot=/opt/st/osd32mp157c-epis/3.1-snapshot/sysroots/cortexa7t2hf-neon-vfpv4-ostl-linux-gnueabi']
+ar = ['arm-ostl-linux-gnueabi-ar']
+nm = ['arm-ostl-linux-gnueabi-nm']
+strip = ['arm-ostl-linux-gnueabi-strip']
+pkgconfig = 'pkg-config'
+c_ld = 'bfd'
+
+[built-in options]
+c_args = ['-O2', '-pipe', '-g', '-feliminate-unused-debug-types']
+c_link_args = ['-Wl,-O1', '-Wl,--hash-style=gnu', '-Wl,--as-needed']
+cpp_args = []
+cpp_link_args = ['-Wl,-O1', '-Wl,--hash-style=gnu', '-Wl,--as-needed']
+
+[host_machine]
+system = 'linux'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'

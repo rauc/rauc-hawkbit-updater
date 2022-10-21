@@ -94,7 +94,7 @@ init_Config *init_load_config_file(const gchar *config_file, GError **error);
  */
 void init_config_file_free(init_Config *config);
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(init_Config, init_config_file_free);
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Config, config_file_free);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(init_Config, init_config_file_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Config, config_file_free)
 
 #endif // __CONFIG_FILE_H__

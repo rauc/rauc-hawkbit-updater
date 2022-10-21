@@ -1588,9 +1588,9 @@ GHashTable *load_mac_addresses(GError **error)
 {
         // Modify this for different methot to gather device info
         g_autoptr(GHashTable) tmp_hash = NULL;
-        tmp_hash = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
         struct ifaddrs *ifaddr = NULL;
         struct ifaddrs *ifa = NULL;
+        tmp_hash = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
         if (getifaddrs(&ifaddr) == -1)
         {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR, 0, "Couldn't get MAC-Addresses");
@@ -1603,7 +1603,8 @@ GHashTable *load_mac_addresses(GError **error)
                 {
                         g_autofree gchar *ethernet_interface = NULL;
                         g_autofree gchar *mac = NULL;
-                        struct sockaddr_ll *s = (struct sockaddr_ll *)ifa->ifa_addr;
+                        struct sockaddr_ll *s = NULL;
+                        memcpy(&s, ifa->ifa_addr, sizeof(s));
                         ethernet_interface = g_strdup_printf("%s", ifa->ifa_name);
                         mac = g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x", s->sll_addr[0], s->sll_addr[1], s->sll_addr[2], s->sll_addr[3], s->sll_addr[4], s->sll_addr[5]);
                         g_hash_table_insert(tmp_hash, g_strdup(ethernet_interface), g_strdup(mac));
@@ -1649,7 +1650,7 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         g_autofree gchar *new_ssl_verify = g_strdup_printf("ssl_verify = %s\n", config->ssl_verify ? "true" : "false");
         g_autofree gchar *new_post_update_reboot = g_strdup_printf("post_update_reboot = %s\n", config->post_update_reboot ? "true" : "false");
         g_autofree gchar *new_resume_downloads = g_strdup_printf("resume_downloads = %s\n", config->resume_downloads ? "true" : "false");
-        g_autofree gchar *new_resume_downloads = g_strdup_printf("stream_bundle = %s\n", config->stream_bundle ? "true" : "false");
+        g_autofree gchar *new_stram_bundle = g_strdup_printf("stream_bundle = %s\n", config->stream_bundle ? "true" : "false");
         g_autofree gchar *new_auth_token = g_strdup_printf("auth_token = %s\n", (gchar *)g_hash_table_lookup(macs, config->mac_interface));
         g_autofree gchar *new_tenant_id = g_strdup_printf("tenant_id = %s\n", config->tenant_id);
         g_autofree gchar *new_controller_id = g_strdup_printf("target_name = %s\n", name);
@@ -1660,8 +1661,8 @@ gboolean create_config_file(const gchar *config_file, init_Config *config, GErro
         g_autofree gchar *new_retry_wait = g_strdup_printf("retry_wait = %d\n", config->retry_wait);
         g_autofree gchar *new_low_speed_time = g_strdup_printf("low_speed_time = %d\n", config->low_speed_time);
         g_autofree gchar *new_low_speed_rate = g_strdup_printf("low_speed_rate = %d\n", config->low_speed_rate);
-        g_autofree gchar *new_client = g_strdup_printf("[client]\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", new_hawkbit_server, new_ssl, new_ssl_verify,
-                                                       new_post_update_reboot, new_resume_downloads, new_auth_token, new_tenant_id, new_controller_id,
+        g_autofree gchar *new_client = g_strdup_printf("[client]\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", new_hawkbit_server, new_ssl, new_ssl_verify,
+                                                       new_post_update_reboot, new_resume_downloads, new_stram_bundle, new_auth_token, new_tenant_id, new_controller_id,
                                                        new_bundle_download_location, new_log_level, new_connect_timeout, new_timeout, new_retry_wait,
                                                        new_low_speed_time, new_low_speed_rate);
         g_autofree gchar *new_device = "[device]\n";

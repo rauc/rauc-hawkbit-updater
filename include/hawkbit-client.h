@@ -178,7 +178,7 @@ void artifact_free(Artifact *artifact);
  */
 gboolean create_config_file(const gchar *config_file, init_Config *config, GError **error);
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free);
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free)
 
 #endif // __HAWKBIT_CLIENT_H__
