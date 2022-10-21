@@ -42,7 +42,7 @@ Setup target (device) configuration file:
   timeout                   = 60
   log_level                 = debug
   post_update_reboot        = false
-  #enable_streaming         = true
+  #stream_bundle            = true
 
   [device]
   product                   = Terminator
