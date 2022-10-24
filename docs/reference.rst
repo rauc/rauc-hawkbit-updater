@@ -114,8 +114,22 @@ Optional options:
 ``stream_bundle=<boolean>``
   Whether to install bundles via
   `RAUC's HTTP streaming installation support <https://rauc.readthedocs.io/en/latest/advanced.html#http-streaming>`_.
+  Defaults to ``false``.
   rauc-hawkbit-updater does not download the bundle in this case, but rather
   hands the hawkBit bundle URL and the :ref:`authentication header <authentication-section>` to RAUC.
+
+  .. important::
+    hawkBit's default configuration limits the number of HTTP range requests to
+    ~1000 per action and 200 per second.
+    Depending on the bundle size and bandwidth available, streaming a bundle
+    might exceed these limitations.
+    Starting hawkBit with ``--hawkbit.server.security.dos.filter.enabled=false``
+    ``--hawkbit.server.security.dos.maxStatusEntriesPerAction=-1`` disables
+    these limitations.
+
+  .. note::
+    hawkBit generates an "ActionStatus" for each range request, see
+    `this hawkBit issue <https://github.com/eclipse/hawkbit/issues/1249>`_.
 
 ``post_update_reboot=<boolean>``
   Whether to reboot the system after a successful update.
