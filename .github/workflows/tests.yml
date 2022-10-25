@@ -20,7 +20,7 @@ jobs:
         whoami
         gcc --version
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Install required packages
       run: |
@@ -37,7 +37,7 @@ jobs:
         ninja -C build dist
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
 
@@ -48,7 +48,7 @@ jobs:
         pip install -r test-requirements.txt
 
     - name: Login to DockerHub
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       if: github.ref == 'refs/heads/master'
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
@@ -69,7 +69,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Install required packages
       run: |
@@ -85,7 +85,7 @@ jobs:
   uncrustify:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Run uncrustify check
       run: |
