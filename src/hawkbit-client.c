@@ -773,10 +773,13 @@ static gboolean identify(GError **error)
 }
 
 /**
- * @brief Deletes RAUC bundle at config's bundle_download_location.
+ * @brief Deletes RAUC bundle at config's bundle_download_location (if given).
  */
 static void process_deployment_cleanup()
 {
+        if (!hawkbit_config->bundle_download_location)
+                return;
+
         if (!g_file_test(hawkbit_config->bundle_download_location, G_FILE_TEST_IS_REGULAR))
                 return;
 
@@ -845,6 +848,8 @@ static gpointer download_thread(gpointer data)
         curl_off_t speed;
 
         g_return_val_if_fail(data, NULL);
+
+        g_assert_nonnull(hawkbit_config->bundle_download_location);
 
         g_mutex_lock(&active_action->mutex);
         if (active_action->state == ACTION_STATE_CANCEL_REQUESTED)
@@ -1025,7 +1030,7 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
 static gboolean process_deployment(JsonNode *req_root, GError **error)
 {
         g_autoptr(Artifact) artifact = g_new0(Artifact, 1);
-        g_autofree gchar *deployment = NULL, *feedback_url = NULL, *temp_id = NULL,
+        g_autofree gchar *deployment = NULL, *temp_id = NULL,
                          *deployment_download = NULL, *deployment_update = NULL,
                          *maintenance_window = NULL, *maintenance_msg = NULL;
         g_autoptr(JsonParser) json_response_parser = NULL;
@@ -1106,7 +1111,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         if (!active_action->id)
                 goto error;
 
-        feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
+        artifact->feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
 
         // downloading multiple chunks not supported, only first chunk is downloaded (RAUC bundle)
         json_chunks = json_get_array(resp_root, "$.deployment.chunks", error);
@@ -1164,6 +1169,10 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         g_message("New software ready for download (Name: %s, Version: %s, Size: %" G_GINT64_FORMAT " bytes, URL: %s)",
                   artifact->name, artifact->version, artifact->size, artifact->download_url);
 
+        // stream_bundle path exits early
+        if (hawkbit_config->stream_bundle)
+                return start_streaming_installation(artifact, error);
+
         // check if there is enough free diskspace
         if (!get_available_space(hawkbit_config->bundle_download_location, &freespace, error))
                 goto proc_error;
@@ -1176,12 +1185,6 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto proc_error;
         }
 
-        artifact->feedback_url = g_steal_pointer(&feedback_url);
-
-        // stream_bundle path exits early
-        if (hawkbit_config->stream_bundle)
-                return start_streaming_installation(artifact, error);
-
         // unref/free previous download thread by joining it
         if (thread_download)
                 g_thread_join(thread_download);
@@ -1193,7 +1196,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         return TRUE;
 
 proc_error:
-        feedback(feedback_url, active_action->id, (*error)->message, "failure", "closed", NULL);
+        feedback(artifact->feedback_url, active_action->id, (*error)->message, "failure", "closed", NULL);
 
 error:
         // clean up failed deployment
