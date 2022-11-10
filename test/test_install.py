@@ -15,6 +15,7 @@ def install_config(config, adjust_config):
         if mode == 'streaming':
             return adjust_config(
                 {'client': {'stream_bundle': 'true'}},
+                remove={'client': 'bundle_download_location'},
             )
         return config
 
