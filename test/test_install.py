@@ -9,12 +9,22 @@ import pytest
 
 from helper import run, run_pexpect, timezone_offset_utc
 
-@pytest.mark.parametrize('mode', ('download', 'streaming'))
-def test_install_bundle_no_dbus_iface(hawkbit, bundle_assigned, adjust_config, mode):
-    """Assign bundle to target and test installation without RAUC D-Bus interface available."""
-    config_params = {'client': {'stream_bundle': 'true'}} if mode == 'streaming' else {}
-    config = adjust_config(config_params)
+@pytest.fixture
+def install_config(config, adjust_config):
+    def _install_config(mode):
+        if mode == 'streaming':
+            return adjust_config(
+                {'client': {'stream_bundle': 'true'}},
+            )
+        return config
 
+    return _install_config
+
+
+@pytest.mark.parametrize('mode', ('download', 'streaming'))
+def test_install_bundle_no_dbus_iface(hawkbit, install_config, bundle_assigned, mode):
+    """Assign bundle to target and test installation without RAUC D-Bus interface available."""
+    config = install_config(mode)
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
 
     err_lines = err.splitlines()
@@ -38,13 +48,12 @@ def test_install_bundle_no_dbus_iface(hawkbit, bundle_assigned, adjust_config, m
     assert status[0]['type'] == 'error'
 
 @pytest.mark.parametrize('mode', ('download', 'streaming'))
-def test_install_success(hawkbit, adjust_config, bundle_assigned, rauc_dbus_install_success, mode):
+def test_install_success(hawkbit, install_config, bundle_assigned, rauc_dbus_install_success, mode):
     """
     Assign bundle to target and test successful download and installation. Make sure installation
     result is received correctly by hawkBit.
     """
-    config_params = {'client': {'stream_bundle': 'true'}} if mode == 'streaming' else {}
-    config = adjust_config(config_params)
+    config = install_config(mode)
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
 
     assert 'New software ready for download' in out
@@ -60,13 +69,12 @@ def test_install_success(hawkbit, adjust_config, bundle_assigned, rauc_dbus_inst
     assert status[0]['type'] == 'finished'
 
 @pytest.mark.parametrize('mode', ('download', 'streaming'))
-def test_install_failure(hawkbit, adjust_config, bundle_assigned, rauc_dbus_install_failure, mode):
+def test_install_failure(hawkbit, install_config, bundle_assigned, rauc_dbus_install_failure, mode):
     """
     Assign bundle to target and test successful download and failing installation. Make sure
     installation result is received correctly by hawkBit.
     """
-    config_params = {'client': {'stream_bundle': 'true'}} if mode == 'streaming' else {}
-    config = adjust_config(config_params)
+    config = install_config(mode)
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
 
     assert 'New software ready for download' in out
@@ -78,7 +86,7 @@ def test_install_failure(hawkbit, adjust_config, bundle_assigned, rauc_dbus_inst
     assert 'Failed to install software bundle.' in status[0]['messages']
 
 @pytest.mark.parametrize('mode', ('download', 'streaming'))
-def test_install_maintenance_window(hawkbit, adjust_config, rauc_bundle, assign_bundle,
+def test_install_maintenance_window(hawkbit, install_config, rauc_bundle, assign_bundle,
                                     rauc_dbus_install_success, mode):
     bundle_size = Path(rauc_bundle).stat().st_size
     maintenance_start = datetime.now() + timedelta(seconds=15)
@@ -91,9 +99,7 @@ def test_install_maintenance_window(hawkbit, adjust_config, rauc_bundle, assign_
     }
     assign_bundle(params=maintenance_window)
 
-    config_params = {'client': {'stream_bundle': 'true'}} if mode == 'streaming' else {}
-    config = adjust_config(config_params)
-
+    config = install_config(mode)
     proc = run_pexpect(f'rauc-hawkbit-updater -c "{config}"')
     proc.expect(r"hawkBit requested to skip installation, not invoking RAUC yet \(maintenance window is 'unavailable'\)")
 
