@@ -914,6 +914,17 @@ static gpointer download_thread(gpointer data)
         }
 
         g_mutex_lock(&active_action->mutex);
+        // skip installation if hawkBit asked us to do so
+        if (!artifact->do_install &&
+            (!artifact->maintenance_window || g_strcmp0(artifact->maintenance_window, "available") == 0)) {
+                active_action->state = ACTION_STATE_SUCCESS;
+                if (!feedback(artifact->feedback_url, active_action->id, "File checksum OK.", "success",
+                              "downloaded", &feedback_error))
+                        g_warning("%s", feedback_error->message);
+
+                g_mutex_unlock(&active_action->mutex);
+                return GINT_TO_POINTER(TRUE);
+        }
         if (!feedback_progress(artifact->feedback_url, active_action->id, "File checksum OK.",
                                &error)) {
                 g_warning("%s", error->message);
@@ -1064,6 +1075,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
 
         // handle deployment.maintenanceWindow (only available if maintenance window is defined)
         maintenance_window = json_get_string(resp_root, "$.deployment.maintenanceWindow", NULL);
+        artifact->maintenance_window = g_strdup(maintenance_window);
         maintenance_msg = maintenance_window
                           ? g_strdup_printf(" (maintenance window is '%s')", maintenance_window)
                           : g_strdup("");
@@ -1486,6 +1498,7 @@ void artifact_free(Artifact *artifact)
         g_free(artifact->download_url);
         g_free(artifact->feedback_url);
         g_free(artifact->sha1);
+        g_free(artifact->maintenance_window);
         g_free(artifact);
 }
 
