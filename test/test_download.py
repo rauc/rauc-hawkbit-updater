@@ -137,7 +137,7 @@ def test_download_only(hawkbit, config, assign_bundle):
     assert exitcode == 0
 
     status = hawkbit.get_action_status()
-    assert any(['download' in s['type'] for s in status])
+    assert status[0]['type'] == 'downloaded'
 
     # check last status message
     assert 'File checksum OK.' in status[0]['messages']
