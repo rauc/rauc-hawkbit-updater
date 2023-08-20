@@ -305,6 +305,9 @@ Config* load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         if (!get_key_string(ini_file, "client", "log_level", &val, DEFAULT_LOG_LEVEL, error))
                 return NULL;
+        if (!get_key_bool(ini_file, "client", "require_confirmation", &config->require_confirmation, FALSE,
+                          error))
+                return NULL;
         config->log_level = log_level_from_string(val);
 
         if (!get_key_bool(ini_file, "client", "post_update_reboot", &config->post_update_reboot, DEFAULT_REBOOT, error))

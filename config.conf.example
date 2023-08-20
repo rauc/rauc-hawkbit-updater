@@ -47,6 +47,9 @@ post_update_reboot        = false
 # debug, info, message, critical, error, fatal
 log_level                 = message
 
+# Enable user-based confirmation (via DBus interface)
+require_confirmation      = true
+
 # Every key / value under [device] is sent to HawkBit (target attributes),
 # and can be used in target filter.
 [device]
