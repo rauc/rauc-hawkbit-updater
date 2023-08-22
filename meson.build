@@ -62,6 +62,15 @@ dbus_sources = gnome.gdbus_codegen(
   namespace: 'R',
 )
 
+dbus_confirm_output = 'rauc-install-confirmation-gen'
+dbus_confirm_iface = files('src/rauc-install-confirmation.xml')
+dbus_confirm_sources = gnome.gdbus_codegen(
+  dbus_confirm_output,
+  sources : dbus_confirm_iface,
+  interface_prefix : 'de.pengutronix.rauc.',
+  namespace: 'R',
+)
+
 config_h = configure_file(
   output : 'config.h',
   configuration : conf
@@ -93,6 +102,7 @@ subdir('docs')
 executable('rauc-hawkbit-updater',
   sources_updater,
   dbus_sources,
+  dbus_confirm_sources,
   config_h,
   dependencies : [libcurldep, giodep, giounixdep, jsonglibdep, libsystemddep],
   include_directories : incdir,
