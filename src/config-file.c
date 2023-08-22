@@ -241,6 +241,9 @@ Config* load_config_file(const gchar *config_file, GError **error)
         gboolean key_auth_token_exists = FALSE;
         gboolean key_gateway_token_exists = FALSE;
         gboolean bundle_location_given = FALSE;
+        gboolean ssl_key_exists = FALSE;
+        gboolean ssl_cert_exists = FALSE;
+        gboolean ssl_auth = FALSE;
         gboolean token_auth = FALSE;
 
         g_return_val_if_fail(config_file, NULL);
@@ -262,14 +265,38 @@ Config* load_config_file(const gchar *config_file, GError **error)
                           DEFAULT_SSL_VERIFY, error))
                 return NULL;
 
+        if (config->ssl) {
+                ssl_key_exists = get_key_string(ini_file, "client", "ssl_key",
+                                                &config->ssl_key, NULL, NULL);
+                ssl_cert_exists = get_key_string(ini_file, "client", "ssl_cert",
+                                                 &config->ssl_cert, NULL, NULL);
+                ssl_auth = ssl_cert_exists && ssl_key_exists;
+                if ((ssl_cert_exists || ssl_key_exists) && !ssl_auth) {
+                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    "Only one of 'ssl_key' and 'ssl_cert' is set");
+                        return NULL;
+                }
+                get_key_string(ini_file, "client", "ssl_engine",
+                               &config->ssl_engine, NULL, NULL);
+                if (config->ssl_engine && !ssl_auth) {
+                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    "SSL engine set without 'ssl_key' or 'ssl_cert'");
+                        return NULL;
+                }
+        }
         key_auth_token_exists = get_key_string(ini_file, "client", "auth_token",
                                                &config->auth_token, NULL, NULL);
         key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token",
                                                   &config->gateway_token, NULL, NULL);
         token_auth = key_auth_token_exists || key_gateway_token_exists;
-        if (!token_auth) {
+        if (!token_auth && !ssl_auth) {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "Neither 'auth_token' nor 'gateway_token' set");
+                            "Neither token nor ssl authentication set");
+                return NULL;
+        }
+        if (token_auth && ssl_auth) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                            "Both token and ssl authentication set");
                 return NULL;
         }
         if (key_auth_token_exists && key_gateway_token_exists) {
@@ -341,6 +368,9 @@ void config_file_free(Config *config)
         g_free(config->tenant_id);
         g_free(config->auth_token);
         g_free(config->gateway_token);
+        g_free(config->ssl_engine);
+        g_free(config->ssl_key);
+        g_free(config->ssl_cert);
         g_free(config->bundle_download_location);
         if (config->device)
                 g_hash_table_destroy(config->device);
