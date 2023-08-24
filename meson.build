@@ -22,6 +22,7 @@ incdir = include_directories('include')
 sources_updater = [
   'src/rauc-hawkbit-updater.c',
   'src/rauc-installer.c',
+  'src/rauc-install-confirmation.c',
   'src/config-file.c',
   'src/hawkbit-client.c',
   'src/json-helper.c',
