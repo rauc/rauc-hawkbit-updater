@@ -62,6 +62,13 @@ enum ActionState {
         ACTION_STATE_CANCEL_REQUESTED,
 };
 
+enum ConfirmationState {
+        CONFIRMATION_STATE_NONE,
+        CONFIRMATION_STATE_REQUESTED,
+        CONFIRMATION_STATE_CONFIRMED,
+        CONFIRMATION_STATE_DENIED,
+};
+
 /**
  * @brief struct that contains the context of an HawkBit action.
  */
@@ -70,6 +77,16 @@ struct HawkbitAction {
         GMutex mutex;                 /**< mutex used for accessing all other members */
         enum ActionState state;       /**< state of this action */
         GCond cond;                   /**< condition on state */
+};
+
+/**
+ * @brief struct that contains the context of a confirmation action.
+ */
+struct ConfirmationAction {
+        gchar *id;                    /**< HawkBit action id */
+        GMutex mutex;                 /**< mutex used for synchronization of the state */
+        GCond cond;                   /**< condition on confirmation */
+        enum ConfirmationState state; /**< current confirmation state */
 };
 
 /**
@@ -95,6 +112,14 @@ typedef struct Artifact_ {
 } Artifact;
 
 /**
+ * @brief struct used to store active confirmation info
+ */
+typedef struct Confirmation_ {
+        gchar *action_id;              /**< Hawkbit's ID of the request */
+        gchar *version;                /**< software version */
+} Confirmation;
+
+/**
  * @brief struct containing the new downloaded file.
  */
 struct on_new_software_userdata {
@@ -114,14 +139,36 @@ struct on_install_complete_userdata {
 };
 
 /**
+ * @brief struct containing a confirmation request.
+ */
+struct on_install_confirmation_request_userdata {
+        GSourceFunc response_callback; /**< callback function to be called when response is received */
+        gchar *action_id;              /**< Hawkbit's ID of the request */
+        gchar *version;                /**< software version */
+};
+
+/**
+ * @brief struct containing a confirmation response from a user software
+ */
+struct on_install_confirmed_userdata {
+        gchar *action_id;              /**< Hawkbit's ID of the request */
+        gboolean confirmed;            /**< True - confirmed, False - denied */
+        gchar *details;                /**< Explanation about confirmation status (if any) */
+        gint error_code;               /**< Code to be returned to Hawkbit */
+};
+
+/**
  * @brief Pass config, callback for installation ready and initialize libcurl.
  *        Intended to be called from program's main().
  *
  * @param[in] config Config* to make global
  * @param[in] on_install_ready GSourceFunc to call after artifact download, to
  *                             trigger RAUC installation
+ * @param[in] on_install_confirm GSourceFunc to call when confirmation status
+ *                             is received from a user
  */
-void hawkbit_init(Config *config, GSourceFunc on_install_ready);
+void hawkbit_init(Config *config, GSourceFunc on_install_ready,
+                GSourceFunc on_install_confirmed);
 
 /**
  * @brief Sets up timeout and event sources, initializes and runs main loop.
@@ -161,7 +208,15 @@ void rest_payload_free(RestPayload *payload);
  */
 void artifact_free(Artifact *artifact);
 
+/**
+ * @brief Frees the memory allocated by a Confirmation
+ *
+ * @param[in] confirmation Confirmation to free
+ */
+void confirmation_free(Confirmation *confirmation);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(RestPayload, rest_payload_free)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(Artifact, artifact_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Confirmation, confirmation_free)
 
 #endif // __HAWKBIT_CLIENT_H__
