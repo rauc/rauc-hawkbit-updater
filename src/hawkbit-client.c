@@ -7,7 +7,7 @@
  * @brief Implementation of the hawkBit DDI API
  *
  * @see https://github.com/rauc/rauc-hawkbit
- * @see https://www.eclipse.org/hawkbit/apis/ddi_api/
+ * @see https://eclipse.dev/hawkbit/apis/ddi_api/
  */
 
 #ifndef _GNU_SOURCE
@@ -526,7 +526,7 @@ static gboolean rest_request_retriable(enum HTTPMethod method, const gchar *url,
 /**
  * @brief Build hawkBit JSON request.
  *
- * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_post_tenant_controller_v1_controllerid_deploymentbase_actionid_feedback
+ * @see https://eclipse.dev/hawkbit/rest-api/rootcontroller-api-guide.html#_post_tenantcontrollerv1controlleriddeploymentbaseactionidfeedback
  *
  * @param[in] id         hawkBit action ID or NULL (configData usecase)
  * @param[in] detail     Detail message or NULL (configData usecase)
@@ -752,7 +752,7 @@ gboolean hawkbit_progress(const gchar *msg)
  * @brief Provide meta information that will allow the hawkBit to identify the device on a hardware
  * level.
  *
- * @see https://www.eclipse.org/hawkbit/rest-api/rootcontroller-api-guide/#_put_tenant_controller_v1_controllerid_configdata
+ * @see https://eclipse.dev/hawkbit/rest-api/rootcontroller-api-guide.html#_put_tenantcontrollerv1controlleridconfigdata
  *
  * @param[out] error Error
  * @return TRUE if identification succeeded, FALSE otherwise (error set)

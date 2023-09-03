@@ -6,7 +6,7 @@ Using the RAUC hawkbit Updater
 Authentication
 --------------
 
-As described on the `hawkBit Authentication page <https://www.eclipse.org/hawkbit/concepts/authentication/>`_
+As described on the `hawkBit Authentication page <https://eclipse.dev/hawkbit/concepts/authentication/>`_
 in the "DDI API Authentication Modes" section, a device can be authenticated
 with a security token. A security token can be either a "Target" token or a
 "Gateway" token. The "Target" security token is specific to a single target

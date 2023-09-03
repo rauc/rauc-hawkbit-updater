@@ -27,7 +27,7 @@ class HawkbitMgmtTestClient:
     Does not cover the whole Management API, only the parts required for the rauc-hawkbit-updater
     test suite.
 
-    https://www.eclipse.org/hawkbit/apis/management_api/
+    https://eclipse.dev/hawkbit/apis/management_api/
     """
     host = attr.ib(validator=attr.validators.instance_of(str))
     port = attr.ib(validator=attr.validators.instance_of(int))
@@ -134,7 +134,7 @@ class HawkbitMgmtTestClient:
         """
         Changes a configuration `value` of a specific configuration `key`.
 
-        https://www.eclipse.org/hawkbit/rest-api/tenant-api-guide/#_put_rest_v1_system_configs_keyname
+        https://eclipse.dev/hawkbit/rest-api/tenant-api-guide.html#_put_restv1systemconfigskeyname
         """
         self.put(f'system/configs/{key}', {'value' : value})
 
@@ -142,7 +142,7 @@ class HawkbitMgmtTestClient:
         """
         Returns the configuration value of a specific configuration `key`.
 
-        https://www.eclipse.org/hawkbit/rest-api/tenant-api-guide/#_get_rest_v1_system_configs_keyname
+        https://eclipse.dev/hawkbit/rest-api/tenant-api-guide.html#_get_restv1systemconfigskeyname
         """
         return self.get(f'system/configs/{key}')['value']
 
@@ -155,7 +155,7 @@ class HawkbitMgmtTestClient:
         Stores the id of the created target for future use by other methods.
         Returns the target's id.
 
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_post_rest_v1_targets
+        https://eclipse.dev/hawkbit/rest-api/targets-api-guide.html#_post_restv1targets
         """
         target_id = target_id or f'test-{time.monotonic()}'
         testdata = {
@@ -177,7 +177,7 @@ class HawkbitMgmtTestClient:
         If `target_id` is not given, returns the target created by the most recent `add_target()`
         call.
 
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid
+        https://eclipse.dev/hawkbit/rest-api/targets-api-guide.html#_get_restv1targetstargetid
         """
         target_id = target_id or self.id['target']
 
@@ -188,7 +188,7 @@ class HawkbitMgmtTestClient:
         Deletes the target matching `target_id`.
         If target_id is not given, deletes the target created by the most recent add_target() call.
 
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_delete_rest_v1_targets_targetid
+        https://eclipse.dev/hawkbit/rest-api/targets-api-guide.html#_delete_restv1targetstargetid
         """
         target_id = target_id or self.id['target']
         self.delete(f'targets/{target_id}')
@@ -201,7 +201,7 @@ class HawkbitMgmtTestClient:
         Returns the attributes of the target matching `target_id`.
         If `target_id` is not given, uses the target created by the most recent `add_target()`
         call.
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid_attributes
+        https://eclipse.dev/hawkbit/rest-api/targets-api-guide.html#_get_restv1targetstargetidattributes
         """
         target_id = target_id or self.id['target']
 
@@ -214,7 +214,7 @@ class HawkbitMgmtTestClient:
         Stores the id of the created software module for future use by other methods.
         Returns the id of the created software module.
 
-        https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_post_rest_v1_softwaremodules
+        https://eclipse.dev/hawkbit/rest-api/softwaremodules-api-guide.html#_post_restv1softwaremodules
         """
         name = name or f'software module {time.monotonic()}'
         data = [{
@@ -232,7 +232,7 @@ class HawkbitMgmtTestClient:
         If `module_id` is not given, returns the software module created by the most recent
         `add_softwaremodule()` call.
 
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid
+        https://eclipse.dev/hawkbit/rest-api/softwaremodules-api-guide.html#_get_restv1softwaremodulessoftwaremoduleid
         """
         module_id = module_id or self.id['softwaremodule']
 
@@ -242,7 +242,7 @@ class HawkbitMgmtTestClient:
         """
         Deletes the software module matching `module_id`.
 
-        https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_delete_rest_v1_softwaremodules_softwaremoduleid
+        https://eclipse.dev/hawkbit/rest-api/softwaremodules-api-guide.html#_delete_restv1softwaremodulessoftwaremoduleid
         """
         module_id = module_id or self.id['softwaremodule']
         self.delete(f'softwaremodules/{module_id}')
@@ -259,7 +259,7 @@ class HawkbitMgmtTestClient:
         Stores the id of the created distribution set for future use by other methods.
         Returns the id of the created distribution set.
 
-        https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_post_rest_v1_distributionsets
+        https://eclipse.dev/hawkbit/rest-api/distributionsets-api-guide.html#_post_restv1distributionsets
         """
         assert isinstance(module_ids, list)
 
@@ -284,7 +284,7 @@ class HawkbitMgmtTestClient:
         If `dist_id` is not given, returns the distribution set created by the most recent
         `add_distributionset()` call.
 
-        https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_get_rest_v1_distributionsets_distributionsetid
+        https://eclipse.dev/hawkbit/rest-api/distributionsets-api-guide.html#_get_restv1distributionsetsdistributionsetid
         """
         dist_id = dist_id or self.id['distributionset']
 
@@ -296,7 +296,7 @@ class HawkbitMgmtTestClient:
         If `dist_id` is not given, deletes the distribution set created by the most recent
         `add_distributionset()` call.
 
-        https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_delete_rest_v1_distributionsets_distributionsetid
+        https://eclipse.dev/hawkbit/rest-api/distributionsets-api-guide.html#_delete_restv1distributionsetsdistributionsetid
         """
         dist_id = dist_id or self.id['distributionset']
 
@@ -313,7 +313,7 @@ class HawkbitMgmtTestClient:
         Stores the id of the created artifact for future use by other methods.
         Returns the id of the created artifact.
 
-        https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_post_rest_v1_softwaremodules_softwaremoduleid_artifacts
+        https://eclipse.dev/hawkbit/rest-api/softwaremodules-api-guide.html#_post_restv1softwaremodulessoftwaremoduleidartifacts
         """
         module_id = module_id or self.id['softwaremodule']
 
@@ -329,7 +329,7 @@ class HawkbitMgmtTestClient:
         If `module_id` is not given, uses the software module created by the most recent
         `add_softwaremodule()` call.
 
-        https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_get_rest_v1_softwaremodules_softwaremoduleid_artifacts_artifactid
+        https://eclipse.dev/hawkbit/rest-api/softwaremodules-api-guide.html#_get_restv1softwaremodulessoftwaremoduleidartifactsartifactid
         """
         module_id = module_id or self.id['softwaremodule']
         artifact_id = artifact_id or self.id['artifact']
@@ -344,7 +344,7 @@ class HawkbitMgmtTestClient:
         If `module_id` is not given, uses the software module created by the most recent
         `add_softwaremodule()` call.
 
-        https://www.eclipse.org/hawkbit/rest-api/softwaremodules-api-guide/#_delete_rest_v1_softwaremodules_softwaremoduleid_artifacts_artifactid
+        https://eclipse.dev/hawkbit/rest-api/softwaremodules-api-guide.html#_delete_restv1softwaremodulessoftwaremoduleidartifactsartifactid
         """
         module_id = module_id or self.id['softwaremodule']
         artifact_id = artifact_id or self.id['artifact']
@@ -363,7 +363,7 @@ class HawkbitMgmtTestClient:
         call.
         Stores the id of the assignment action for future use by other methods.
 
-        https://www.eclipse.org/hawkbit/rest-api/distributionsets-api-guide/#_post_rest_v1_distributionsets_distributionsetid_assignedtargets
+        https://eclipse.dev/hawkbit/rest-api/distributionsets-api-guide.html#_post_restv1distributionsetsdistributionsetidassignedtargets
         """
         dist_id = dist_id or self.id['distributionset']
         target_id = target_id or self.id['target']
@@ -388,7 +388,7 @@ class HawkbitMgmtTestClient:
         If `target_id` is not given, uses the target created by the most recent `add_target()`
         call.
 
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid_actions_actionid
+        https://eclipse.dev/hawkbit/rest-api/targets-api-guide.html#_get_restv1targetstargetidactionsactionid
         """
         action_id = action_id or self.id['action']
         target_id = target_id or self.id['target']
@@ -404,7 +404,7 @@ class HawkbitMgmtTestClient:
         If `target_id` is not given, uses the target created by the most recent `add_target()`
         call.
 
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_get_rest_v1_targets_targetid_actions_actionid_status
+        https://eclipse.dev/hawkbit/rest-api/targets-api-guide.html#_get_restv1targetstargetidactionsactionidstatus
         """
         action_id = action_id or self.id['action']
         target_id = target_id or self.id['target']
@@ -421,7 +421,7 @@ class HawkbitMgmtTestClient:
         If `target_id` is not given, uses the target created by the most recent `add_target()`
         call.
 
-        https://www.eclipse.org/hawkbit/rest-api/targets-api-guide/#_delete_rest_v1_targets_targetid_actions_actionid
+        https://eclipse.dev/hawkbit/rest-api/targets-api-guide.html#_delete_restv1targetstargetidactionsactionid
         """
         action_id = action_id or self.id['action']
         target_id = target_id or self.id['target']
