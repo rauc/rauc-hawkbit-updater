@@ -81,7 +81,7 @@ typedef struct RestPayload_ {
 } RestPayload;
 
 /**
- * @brief struct containing
+ * @brief struct containing data about an artifact that is currently being deployed.
  */
 typedef struct Artifact_ {
         gchar *name;                  /**< name of software */
