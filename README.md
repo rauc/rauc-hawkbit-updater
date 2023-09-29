@@ -76,6 +76,17 @@ $ ./rauc-hawkbit-updater -d -c config.conf
 Compile
 -------
 
+Install build pre-requisites:
+
+* meson
+* libcurl
+* libjson-glib
+
+```shell
+$ sudo apt-get update
+$ sudo apt-get install meson libcurl4-openssl-dev libjson-glib-dev
+```
+
 ```shell
 $ meson setup build
 $ ninja -C build
