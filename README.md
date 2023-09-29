@@ -58,7 +58,7 @@ The attributes in hawkBit can be used in target filters.
 Finally start the updater as daemon:
 
 ```shell
-  ./rauc-hawkbit-updater -c config.conf
+$ ./rauc-hawkbit-updater -c config.conf
 ```
 
 
@@ -69,7 +69,7 @@ When setting the log level to 'debug' the RAUC hawkBit client will print
 JSON payload sent and received. This can be done by using option -d.
 
 ```shell
-  ./rauc-hawkbit-updater -d -c config.conf
+$ ./rauc-hawkbit-updater -d -c config.conf
 ```
 
 
@@ -77,8 +77,8 @@ Compile
 -------
 
 ```shell
-  meson setup build
-  ninja -C build
+$ meson setup build
+$ ninja -C build
 ```
 
 Test Suite
@@ -115,7 +115,7 @@ Usage / options
 ---------------
 
 ```shell
-/usr/bin/rauc-hawkbit-updater --help
+$ /usr/bin/rauc-hawkbit-updater --help
 Usage:
   rauc-hawkbit-updater [OPTION?]
 
