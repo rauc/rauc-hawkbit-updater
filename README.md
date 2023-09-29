@@ -7,7 +7,7 @@ RAUC hawkBit Updater
 [![Documentation](https://readthedocs.org/projects/rauc-hawkbit-updater/badge/?version=latest)](https://rauc-hawkbit-updater.readthedocs.io/en/latest/?badge=latest)
 [![Matrix](https://img.shields.io/matrix/rauc:matrix.org?label=matrix%20chat)](https://app.element.io/#/room/#rauc:matrix.org)
 
-The RAUC hawkBit updater is a simple commandline tool / daemon written in C (glib).
+The RAUC hawkBit updater is a simple command-line tool/daemon written in C (glib).
 It is a port of the RAUC hawkBit Client written in Python.
 The daemon runs on your target and operates as an interface between the
 [RAUC D-Bus API](https://github.com/rauc/rauc)
@@ -17,10 +17,10 @@ Quickstart
 ----------
 
 The RAUC hawkBit updater is primarily meant to be used as a daemon,
-but it also allows you to do a one shot instantly checking and install
+but it also allows you to do a one-shot instantly checking and install
 new software.
 
-To quickly getting started with hawkBit server, follow
+To quickly get started with hawkBit server, follow
 [this](https://github.com/eclipse/hawkbit#getting-started)
 instruction.
 
@@ -111,7 +111,7 @@ Run test suite:
 
 Pass `-o log_cli=true` to pytest in order to enable live logging for all test cases.
 
-Usage / options
+Usage / Options
 ---------------
 
 ```shell
