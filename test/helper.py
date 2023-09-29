@@ -66,15 +66,24 @@ def run(command, *, timeout=30):
     logger = logger_from_command(command)
     logger.info('running: %s', command)
 
-    proc = subprocess.run(shlex.split(command), capture_output=True, text=True, check=False,
-                          timeout=timeout)
+    def stdout_print_helper(logger, prefix, stdout):
+        if stdout is None:
+            return
 
-    for line in proc.stdout.splitlines():
-        if line:
-            logger.info('stdout: %s', line)
-    for line in proc.stderr.splitlines():
-        if line:
-            logger.warning('stderr: %s', line)
+        for line in stdout.splitlines():
+            if line:
+                logger.info(f'{prefix}: %s', line)
+
+    try:
+        proc = subprocess.run(shlex.split(command), capture_output=True, text=True, check=False,
+                              timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        stdout_print_helper(logger, "stdout", e.stdout)
+        stdout_print_helper(logger, "stderr", e.stderr)
+        raise
+
+    stdout_print_helper(logger, "stdout", proc.stdout)
+    stdout_print_helper(logger, "stderr", proc.stderr)
 
     logger.info('exitcode: %d', proc.returncode)
 
