@@ -3,12 +3,11 @@ RAUC hawkBit Updater
 
 [![Build Status](https://github.com/rauc/rauc-hawkbit-updater/workflows/tests/badge.svg)](https://github.com/rauc/rauc-hawkbit-updater/actions)
 [![License](https://img.shields.io/badge/license-LGPLv2.1-blue.svg)](https://raw.githubusercontent.com/rauc/rauc-hawkbit-updater/master/LICENSE)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/rauc/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/rauc/rauc-hawkbit-updater/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/rauc/rauc-hawkbit-updater.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/rauc/rauc-hawkbit-updater/context:cpp)
+[![CodeQL](https://github.com/rauc/rauc-hawkbit-updater/workflows/CodeQL/badge.svg)](https://github.com/rauc/rauc-hawkbit-updater/actions/workflows/codeql.yml)
 [![Documentation](https://readthedocs.org/projects/rauc-hawkbit-updater/badge/?version=latest)](https://rauc-hawkbit-updater.readthedocs.io/en/latest/?badge=latest)
 [![Matrix](https://img.shields.io/matrix/rauc:matrix.org?label=matrix%20chat)](https://app.element.io/#/room/#rauc:matrix.org)
 
-The RAUC hawkBit updater is a simple commandline tool / daemon written in C (glib).
+The RAUC hawkBit updater is a simple command-line tool/daemon written in C (glib).
 It is a port of the RAUC hawkBit Client written in Python.
 The daemon runs on your target and operates as an interface between the
 [RAUC D-Bus API](https://github.com/rauc/rauc)
@@ -18,10 +17,10 @@ Quickstart
 ----------
 
 The RAUC hawkBit updater is primarily meant to be used as a daemon,
-but it also allows you to do a one shot instantly checking and install
+but it also allows you to do a one-shot instantly checking and install
 new software.
 
-To quickly getting started with hawkBit server, follow
+To quickly get started with hawkBit server, follow
 [this](https://github.com/eclipse/hawkbit#getting-started)
 instruction.
 
@@ -59,7 +58,7 @@ The attributes in hawkBit can be used in target filters.
 Finally start the updater as daemon:
 
 ```shell
-  ./rauc-hawkbit-updater -c config.conf
+$ ./rauc-hawkbit-updater -c config.conf
 ```
 
 
@@ -70,16 +69,27 @@ When setting the log level to 'debug' the RAUC hawkBit client will print
 JSON payload sent and received. This can be done by using option -d.
 
 ```shell
-  ./rauc-hawkbit-updater -d -c config.conf
+$ ./rauc-hawkbit-updater -d -c config.conf
 ```
 
 
 Compile
 -------
 
+Install build pre-requisites:
+
+* meson
+* libcurl
+* libjson-glib
+
 ```shell
-  meson setup build
-  ninja -C build
+$ sudo apt-get update
+$ sudo apt-get install meson libcurl4-openssl-dev libjson-glib-dev
+```
+
+```shell
+$ meson setup build
+$ ninja -C build
 ```
 
 Test Suite
@@ -112,11 +122,11 @@ Run test suite:
 
 Pass `-o log_cli=true` to pytest in order to enable live logging for all test cases.
 
-Usage / options
+Usage / Options
 ---------------
 
 ```shell
-/usr/bin/rauc-hawkbit-updater --help
+$ /usr/bin/rauc-hawkbit-updater --help
 Usage:
   rauc-hawkbit-updater [OPTION?]
 
