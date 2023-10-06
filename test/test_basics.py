@@ -92,6 +92,46 @@ def test_register_and_check_valid_gateway_token(hawkbit, adjust_config, trailing
     assert 'MESSAGE: Checking for new software...' in out
     assert err == ''
 
+@pytest.mark.parametrize("client_cert", [None, "bad_path", "good_file","empty"])
+@pytest.mark.parametrize("client_key", [None, "bad_path", "good_file","empty"])
+def test_config_client_cert_and_key(adjust_config,tmp_path_factory,client_cert,client_key):
+    """Test config with existent client key and cert files."""
+    def parameter_to_value(key, value):
+        if value=="bad_path":
+            return {key:value}
+        if value=="empty":
+            return {key:""}
+        if value=="good_file":
+            filename=str(tmp_path_factory.getbasetemp())+"/"+key
+            # create empty file
+            open(filename, 'a').close()
+            return {key:filename}
+        return {}
+
+    client_cert_conf = parameter_to_value("client_cert",client_cert)
+    client_key_conf = parameter_to_value("client_key",client_key)
+
+    config = adjust_config({"client": {**client_cert_conf, **client_key_conf}},
+                           remove={'client': 'auth_token'})
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    if "good_file" == client_key == client_cert:
+        assert exitcode == 1
+        assert 'MESSAGE: Checking for new software...' in out
+        assert 'WARNING: Failed to authenticate. Check client certificate and client private key' in err
+    elif client_key is None or client_cert is None:
+        assert exitcode == 4
+        assert err.strip() == \
+               'Loading config file failed: Neither a token nor client certificate are set!'
+    elif client_cert in ["bad_path","empty"]:
+        expected_filename=list(client_cert_conf.values())[0]
+        assert f"Loading config file failed: Can't read client_cert: {expected_filename}" in err
+    elif client_key in ["bad_path","empty"]:
+        expected_filename=list(client_key_conf.values())[0]
+        assert f"Loading config file failed: Can't read client_key: {expected_filename}" in err
+    else:
+        raise Exception("Uncovered case")
+
 def test_register_and_check_invalid_auth_token(adjust_config):
     """Test config with invalid auth_token."""
     config = adjust_config({'client': {'auth_token': 'wrong-auth-token'}})

@@ -10,6 +10,8 @@ from gi.repository import GLib
 from pydbus.generic import signal
 import requests
 
+from mtls_conf import MtlsConfig
+
 
 class Installer:
     """
@@ -28,13 +30,15 @@ class Installer:
     Completed = signal()
     PropertiesChanged = signal()
 
-    def __init__(self, bundle, completed_code=0):
+    def __init__(self, bundle, mtls,tmp_path, completed_code=0):
         self._bundle = bundle
         self._completed_code = completed_code
 
         self._operation = 'idle'
         self._last_error = ''
         self._progress = 0, '', 1
+        self._mtls = mtls
+        self.tmp_path = tmp_path
 
     def InstallBundle(self, source, args):
         def mimic_install():
@@ -103,7 +107,7 @@ class Installer:
         return sha1.hexdigest()
 
     @staticmethod
-    def _get_http_bundle_sha1(url, auth_header):
+    def _get_http_bundle_sha1(url, auth_header, cert, verify):
         """Download file from URL using HTTP range requests and compute its sha1 checksum."""
         sha1 = hashlib.sha1()
         headers = auth_header
@@ -112,7 +116,7 @@ class Installer:
         offset = 0
         while True:
             headers['Range'] = f'bytes={offset}-{offset + range_size - 1}'
-            r = requests.get(url, headers=headers)
+            r = requests.get(url, headers=headers, cert=cert, verify=verify)
             try:
                 r.raise_for_status()
                 sha1.update(r.content)
@@ -130,16 +134,23 @@ class Installer:
         Check that required headers are set, bundle is accessible (HTTP or locally) and its
         checksum matches.
         """
+        headers = {}
+        verify = False
+        if self._mtls:
+            mtls_conf = MtlsConfig(self.tmp_path)
+            cert = (mtls_conf.client_cert, mtls_conf.client_key)
+        else:
+            cert = None
         if 'http-headers' in args:
-            assert len(args['http-headers']) == 1
-
-            [auth_header] = args['http-headers']
-            key, value = auth_header.split(': ', maxsplit=1)
-            http_bundle_sha1 = self._get_http_bundle_sha1(source, {key: value})
+            if len(args['http-headers']) == 1:
+                [auth_header] = args['http-headers']
+                headers = dict([auth_header.split(': ', maxsplit=1)])
+            elif not self._mtls:
+                raise Exception("No headers in args")
+            verify = args['tls-no-verify'] is False
+        if source.startswith("http"):
+            http_bundle_sha1 = self._get_http_bundle_sha1(source, headers, cert, verify=verify)
             assert http_bundle_sha1 == self._get_bundle_sha1(self._bundle)
-
-            # assume ssl_verify=false is set in test setup
-            assert args['tls-no-verify'] is True
 
         else:
             # check bundle checksum matches expected checksum
@@ -193,11 +204,15 @@ if __name__ == '__main__':
     parser.add_argument('bundle', help='Expected RAUC bundle')
     parser.add_argument('--completed-code', type=int, default=0,
                         help='Code to emit as D-Bus Completed signal')
+    parser.add_argument('--tmp-dir', type=str, default=None,
+                        help='Test tmp dir')
+    parser.add_argument('--mtls', action='store_true',
+                        help='Use MTLS protocols')
     args = parser.parse_args()
 
     loop = GLib.MainLoop()
     bus = SessionBus()
-    installer = Installer(args.bundle, args.completed_code)
+    installer = Installer(args.bundle, args.mtls, args.tmp_dir, args.completed_code)
     with bus.publish('de.pengutronix.rauc', ('/', installer)):
         print('Interface published')
         loop.run()
