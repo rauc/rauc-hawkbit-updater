@@ -244,7 +244,7 @@ static gboolean set_auth_curl_header(struct curl_slist **headers, GError **error
 
 /**
  * @brief Set common Curl options, namely user agent, connect timeout, SSL
- *        verify peer and SSL verify host options.
+ *        verify peer, SSL verify host options, and client certificate.
  *
  * @param[in] curl Curl handle
  */
@@ -256,6 +256,12 @@ static void set_default_curl_opts(CURL *curl)
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
+
+        if (hawkbit_config->client_cert && hawkbit_config->client_key) {
+                curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
+                curl_easy_setopt(curl, CURLOPT_SSLCERT, hawkbit_config->client_cert);
+                curl_easy_setopt(curl, CURLOPT_SSLKEY, hawkbit_config->client_key);
+        }
 }
 
 /**
@@ -307,12 +313,6 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
         curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8L);
         curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-
-        if (hawkbit_config->client_cert && hawkbit_config->client_key) {
-                curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
-                curl_easy_setopt(curl, CURLOPT_SSLCERT, hawkbit_config->client_cert);
-                curl_easy_setopt(curl, CURLOPT_SSLKEY, hawkbit_config->client_key);
-        }
 
         // abort if slower than configured download rate during configured time span
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, hawkbit_config->low_speed_time);
@@ -419,13 +419,6 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         // set up CURL options
         set_default_curl_opts(curl);
         curl_easy_setopt(curl, CURLOPT_URL, url);
-
-        if (hawkbit_config->client_cert && hawkbit_config->client_key) {
-                curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
-                curl_easy_setopt(curl, CURLOPT_SSLCERT, hawkbit_config->client_cert);
-                curl_easy_setopt(curl, CURLOPT_SSLKEY, hawkbit_config->client_key);
-        }
-
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, HTTPMethod_STRING[method]);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, hawkbit_config->timeout);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
