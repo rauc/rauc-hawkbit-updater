@@ -261,15 +261,15 @@ Config* load_config_file(const gchar *config_file, GError **error)
                                                &config->auth_token, NULL, NULL);
         key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token",
                                                   &config->gateway_token, NULL, NULL);
-        if (!key_auth_token_exists && !key_gateway_token_exists) {
-                g_info("Neither auth_token nor gateway_token is set, using client certificates");
-                key_client_cert_exists = get_key_string(ini_file, "client", "client_cert", &config->client_cert, NULL, NULL);
-                key_client_key_exists = get_key_string(ini_file, "client", "client_key", &config->client_key, NULL, NULL);
-                if (!key_client_cert_exists || !key_client_key_exists) {
-                        g_set_error(error, 1, 4, "Neither a token nor client certificate are set!");
-                        return NULL;
-                }
-        } else if (key_auth_token_exists && key_gateway_token_exists) {
+        key_client_cert_exists = get_key_string(ini_file, "client", "client_cert", &config->client_cert, NULL, NULL);
+
+        key_client_key_exists = get_key_string(ini_file, "client", "client_key", &config->client_key, NULL, NULL);
+
+        if (!key_auth_token_exists && !key_gateway_token_exists &&  !(key_client_cert_exists && key_client_key_exists)) {
+                g_set_error(error, 1, 4, "Neither a token nor client certificate are set!");
+                return NULL;
+        }
+        else if (key_auth_token_exists && key_gateway_token_exists) {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
                             "Both 'auth_token' and 'gateway_token' set");
                 return NULL;
