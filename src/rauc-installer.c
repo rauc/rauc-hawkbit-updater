@@ -153,6 +153,10 @@ static gpointer install_loop_thread(gpointer data)
                 g_variant_dict_insert(&args, "http-headers", "^as", headers);
 
                 g_variant_dict_insert(&args, "tls-no-verify", "b", !context->ssl_verify);
+        } else if (context->streaming_install) {
+                gchar *headers[2] = {NULL, NULL};
+                g_variant_dict_insert(&args, "http-headers", "^as", headers);
+                g_variant_dict_insert(&args, "tls-no-verify", "b", !context->ssl_verify);
         }
 
         g_debug("Creating RAUC DBUS proxy");
@@ -200,7 +204,7 @@ notify_complete:
         return NULL;
 }
 
-gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ssl_verify,
+gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ssl_verify, gboolean streaming_install,
                       GSourceFunc on_install_notify, GSourceFunc on_install_complete,
                       gboolean wait)
 {
@@ -220,6 +224,7 @@ gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ss
         context->loop_context = loop_context;
         context->status_result = 2;
         context->keep_install_context = wait;
+        context->streaming_install = streaming_install;
 
         // unref/free previous install thread by joining it
         if (thread_install)

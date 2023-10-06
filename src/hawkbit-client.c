@@ -847,6 +847,7 @@ static gpointer download_thread(gpointer data)
                 .auth_header = NULL,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
+                .streaming_install = FALSE
         };
         g_autoptr(GError) error = NULL, feedback_error = NULL;
         g_autofree gchar *msg = NULL, *sha1sum = NULL;
@@ -1002,6 +1003,7 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
                 .auth_header = auth_header,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
+                .streaming_install = TRUE
         };
 
         // installation might already be canceled

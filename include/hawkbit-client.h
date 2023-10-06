@@ -104,6 +104,7 @@ struct on_new_software_userdata {
         gchar *auth_header;                     /**< authentication header for bundle streaming */
         gboolean ssl_verify;                    /**< whether to ignore server cert verification errors */
         gboolean install_success;               /**< whether the installation succeeded or not (only meaningful for run_once mode!) */
+        gboolean streaming_install;             /**< whether the installation is a streaming install or not */
 };
 
 /**

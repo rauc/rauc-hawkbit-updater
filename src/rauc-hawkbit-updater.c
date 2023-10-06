@@ -107,6 +107,7 @@ static gboolean on_new_software_ready_cb(gpointer data)
         notify_hawkbit_install_complete = userdata->install_complete_callback;
         userdata->install_success = rauc_install(userdata->file, userdata->auth_header,
                                                  userdata->ssl_verify,
+                                                 userdata->streaming_install,
                                                  on_rauc_install_progress_cb,
                                                  on_rauc_install_complete_cb, run_once);
 
