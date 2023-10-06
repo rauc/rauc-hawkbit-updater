@@ -427,6 +427,8 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_buffer);
 
+        g_debug("Request method: %s url: %s",HTTPMethod_STRING[method], url);
+
         if (jsonRequestBody) {
                 g_autoptr(JsonGenerator) generator = json_generator_new();
                 g_autoptr(JsonNode) req_root = json_builder_get_root(jsonRequestBody);
