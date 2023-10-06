@@ -3,8 +3,10 @@ Using the RAUC hawkbit Updater
 
 .. _authentication-section:
 
+Authentication
+--------------
 Authentication via tokens
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As described on the `hawkBit Authentication page <https://eclipse.dev/hawkbit/concepts/authentication/>`_
 in the "DDI API Authentication Modes" section, a device can be authenticated
@@ -25,8 +27,7 @@ recommended to use this token with care because it can be used to
 authenticate any device.
 
 Authentication via Certificates
--------------------------------
-
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 As can be seen in the system configuration settings of hawkBit, there is a
 third option to authenticate the targets. An "Allow targets to authenticate via
 a certificate authenticated by a reverse proxy" option. To use this
@@ -56,35 +57,38 @@ When the hawkBit server receives the request it checks if:
 - sent fingerprint(s) matches the expected fingerprint(s) which is set
   in the system configuration settings of hawkBit
 
-The client certificate will only be used if no tokens are set and a valid path
+The client certificate will only be used if a valid path
 to a certificate and its key is given in the configuration file.
+You can use token and certficate authentication mutualy, with the certificate being
+used to authenticate to the reverse proxy and the token to authenticate to
+hawkbit.
+
+If the CA of the reverse proxy server is untrusted set ``ssl_verify`` to ``false``.
 
 Here an example of how the configuration file might look like:
 
-[client]
-hawkbit_server            = CN_server_certificate:443
-ssl                       = true
-ssl_verify                = true
-tenant_id                 = DEFAULT
-target_name               = test-target
-auth_token                =
-#gateway_token            = bhVahL1Il1shie2aj2poojeChee6ahShu
-client_cert              = /path/to/client_certificate.pem
-client_key               = /path/to/client_certificate.key
-bundle_download_location  = /tmp/bundle.raucb
-retry_wait                = 60
-connect_timeout           = 20
-timeout                   = 60
-log_level                 = debug
-post_update_reboot        = false
-
-[device]
-product                   = Terminator
-model                     = T-1000
-serialnumber              = 8922673153
-hw_revision               = 2
-key1                      = value
-key2                      = value
+    | [client]
+    | hawkbit_server            = CN_server_certificate:443
+    | ssl                       = true
+    | ssl_verify                = true
+    | tenant_id                 = DEFAULT
+    | target_name               = test-target
+    | client_cert              = /path/to/client_certificate.pem
+    | client_key               = /path/to/client_certificate.key
+    | bundle_download_location  = /tmp/bundle.raucb
+    | retry_wait                = 60
+    | connect_timeout           = 20
+    | timeout                   = 60
+    | log_level                 = debug
+    | post_update_reboot        = false
+    |
+    | [device]
+    | product                   = Terminator
+    | model                     = T-1000
+    | serialnumber              = 8922673153
+    | hw_revision               = 2
+    | key1                      = value
+    | key2                      = value
 
 Streaming Support
 -----------------
