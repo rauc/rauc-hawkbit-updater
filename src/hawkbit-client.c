@@ -217,6 +217,9 @@ static char* get_auth_header()
                 return g_strdup_printf("Authorization: GatewayToken %s",
                                        hawkbit_config->gateway_token);
 
+        if (hawkbit_config->client_cert && hawkbit_config->client_key)
+                return NULL;
+
         g_return_val_if_reached(NULL);
 }
 
@@ -1368,6 +1371,8 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                                 g_warning("Failed to authenticate. Check if auth_token is correct?");
                         if (hawkbit_config->gateway_token)
                                 g_warning("Failed to authenticate. Check if gateway_token is correct?");
+                        if (hawkbit_config->client_cert && hawkbit_config->client_key)
+                                g_warning("Failed to authenticate. Check client certificate and client private key");
                 } else {
                         g_warning("Scheduled check for new software failed: %s (%d)",
                                   error->message, error->code);
