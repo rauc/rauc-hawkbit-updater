@@ -10,6 +10,8 @@
 #include "config-file.h"
 #include <glib/gtypes.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <glib/gstdio.h>
 
 
 static const gint DEFAULT_CONNECTTIMEOUT  = 20;     // 20 sec.
@@ -243,6 +245,7 @@ Config* load_config_file(const gchar *config_file, GError **error)
         gboolean bundle_location_given = FALSE;
         gboolean key_client_cert_exists = FALSE;
         gboolean key_client_key_exists = FALSE;
+        gboolean client_cert_auth = FALSE;
 
         g_return_val_if_fail(config_file, NULL);
         g_return_val_if_fail(error == NULL || *error == NULL, NULL);
@@ -265,8 +268,21 @@ Config* load_config_file(const gchar *config_file, GError **error)
 
         key_client_key_exists = get_key_string(ini_file, "client", "client_key", &config->client_key, NULL, NULL);
 
-        if (!key_auth_token_exists && !key_gateway_token_exists &&  !(key_client_cert_exists && key_client_key_exists)) {
-                g_set_error(error, 1, 4, "Neither a token nor client certificate are set!");
+        if (key_client_key_exists && key_client_cert_exists) {
+                client_cert_auth = TRUE;
+                if (g_access(config->client_cert, F_OK|R_OK)!=0) {
+                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    "Can't read client_cert: %s",config->client_cert);
+                        return NULL;
+                }
+                else if (g_access(config->client_key, F_OK|R_OK)!=0) {
+                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    "Can't read client_key: %s",config->client_key);
+                        return NULL;
+                }
+        }
+        if (!key_auth_token_exists && !key_gateway_token_exists &&  !(client_cert_auth)) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE, "Neither a token nor client certificate are set!");
                 return NULL;
         }
         else if (key_auth_token_exists && key_gateway_token_exists) {
