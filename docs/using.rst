@@ -3,9 +3,8 @@ Using the RAUC hawkbit Updater
 
 .. _authentication-section:
 
-Authentication
---------------
 Authentication via tokens
+-------------------------------
 
 As described on the `hawkBit Authentication page <https://eclipse.dev/hawkbit/concepts/authentication/>`_
 in the "DDI API Authentication Modes" section, a device can be authenticated
@@ -38,24 +37,24 @@ list of trusted certificates.
 
 The clients request has:
 
-        - to have a TLS connection to the reverse proxy server
-        - to contain the client certificate
-        - to have the common name of the server certificate match the server
-          name set in the configuration file as "hawkbit_server"
+- to have a TLS connection to the reverse proxy server
+- to contain the client certificate
+- to have the common name of the server certificate match the server
+  name set in the configuration file as "hawkbit_server"
 
 The purpose of the reverse proxy is to:
 
-        - disband the TLS connection
-        - check if sent client certificate is valid
-        - extract the common name and fingerprint of the client certificate
-        - forward the common name and fingerprint as HTTP headers to the
-          hawkBit server
+- disband the TLS connection
+- check if sent client certificate is valid
+- extract the common name and fingerprint of the client certificate
+- forward the common name and fingerprint as HTTP headers to the
+  hawkBit server
 
 When the hawkBit server receives the request it checks if:
 
-        - sent common name matches with the controller ID of the target
-        - sent fingerprint(s) matches the expected fingerprint(s) which is set
-          in the system configuration settings of hawkBit
+- sent common name matches with the controller ID of the target
+- sent fingerprint(s) matches the expected fingerprint(s) which is set
+  in the system configuration settings of hawkBit
 
 The client certificate will only be used if no tokens are set and a valid path
 to a certificate and its key is given in the configuration file.
