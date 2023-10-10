@@ -38,7 +38,7 @@ list of trusted certificates.
 
 The clients request has:
 
-- to have a TLS connection to the reverse proxy server
+- to have a TLS connection to the reverse proxy server (`ssl` config option must be true)
 - to contain the client certificate
 - to have the common name of the server certificate match the server
   name set in the configuration file as "hawkbit_server"

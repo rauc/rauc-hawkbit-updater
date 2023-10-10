@@ -1,6 +1,6 @@
 import pytest
 
-from test.helper import run
+from helper import run
 
 @pytest.mark.parametrize('mode', ('download','streaming'))
 def test_install_success_mtls(hawkbit, adjust_config, bundle_assigned,

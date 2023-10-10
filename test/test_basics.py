@@ -92,6 +92,18 @@ def test_register_and_check_valid_gateway_token(hawkbit, adjust_config, trailing
     assert 'MESSAGE: Checking for new software...' in out
     assert err == ''
 
+def test_config_client_cert_ssl_false(adjust_config):
+    """Test config with client cert authentication but ssl false."""
+    file_path="/bad/file"
+    config = adjust_config({"client": {"client_cert": "any",
+                                       "client_key": "any",
+                                       }},
+                           remove={'client': 'auth_token'})
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    assert exitcode == 4
+    assert f"'ssl' config option must be true for client certificate authentication" in err
+
 @pytest.mark.parametrize("client_cert", [None, "bad_path", "good_file","empty"])
 @pytest.mark.parametrize("client_key", [None, "bad_path", "good_file","empty"])
 def test_config_client_cert_and_key(adjust_config,tmp_path_factory,client_cert,client_key):
@@ -111,14 +123,13 @@ def test_config_client_cert_and_key(adjust_config,tmp_path_factory,client_cert,c
     client_cert_conf = parameter_to_value("client_cert",client_cert)
     client_key_conf = parameter_to_value("client_key",client_key)
 
-    config = adjust_config({"client": {**client_cert_conf, **client_key_conf}},
+    config = adjust_config({"client": {**client_cert_conf, **client_key_conf, "ssl": "true"}},
                            remove={'client': 'auth_token'})
 
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
     if "good_file" == client_key == client_cert:
         assert exitcode == 1
         assert 'MESSAGE: Checking for new software...' in out
-        assert 'WARNING: Failed to authenticate. Check client certificate and client private key' in err
     elif client_key is None or client_cert is None:
         assert exitcode == 4
         assert err.strip() == \

@@ -268,29 +268,6 @@ Config* load_config_file(const gchar *config_file, GError **error)
 
         key_client_key_exists = get_key_string(ini_file, "client", "client_key", &config->client_key, NULL, NULL);
 
-        if (key_client_key_exists && key_client_cert_exists) {
-                client_cert_auth = TRUE;
-                if (g_access(config->client_cert, F_OK|R_OK)!=0) {
-                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                                    "Can't read client_cert: %s",config->client_cert);
-                        return NULL;
-                }
-                else if (g_access(config->client_key, F_OK|R_OK)!=0) {
-                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                                    "Can't read client_key: %s",config->client_key);
-                        return NULL;
-                }
-        }
-        if (!key_auth_token_exists && !key_gateway_token_exists &&  !(client_cert_auth)) {
-                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE, "Neither a token nor client certificate are set!");
-                return NULL;
-        }
-        else if (key_auth_token_exists && key_gateway_token_exists) {
-                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
-                            "Both 'auth_token' and 'gateway_token' set");
-                return NULL;
-        }
-
         if (!get_key_string(ini_file, "client", "target_name", &config->controller_id, NULL,
                             error))
                 return NULL;
@@ -343,6 +320,33 @@ Config* load_config_file(const gchar *config_file, GError **error)
         if (!bundle_location_given && !config->stream_bundle) {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND,
                             "'bundle_download_location' is required if 'stream_bundle' is disabled");
+                return NULL;
+        }
+        if (key_client_key_exists && key_client_cert_exists) {
+                client_cert_auth = TRUE;
+                if (!config->ssl) {
+                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    "'ssl' config option must be true for client certificate authentication");
+                        return NULL;
+                }
+                if (g_access(config->client_cert, F_OK|R_OK)!=0) {
+                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    "Can't read client_cert: %s",config->client_cert);
+                        return NULL;
+                }
+                else if (g_access(config->client_key, F_OK|R_OK)!=0) {
+                        g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                                    "Can't read client_key: %s",config->client_key);
+                        return NULL;
+                }
+        }
+        if (!key_auth_token_exists && !key_gateway_token_exists &&  !(client_cert_auth)) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE, "Neither a token nor client certificate are set!");
+                return NULL;
+        }
+        else if (key_auth_token_exists && key_gateway_token_exists) {
+                g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
+                            "Both 'auth_token' and 'gateway_token' set");
                 return NULL;
         }
 
