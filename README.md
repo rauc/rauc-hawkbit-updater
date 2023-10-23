@@ -91,7 +91,7 @@ $ sudo apt-get install meson libcurl4-openssl-dev libjson-glib-dev
 $ meson setup build
 $ ninja -C build
 ```
-
+ 
 Test Suite
 ----------
 
