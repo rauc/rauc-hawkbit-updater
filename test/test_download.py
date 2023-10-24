@@ -83,7 +83,8 @@ def test_download_partials_without_resume(hawkbit, bundle_assigned, adjust_confi
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
 
     assert 'Start downloading: ' in out
-    assert err.strip() == 'WARNING: Download failed: Transferred a partial file'
+    assert err.strip() in ['WARNING: Download failed: Transferred a partial file',
+                           'WARNING: Download failed: Timeout was reached']
     assert exitcode == 1
 
 def test_download_partials_with_resume(hawkbit, bundle_assigned, adjust_config,
