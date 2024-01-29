@@ -69,6 +69,8 @@ static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static struct HawkbitAction *active_action = NULL;
 static GThread *thread_download = NULL;
+static CURLSH *curl_share = NULL;
+static pthread_mutex_t curl_share_locks[CURL_LOCK_DATA_LAST + 1];
 
 GQuark rhu_hawkbit_client_error_quark(void)
 {
@@ -85,6 +87,16 @@ GQuark rhu_hawkbit_client_http_error_quark(void)
         return g_quark_from_static_string("rhu_hawkbit_client_http_error_quark");
 }
 
+void curl_share_lock(CURL *handle, curl_lock_data data, curl_lock_access access, void *clientp)
+{
+        pthread_mutex_lock(&curl_share_locks[data]);
+}
+
+
+void curl_share_unlock(CURL *handle, curl_lock_data data, curl_lock_access access, void *clientp)
+{
+        pthread_mutex_unlock(&curl_share_locks[data]);
+}
 /**
  * @brief Create and initialize an HawkbitAction.
  *
@@ -256,6 +268,7 @@ static void set_default_curl_opts(CURL *curl)
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
+        curl_easy_setopt(curl, CURLOPT_SHARE, curl_share);
 }
 
 /**
@@ -1432,6 +1445,14 @@ int hawkbit_start_service_sync()
         g_autoptr(sd_event) event = NULL;
 #endif
 
+        curl_share = curl_share_init();
+        curl_share_setopt(curl_share, CURLSHOPT_LOCKFUNC, curl_share_lock);
+        curl_share_setopt(curl_share, CURLSHOPT_UNLOCKFUNC, curl_share_unlock);
+        curl_share_setopt(curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+        curl_share_setopt(curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_PSL);
+        curl_share_setopt(curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+        curl_share_setopt(curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+
         active_action = action_new();
 
         ctx = g_main_context_new();
@@ -1481,6 +1502,8 @@ finish:
         g_source_destroy(event_source);
         sd_event_set_watchdog(event, FALSE);
 #endif
+        curl_share_cleanup(curl_share);
+
         g_main_loop_unref(cdata.loop);
         if (res < 0)
                 g_warning("%s", strerror(-res));
