@@ -29,6 +29,9 @@ static void on_confirmation_received(GDBusProxy *proxy, gint action_id, gboolean
         context->confirmed = confirmed;
         context->error_code = error_code;
         context->details = g_strdup(details);
+        // Notify the result of the confirmation
+        context->notify_confirm(context);
+
         g_main_loop_quit(context->mainloop);
 }
 
@@ -72,6 +75,12 @@ static void confirm_context_free(struct confirm_context *context)
         g_free(context);
 }
 
+static void on_confirmation_timeout(gpointer data)
+{
+        g_debug("Timeout waiting for confirmation response, exiting");
+        g_main_loop_quit((GMainLoop *)data);
+}
+
 /**
  * @brief Confirmation request mainloop
  *
@@ -86,6 +95,7 @@ static gpointer confirmation_loop_thread(gpointer data)
         RInstallConfirmation *r_confirmation_proxy = NULL;
         g_autoptr(GError) error = NULL;
         struct confirm_context *context = NULL;
+        GSource *timeout_source = NULL;
 
         g_return_val_if_fail(data, NULL);
 
@@ -115,15 +125,23 @@ static gpointer confirmation_loop_thread(gpointer data)
                 goto out_loop;
         }
 
+        /* Add 10 seconds timeout to wait for a response.
+         * Usually it should be enough, be we don't want to queue threads that wait indefinitely
+         *
+         * TODO: add cancellation support
+         */
+        timeout_source = g_timeout_source_new(10000);
+        g_debug("Adding a timeout");
+        g_source_set_callback(timeout_source, G_SOURCE_FUNC(on_confirmation_timeout), context->mainloop, NULL);
+        g_source_attach(timeout_source, context->loop_context);
+        g_source_unref(timeout_source);
+
         g_main_loop_run(context->mainloop);
 
 out_loop:
         g_signal_handlers_disconnect_by_data(r_confirmation_proxy, context);
 
 notify_complete:
-        // Notify the result of the confirmation
-        context->notify_confirm(context);
-
         g_clear_pointer(&r_confirmation_proxy, g_object_unref);
         g_main_context_pop_thread_default(context->loop_context);
 
