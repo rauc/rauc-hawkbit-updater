@@ -1602,7 +1602,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                         goto out;
                 }
 
-                // in case the confirmation takes long type, we simply check for it every iteration
+                // in case the confirmation takes long time, we simply check for it every iteration
                 data->hawkbit_interval_check_sec = 5;
 
                 goto out;
