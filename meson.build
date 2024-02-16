@@ -53,6 +53,13 @@ if systemddep.found()
   install_data('script/rauc-hawkbit-updater.service', install_dir : systemdsystemunitdir)
 endif
 
+datadir = get_option('datadir')
+
+dbuspolicydir = get_option('dbuspolicydir')
+if dbuspolicydir == ''
+  dbuspolicydir = datadir / 'dbus-1' / 'system.d'
+endif
+
 gnome = import('gnome')
 dbus = 'rauc-installer-gen'
 dbus_ifaces = files('src/rauc-installer.xml')
@@ -98,6 +105,7 @@ if doxygen.found()
     )
 endif
 
+subdir('data')
 subdir('docs')
 
 executable('rauc-hawkbit-updater',
