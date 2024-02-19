@@ -100,12 +100,17 @@ static gboolean on_rauc_install_complete_cb(gpointer data)
 static gboolean on_new_software_ready_cb(gpointer data)
 {
         struct on_new_software_userdata *userdata = data;
+        struct install_auth auth = {
+                .header = userdata->auth_header,
+                .ssl_key = userdata->ssl_key,
+                .ssl_cert = userdata->ssl_cert,
+        };
 
         g_return_val_if_fail(data, G_SOURCE_REMOVE);
 
         notify_hawkbit_install_progress = userdata->install_progress_callback;
         notify_hawkbit_install_complete = userdata->install_complete_callback;
-        userdata->install_success = rauc_install(userdata->file, userdata->auth_header,
+        userdata->install_success = rauc_install(userdata->file, &auth,
                                                  userdata->ssl_verify,
                                                  on_rauc_install_progress_cb,
                                                  on_rauc_install_complete_cb, run_once);

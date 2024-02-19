@@ -113,7 +113,7 @@ static void install_context_free(struct install_context *context)
                 return;
 
         g_free(context->bundle);
-        g_free(context->auth_header);
+        g_free(context->auth);
         g_mutex_clear(&context->status_mutex);
 
         // make sure all pending events are processed
@@ -147,13 +147,18 @@ static gpointer install_loop_thread(gpointer data)
         context = data;
         g_main_context_push_thread_default(context->loop_context);
 
-        if (context->auth_header) {
-                gchar *headers[2] = {NULL, NULL};
-                headers[0] = context->auth_header;
-                g_variant_dict_insert(&args, "http-headers", "^as", headers);
-
-                g_variant_dict_insert(&args, "tls-no-verify", "b", !context->ssl_verify);
+        if (context->auth) {
+                if (context->auth->ssl_key && context->auth->ssl_cert) {
+                        g_variant_dict_insert(&args, "tls-key", "s", context->auth->ssl_key);
+                        g_variant_dict_insert(&args, "tls-cert", "s", context->auth->ssl_cert);
+                }
+                if (context->auth->header) {
+                        gchar *headers[2] = {NULL, NULL};
+                        headers[0] = context->auth->header;
+                        g_variant_dict_insert(&args, "http-headers", "^as", headers);
+                }
         }
+        g_variant_dict_insert(&args, "tls-no-verify", "b", !context->ssl_verify);
 
         g_debug("Creating RAUC DBUS proxy");
         r_installer_proxy = r_installer_proxy_new_for_bus_sync(
@@ -200,7 +205,7 @@ notify_complete:
         return NULL;
 }
 
-gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ssl_verify,
+gboolean rauc_install(const gchar *bundle, struct install_auth *auth, gboolean ssl_verify,
                       GSourceFunc on_install_notify, GSourceFunc on_install_complete,
                       gboolean wait)
 {
@@ -212,7 +217,7 @@ gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ss
         loop_context = g_main_context_new();
         context = install_context_new();
         context->bundle = g_strdup(bundle);
-        context->auth_header = g_strdup(auth_header);
+        context->auth = g_memdup2(auth, sizeof(struct install_auth));
         context->ssl_verify = ssl_verify;
         context->notify_event = on_install_notify;
         context->notify_complete = on_install_complete;
