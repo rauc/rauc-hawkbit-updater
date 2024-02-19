@@ -102,6 +102,8 @@ struct on_new_software_userdata {
         GSourceFunc install_complete_callback;  /**< callback function to be called when installation is complete */
         gchar *file;                            /**< downloaded new software file */
         gchar *auth_header;                     /**< authentication header for bundle streaming */
+        gchar *ssl_key;                         /**< authentication key for bundle streaming */
+        gchar *ssl_cert;                        /**< authentication certificate for bundle streaming */
         gboolean ssl_verify;                    /**< whether to ignore server cert verification errors */
         gboolean install_success;               /**< whether the installation succeeded or not (only meaningful for run_once mode!) */
 };
