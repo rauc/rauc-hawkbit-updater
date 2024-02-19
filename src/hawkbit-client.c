@@ -217,7 +217,7 @@ static char* get_auth_header()
                 return g_strdup_printf("Authorization: GatewayToken %s",
                                        hawkbit_config->gateway_token);
 
-        g_return_val_if_reached(NULL);
+        return NULL;
 }
 
 /**
@@ -901,6 +901,8 @@ static gpointer download_thread(gpointer data)
                 .install_complete_callback = install_complete_cb,
                 .file = hawkbit_config->bundle_download_location,
                 .auth_header = NULL,
+                .ssl_key = NULL,
+                .ssl_cert = NULL,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
         };
@@ -1056,6 +1058,8 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
                 .install_complete_callback = install_complete_cb,
                 .file = artifact->download_url,
                 .auth_header = auth_header,
+                .ssl_key = hawkbit_config->ssl_key,
+                .ssl_cert = hawkbit_config->ssl_cert,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
         };
