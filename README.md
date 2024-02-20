@@ -115,7 +115,8 @@ $ docker pull hawkbit/hawkbit-update-server
 $ docker run -d --name hawkbit -p ::1:8080:8080 -p 127.0.0.1:8080:8080 \
     hawkbit/hawkbit-update-server \
     --hawkbit.server.security.dos.filter.enabled=false \
-    --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1
+    --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1 \
+    --server.forward-headers-strategy=NATIVE
 ```
 
 Run test suite:
