@@ -9,7 +9,7 @@ from configparser import ConfigParser
 import pytest
 
 from hawkbit_mgmt import HawkbitMgmtTestClient, HawkbitError
-from helper import run_pexpect, available_port
+from helper import run_pexpect, available_port, run
 
 def pytest_addoption(parser):
     """Register custom argparse-style options."""
@@ -379,3 +379,40 @@ def partial_download_port(nginx_proxy):
         'limit_rate': '70k',
     }
     return nginx_proxy(location_options)
+
+@pytest.fixture
+def mtls_config(tmp_path_factory):
+    class MtlsConfig:
+        def __init__(self, pki_dir_location):
+            self.pki_dir= str(pki_dir_location) + "/pki/"
+            self.ca_cert= self.pki_dir + "root-ca.crt"
+            self.ca_key= self.pki_dir + "root-ca.key"
+            self.ca_csr= self.pki_dir + "root-csr.pem"
+            self.client_cert= self.pki_dir + "client.crt"
+            self.client_key= self.pki_dir + "client.key"
+            self.issuer_hash = self. pki_dir + "issuer_hash.txt"
+
+        def client_cert_exist(self):
+            return os.path.isfile(self.client_cert)
+
+        def ca_cert_exist(self):
+            return os.path.isfile(self.ca_cert)
+
+        def get_issuer_hash(self):
+            return open(self.issuer_hash, "r").readline().strip()
+
+    return MtlsConfig(tmp_path_factory.getbasetemp())
+
+@pytest.fixture
+def mtls_certificates(mtls_config, hawkbit_target_added):
+    """
+    Generate CA cert and key if they don't exist and also generate specific client cert and key
+    for the Hawkbit controller id as Common Name.
+    """
+    def _mtls_certificates():
+        out, err, exitcode = run(f'{os.path.dirname(__file__)}/gen_pki.sh {mtls_config.pki_dir} {hawkbit_target_added}', timeout=20)
+        assert exitcode == 0
+        assert mtls_config.ca_cert_exist()
+        assert mtls_config.client_cert_exist()
+        return mtls_config
+    return _mtls_certificates
