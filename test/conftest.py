@@ -245,28 +245,72 @@ events {{ }}
 
 http {{
     access_log /dev/null;
-
+    map $ssl_client_s_dn $ssl_client_s_dn_cn {{
+        default "";
+        ~CN=(?<CN>[^,]+) $CN;
+    }}
+    {server}
+}}"""
+    http_server = """
     server {{
         listen {port};
         listen [::]:{port};
+        {server_options}
 
         location / {{
             proxy_pass http://localhost:8080;
+
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto http;
+            proxy_set_header X-Forwarded-Port {port};
             {location_options}
-
-            # use proxy URL in JSON responses
-            sub_filter "localhost:$proxy_port/" "$host:$server_port/";
-            sub_filter "$host:$proxy_port/" "$host:$server_port/";
-            sub_filter_types application/json;
-            sub_filter_once off;
         }}
-    }}
-}}"""
+    }}"""
+    mtls_server = """
+    server {{
+        listen {port} ssl;
+        listen [::]:{port} ssl;
 
-    def _nginx_config(port, location_options):
+        ssl_verify_client on;
+        ssl_verify_depth 3;
+        {server_options}
+
+        location ~*/.*/controller/ {{
+            proxy_pass http://localhost:8080;
+
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-Port {port};
+            proxy_set_header X-Forwarded-Protocol https;
+
+            proxy_set_header X-Ssl-Client-Cn $ssl_client_s_dn_cn;
+
+            # These are required for clients to upload and download software.
+            proxy_request_buffering off;
+            client_max_body_size 1000m;
+            {location_options}
+        }}
+    }}"""
+
+
+    def _to_nginx_option(option:dict):
+        if not option:
+            return ""
+        key_values = (f'{key} {value};' for key, value in option.items())
+        return " ".join(key_values)
+
+    def _nginx_config(port, location_options, server_options=None, mtls=False):
+        server_config = mtls_server if mtls else http_server
+        server_config_str = server_config.format(
+                port=port, location_options=_to_nginx_option(location_options),
+                server_options=_to_nginx_option(server_options))
         proxy_config = tmp_path_factory.mktemp('nginx') / 'nginx.conf'
-        location_options = ( f'{key} {value};' for key, value in location_options.items())
-        proxy_config_str = config_template.format(port=port, location_options=" ".join(location_options))
+        proxy_config_str = config_template.format(
+                port=port, server=server_config_str)
         proxy_config.write_text(proxy_config_str)
         return proxy_config
 
@@ -284,9 +328,9 @@ def nginx_proxy(nginx_config):
 
     procs = []
 
-    def _nginx_proxy(options):
+    def _nginx_proxy(options, server_options=None, mtls=False):
         port = available_port()
-        proxy_config = nginx_config(port, options)
+        proxy_config = nginx_config(port, options, server_options, mtls)
 
         try:
             proc = run_pexpect(f'nginx -c {proxy_config} -p .', timeout=None)
