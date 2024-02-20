@@ -103,16 +103,16 @@ class Installer:
         return sha1.hexdigest()
 
     @staticmethod
-    def _get_http_bundle_sha1(url, auth_header):
+    def _get_http_bundle_sha1(url, *, auth_header=None, cert=None, verify=True):
         """Download file from URL using HTTP range requests and compute its sha1 checksum."""
         sha1 = hashlib.sha1()
-        headers = auth_header
+        headers = auth_header or {}
         range_size = 128 * 1024  # default squashfs block size
 
         offset = 0
         while True:
             headers['Range'] = f'bytes={offset}-{offset + range_size - 1}'
-            r = requests.get(url, headers=headers)
+            r = requests.get(url, headers=headers, cert=cert, verify=verify)
             try:
                 r.raise_for_status()
                 sha1.update(r.content)
@@ -130,20 +130,31 @@ class Installer:
         Check that required headers are set, bundle is accessible (HTTP or locally) and its
         checksum matches.
         """
-        if 'http-headers' in args:
+        if 'tls-key' in args and 'tls-cert' in args:
+            cert = (args['tls-cert'], args['tls-key'])
+            if 'tls-no-verify' in args and args['tls-no-verify']:
+                verify = False
+            elif 'tls-ca' in args:
+                verify = args['tls-ca']
+            else:
+                verify = True
+
+            source_sha1 = self._get_http_bundle_sha1(source, cert=cert, verify=verify)
+
+        elif 'http-headers' in args:
             assert len(args['http-headers']) == 1
 
             [auth_header] = args['http-headers']
             key, value = auth_header.split(': ', maxsplit=1)
-            http_bundle_sha1 = self._get_http_bundle_sha1(source, {key: value})
-            assert http_bundle_sha1 == self._get_bundle_sha1(self._bundle)
+            source_sha1 = self._get_http_bundle_sha1(source, auth_header={key: value})
 
             # assume ssl_verify=false is set in test setup
             assert args['tls-no-verify'] is True
-
         else:
-            # check bundle checksum matches expected checksum
-            assert self._get_bundle_sha1(source) == self._get_bundle_sha1(self._bundle)
+            source_sha1 = self._get_bundle_sha1(source)
+
+        # check bundle checksum matches expected checksum
+        assert source_sha1 == self._get_bundle_sha1(self._bundle)
 
     @property
     def Operation(self):
