@@ -416,3 +416,20 @@ def mtls_certificates(mtls_config, hawkbit_target_added):
         assert mtls_config.client_cert_exist()
         return mtls_config
     return _mtls_certificates
+
+@pytest.fixture
+def mtls_download_port(nginx_proxy, mtls_certificates):
+    """
+    Runs an nginx proxy. HTTPS requests are forwarded to port 8080
+    (default port of the docker hawkBit instance). Returns the port the proxy is running on. This
+    port can be set in the rauc-hawkbit-updater config to test partial downloads.
+    """
+    mtls_cert = mtls_certificates()
+    hash_issuer = mtls_cert.get_issuer_hash()
+    location_options = {"proxy_set_header X-Ssl-Issuer-Hash-1": hash_issuer}
+    server_options = {
+        "ssl_certificate": mtls_cert.ca_cert,
+        "ssl_certificate_key": mtls_cert.ca_key,
+        "ssl_client_certificate": mtls_cert.ca_cert,
+    }
+    return nginx_proxy(location_options, server_options, mtls=True)
