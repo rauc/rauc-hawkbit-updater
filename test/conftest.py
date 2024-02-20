@@ -103,8 +103,11 @@ def adjust_config(config):
                 adjusted_config.set(section, key, value)
 
         # remove
-        for section, option in remove.items():
-            adjusted_config.remove_option(section, option)
+        for section, options in remove.items():
+            if isinstance(options, str):
+                options = [options]
+            for option in options:
+                adjusted_config.remove_option(section, option)
 
         # add trailing space
         if add_trailing_space:
