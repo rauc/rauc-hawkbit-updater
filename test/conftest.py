@@ -43,7 +43,8 @@ def hawkbit(pytestconfig):
 @pytest.fixture
 def hawkbit_target_added(hawkbit):
     """Creates a hawkBit target."""
-    target = hawkbit.add_target()
+    # target ID must match /CN= in PKI's client key for mTLS tests (see test/gen_pki.sh)
+    target = hawkbit.add_target(target_id='test-target')
     yield target
 
     hawkbit.delete_target(target)
@@ -224,10 +225,14 @@ def rauc_dbus_install_failure(rauc_bundle):
     assert proc.terminate(force=True)
 
 @pytest.fixture(scope='session')
-def nginx_config(tmp_path_factory):
+def pki_dir():
+    return f'{os.path.dirname(__file__)}/pki'
+
+@pytest.fixture(scope='session')
+def nginx_config(tmp_path_factory, pki_dir):
     """
     Creates a temporary nginx proxy configuration incorporating additional given options to the
-    location section.
+    location section. See https://eclipse.dev/hawkbit/concepts/authentication/ for examples.
     """
     config_template = """
 daemon off;
@@ -242,27 +247,59 @@ events {{ }}
 http {{
     access_log /dev/null;
 
+    map $ssl_client_s_dn $ssl_client_s_dn_cn {{
+        default "";
+        ~CN=(?<CN>[^,]+) $CN;
+    }}
+
     server {{
-        listen 127.0.0.1:{port};
-        listen [::1]:{port};
+        listen 127.0.0.1:{port} {ssl};
+        listen [::1]:{port} {ssl};
 
-        location / {{
+        ssl_certificate pki/root-ca.crt;
+        ssl_certificate_key pki/root-ca.key;
+        ssl_client_certificate pki/root-ca.crt;
+        {server_options}
+
+        location ~*/.*/controller/ {{
             proxy_pass http://localhost:8080;
-            {location_options}
 
-            # use proxy URL in JSON responses
-            sub_filter "localhost:$proxy_port/" "$host:$server_port/";
-            sub_filter "$host:$proxy_port/" "$host:$server_port/";
-            sub_filter_types application/json;
-            sub_filter_once off;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Protocol $scheme;
+            proxy_set_header X-Forwarded-Port {port};
+
+            proxy_set_header X-Ssl-Client-Cn $ssl_client_s_dn_cn;
+
+            # These are required for clients to upload and download software.
+            proxy_request_buffering off;
+            client_max_body_size 1000m;
+            {location_options}
         }}
     }}
 }}"""
 
-    def _nginx_config(port, location_options):
-        proxy_config = tmp_path_factory.mktemp('nginx') / 'nginx.conf'
-        location_options = ( f'{key} {value};' for key, value in location_options.items())
-        proxy_config_str = config_template.format(port=port, location_options=" ".join(location_options))
+    def _to_nginx_option(option):
+        key_values = (f'{key} {value};' for key, value in option.items())
+        return ' '.join(key_values)
+
+    def _nginx_config(port, location_options, *, mtls=False):
+        server_options = {}
+        if mtls:
+            server_options['ssl_verify_client'] = 'on'
+            server_options['ssl_verify_depth'] = '3'
+
+        nginx_temp = tmp_path_factory.mktemp('nginx')
+        proxy_config = nginx_temp / 'nginx.conf'
+        os.symlink(pki_dir, nginx_temp / 'pki')
+        proxy_config_str = config_template.format(
+                ssl='ssl' if mtls else '',
+                port=port,
+                location_options=_to_nginx_option(location_options),
+                server_options=_to_nginx_option(server_options),
+        )
         proxy_config.write_text(proxy_config_str)
         return proxy_config
 
@@ -280,9 +317,9 @@ def nginx_proxy(nginx_config):
 
     procs = []
 
-    def _nginx_proxy(options):
+    def _nginx_proxy(options, *, mtls=False):
         port = available_port()
-        proxy_config = nginx_config(port, options)
+        proxy_config = nginx_config(port, options, mtls=mtls)
 
         try:
             proc = run_pexpect(f'nginx -c {proxy_config} -p .', timeout=None)
@@ -304,6 +341,12 @@ def nginx_proxy(nginx_config):
         assert proc.isalive()
         proc.terminate(force=True)
         proc.expect(pexpect.EOF)
+
+@pytest.fixture(scope='session')
+def ssl_issuer_hash(pki_dir):
+    """Return's the PKI's issuer hash."""
+    with open(f"{pki_dir}/issuer_hash.txt") as f:
+        return f.readline().strip()
 
 @pytest.fixture(scope='session')
 def rate_limited_port(nginx_proxy):
@@ -331,3 +374,13 @@ def partial_download_port(nginx_proxy):
         'limit_rate': '70k',
     }
     return nginx_proxy(location_options)
+
+@pytest.fixture
+def mtls_download_port(nginx_proxy, ssl_issuer_hash):
+    """
+    Runs an nginx proxy. HTTPS requests are forwarded to port 8080 (default port of the docker
+    hawkBit instance). Returns the port the proxy is running on. This port can be set in the
+    rauc-hawkbit-updater config to test mTLS authentication.
+    """
+    location_options = {"proxy_set_header X-Ssl-Issuer-Hash-1": ssl_issuer_hash}
+    return nginx_proxy(location_options, mtls=True)
