@@ -18,6 +18,7 @@ static const gint DEFAULT_RETRY_WAIT      = 5 * 60; // 5 min.
 static const gboolean DEFAULT_SSL         = TRUE;
 static const gboolean DEFAULT_SSL_VERIFY  = TRUE;
 static const gboolean DEFAULT_REBOOT      = FALSE;
+static const gboolean DEFAULT_CLOSE       = TRUE;
 static const gchar* DEFAULT_LOG_LEVEL     = "message";
 
 /**
@@ -308,6 +309,9 @@ Config* load_config_file(const gchar *config_file, GError **error)
         config->log_level = log_level_from_string(val);
 
         if (!get_key_bool(ini_file, "client", "post_update_reboot", &config->post_update_reboot, DEFAULT_REBOOT, error))
+                return NULL;
+        if (!get_key_bool(ini_file, "client", "post_update_close",
+                          &config->post_update_close, DEFAULT_CLOSE, error))
                 return NULL;
 
         if (config->timeout > 0 && config->connect_timeout > 0 &&

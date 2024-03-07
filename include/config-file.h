@@ -16,6 +16,7 @@ typedef struct Config_ {
         gboolean ssl;                     /**< use https or http */
         gboolean ssl_verify;              /**< verify https certificate */
         gboolean post_update_reboot;      /**< reboot system after successful update */
+        gboolean post_update_close;       /**< close(finish) update action after a successful update */
         gboolean resume_downloads;        /**< resume downloads or not */
         gboolean stream_bundle;           /**< streaming installation or not */
         gchar* auth_token;                /**< hawkBit target security token */
