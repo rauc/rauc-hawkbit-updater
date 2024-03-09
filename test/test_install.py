@@ -8,6 +8,7 @@ from pexpect import TIMEOUT, EOF
 import pytest
 
 from helper import run, run_pexpect, timezone_offset_utc
+import subprocess 
 
 @pytest.fixture
 def install_config(config, adjust_config):
@@ -150,20 +151,25 @@ def test_install_confirmation_denied(hawkbit, adjust_config, confirm_workflow_ha
     assert f'Confirmation status code: {error_code}' in status[0]['messages']
     assert denied_message in status[0]['messages']
 
-def test_install_confirmation_denied_no_plugin(hawkbit, adjust_config, confirm_workflow_hawkbit, bundle_assigned):
+def test_install_confirmation_no_plugin(hawkbit, adjust_config, confirm_workflow_hawkbit, bundle_assigned):
     """
     Enable user confirmation in Hawkbit config.
-    Don't start confirmation plugin. This is equivalent to the rejection of installation.
+    Don't start confirmation plugin. The expected result should be a timeout,
+    we don't want to force any default on a user
     """
     import re
     config = adjust_config({'client':{'require_confirmation': 'true'}})
-    confirmed_regex = re.compile("Action .* denied")
 
-    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    try:
+        out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r', timeout=15)
+        assert False
+    except subprocess.TimeoutExpired as e:
+        # We expect timeout instead of "denied" response in case there's no plugin to handle the request
+        err = e.stderr
+        assert b'GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown' in err
+        assert True
 
     status = hawkbit.get_action_status()
-    assert confirmed_regex.findall(out)
-    assert 'GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown' in err
     # If the confirmation is rejected, the action continues to be in state WAITING_FOR_CONFIRMATION
     # until it is confirmed at a later point in time or cancelled.
     assert status[0]['type'] == 'wait_for_confirmation'
