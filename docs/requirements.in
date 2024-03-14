@@ -1,0 +1,3 @@
+# use pip-compile requirements.in to update requirements.txt
+sphinx
+sphinx-rtd-theme
