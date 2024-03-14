@@ -11,6 +11,7 @@
 #include <glib.h>
 #include <glib/gprintf.h>
 #include "rauc-installer.h"
+#include "rauc-install-confirmation.h"
 #include "hawkbit-client.h"
 #include "config-file.h"
 #include "log.h"
@@ -41,7 +42,7 @@ static GOptionEntry entries[] =
 // hawkbit callbacks
 static GSourceFunc notify_hawkbit_install_progress;
 static GSourceFunc notify_hawkbit_install_complete;
-
+static GSourceFunc notify_hawkbit_confirmation_received;
 
 /**
  * @brief GSourceFunc callback for install thread, consumes RAUC progress messages, logs them and
@@ -86,6 +87,49 @@ static gboolean on_rauc_install_complete_cb(gpointer data)
 
         // notify hawkbit about install result
         notify_hawkbit_install_complete(&userdata);
+
+        return G_SOURCE_REMOVE;
+}
+
+/**
+ * @brief GSourceFunc callback for confirmation request, consumes the result of confirmation
+ *        (on confirmed) and passes it on to notify_hawkbit_install_complete().
+ *
+ * @param[in] data confirmation_context pointer allowing access to received status result
+ * @return G_SOURCE_REMOVE is always returned
+ */
+static gboolean on_confirmation_response(gpointer data)
+{
+        struct confirm_context *context = data;
+        struct on_install_confirmed_userdata userdata;
+
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
+        userdata.action_id = context->action_id;
+        userdata.confirmed = context->confirmed;
+        userdata.error_code = context->error_code;
+        userdata.details = context->details;
+
+        notify_hawkbit_confirmation_received(&userdata);
+
+        return G_SOURCE_REMOVE;
+}
+
+/**
+ * @brief GSourceFunc callback for installation confirmation.
+ *        Triggers confirmation requestion to a user software
+ *
+ * @param[in] data on_install_confirmation_request_userdata pointer
+ * @return G_SOURCE_REMOVE is always returned
+ */
+static gboolean on_confirmation_request(gpointer data)
+{
+        struct on_install_confirmation_request_userdata *userdata = data;
+
+        g_return_val_if_fail(data, G_SOURCE_REMOVE);
+
+        notify_hawkbit_confirmation_received = userdata->response_callback;
+        rauc_installation_confirm(userdata->action_id, userdata->version, on_confirmation_response);
 
         return G_SOURCE_REMOVE;
 }
@@ -161,7 +205,7 @@ int main(int argc, char **argv)
         log_level = (opt_debug) ? G_LOG_LEVEL_MASK : config->log_level;
 
         setup_logging(PROGRAM, log_level, opt_output_systemd);
-        hawkbit_init(config, on_new_software_ready_cb);
+        hawkbit_init(config, on_new_software_ready_cb, on_confirmation_request);
 
         return hawkbit_start_service_sync();
 }

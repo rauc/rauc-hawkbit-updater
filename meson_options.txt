@@ -21,3 +21,8 @@ option(
   type : 'string',
   value : '',
   description : 'Directory for systemd service files')
+option(
+  'dbuspolicydir',
+  type : 'string',
+  value : '',
+  description : 'D-Bus policy directory')
