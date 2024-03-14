@@ -798,17 +798,22 @@ gboolean install_complete_cb(gpointer ptr)
 
         g_mutex_lock(&active_action->mutex);
 
-        active_action->state = result->install_success ? ACTION_STATE_SUCCESS : ACTION_STATE_ERROR;
-        feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
-        res = feedback(
-                feedback_url, active_action->id,
-                result->install_success ? "Software bundle installed successfully."
-                : "Failed to install software bundle.",
-                result->install_success ? "success" : "failure",
-                "closed", &error);
+        if (hawkbit_config->post_update_close || !result->install_success) {
+                active_action->state = result->install_success ? ACTION_STATE_SUCCESS : ACTION_STATE_ERROR;
+                feedback_url = build_api_url("deploymentBase/%s/feedback", active_action->id);
+                res = feedback(
+                        feedback_url, active_action->id,
+                        result->install_success ? "Software bundle installed successfully."
+                        : "Failed to install software bundle.",
+                        result->install_success ? "success" : "failure",
+                        "closed", &error);
 
-        if (!res)
-                g_warning("%s", error->message);
+                if (!res)
+                        g_warning("%s", error->message);
+        }
+        else {
+                g_message("%s", "Software bundle installed successfully.");
+        }
 
         process_deployment_cleanup();
         g_mutex_unlock(&active_action->mutex);
