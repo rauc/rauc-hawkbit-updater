@@ -120,6 +120,15 @@ Run test suite:
 (venv) $ ./test/wait-for-hawkbit-online && dbus-run-session -- pytest -v
 ```
 
+Tests need to be run as root or with cap_net_raw and cap_net_admin
+capabilities to be able to sniff rauc-hawkbit-updater packet.
+
+To set capabilities:
+
+```shell
+setcap cap_net_raw,cap_net_admin=eip /usr/bin/python
+```
+
 Pass `-o log_cli=true` to pytest in order to enable live logging for all test cases.
 
 Usage / Options

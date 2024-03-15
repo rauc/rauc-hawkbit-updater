@@ -152,6 +152,10 @@ Optional options:
 
   Defaults to ``message``.
 
+``disable_download_auth_header=<boolean>``
+  Whether to send Authorization header for download requests.
+  Defaults to ``false``
+
 .. _keyring-section:
 
 **[device] section**

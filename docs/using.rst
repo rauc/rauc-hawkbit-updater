@@ -47,6 +47,18 @@ Thus rauc-hawkbit-updater can remove these bundles after installation only if
 it they are located in a directory belonging to the user executing
 rauc-hawkbit-updater.
 
+Disable authentication header for downloads
+-------------------------------------------
+
+rauc-hawkbit-updater can download bundle from external storage (hawkbit provide
+the download url). rauc-hawkbit-update Native behavior is to provide
+authentication header like for other requests to DDI hawkbit API. But for some
+external bundle storage (like azure blob storage or aws s3), provide this
+header can cause an error AuthenticationFailed.
+
+To disable it, set ``disable_download_auth_header=true`` in the
+:ref:`sec_ref_config_file`.
+
 systemd Example
 ^^^^^^^^^^^^^^^
 

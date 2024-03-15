@@ -314,7 +314,8 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
 
         curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, resume_from);
 
-        if (!set_auth_curl_header(&headers, error))
+        if (!hawkbit_config->disable_download_auth_header &&
+            !set_auth_curl_header(&headers, error))
                 return FALSE;
 
         // set up request headers
