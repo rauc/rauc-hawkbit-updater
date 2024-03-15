@@ -9,7 +9,8 @@ from configparser import ConfigParser
 import pytest
 
 from hawkbit_mgmt import HawkbitMgmtTestClient, HawkbitError
-from helper import run_pexpect, available_port
+from helper import run_pexpect, available_port, run
+from mtls_conf import MtlsConfig
 
 def pytest_addoption(parser):
     """Register custom argparse-style options."""
@@ -103,8 +104,11 @@ def adjust_config(config):
                 adjusted_config.set(section, key, value)
 
         # remove
-        for section, option in remove.items():
-            adjusted_config.remove_option(section, option)
+        for section, options in remove.items():
+            if type(options) is str:
+                options = [options]
+            for option in options:
+                adjusted_config.remove_option(section, option)
 
         # add trailing space
         if add_trailing_space:
@@ -210,6 +214,24 @@ def rauc_dbus_install_success(rauc_bundle):
     proc.expect(pexpect.EOF)
 
 @pytest.fixture
+def rauc_dbus_install_success_mtls(rauc_bundle,tmp_path_factory):
+    """
+    Creates a RAUC D-Bus dummy interface on the SessionBus mimicing a successful installation on
+    InstallBundle().
+    """
+    import pexpect
+
+    proc = run_pexpect(f'{sys.executable} -m rauc_dbus_dummy --tmp-dir {tmp_path_factory.getbasetemp()} --mtls {rauc_bundle}',
+                      cwd=os.path.dirname(__file__))
+    proc.expect('Interface published')
+
+    yield
+
+    assert proc.isalive()
+    assert proc.terminate(force=True)
+    proc.expect(pexpect.EOF)
+
+@pytest.fixture
 def rauc_dbus_install_failure(rauc_bundle):
     """
     Creates a RAUC D-Bus dummy interface on the SessionBus mimicing a failing installation on
@@ -242,28 +264,94 @@ events {{ }}
 
 http {{
     access_log /dev/null;
+    map $ssl_client_s_dn $ssl_client_s_dn_cn {{
+        default "";
+        ~CN=(?<CN>[^,]+) $CN;
+    }}
 
+    {server}
+}}
+  """
+    http_server = """
     server {{
         listen {port};
         listen [::]:{port};
-
+        
+        client_body_temp_path {tmp_dir};
+        proxy_temp_path {tmp_dir};
+        fastcgi_temp_path {tmp_dir};
+        uwsgi_temp_path {tmp_dir};
+        scgi_temp_path {tmp_dir};
+        {server_options}
+        
         location / {{
             proxy_pass http://localhost:8080;
             {location_options}
 
-            # use proxy URL in JSON responses
-            sub_filter "localhost:$proxy_port/" "$host:$server_port/";
-            sub_filter "$host:$proxy_port/" "$host:$server_port/";
-            sub_filter_types application/json;
-            sub_filter_once off;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto http;
+            proxy_set_header X-Forwarded-Port {port};
         }}
     }}
-}}"""
+    """
+    mtls_server = """
+      server {{
+        listen {port} ssl;
+        listen [::]:{port} ssl;
 
-    def _nginx_config(port, location_options):
-        proxy_config = tmp_path_factory.mktemp('nginx') / 'nginx.conf'
-        location_options = ( f'{key} {value};' for key, value in location_options.items())
-        proxy_config_str = config_template.format(port=port, location_options=" ".join(location_options))
+        client_body_temp_path {tmp_dir};
+        proxy_temp_path {tmp_dir};
+        fastcgi_temp_path {tmp_dir};
+        uwsgi_temp_path {tmp_dir};
+        scgi_temp_path {tmp_dir};
+        server_name localhost;
+        {server_options}
+     
+        
+        ssl_verify_client      optional;
+        ssl_verify_depth 3; 
+        # For devices that is using device integration API, 
+        # Mutual TLS is required.
+        location ~*/.*/controller/ {{
+            if ($ssl_client_verify != SUCCESS) {{
+               return 403;
+            }}
+            
+            proxy_pass http://localhost:8080;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-Port {port};
+            proxy_set_header X-Forwarded-Protocol https;
+  
+            # Client certificate Common Name and Issuer Hash is required
+            # for auth in hawkbit. 
+            proxy_set_header X-Ssl-Client-Cn $ssl_client_s_dn_cn;
+    
+            # These are required for clients to upload and download software. 
+            proxy_request_buffering off;
+            client_max_body_size 1000m;
+            {location_options}
+        }}
+    }}
+    """
+    def dict_to_nginx_option(option:dict):
+        if not option:
+            return ""
+        option = ( f'{key} {value};' for key, value in option.items())
+        return " ".join(option)
+    def _nginx_config(port, location_options, server_options, mtls):
+        nginx_tmp_dir=tmp_path_factory.mktemp('nginx')
+        server_config = mtls_server if mtls else http_server
+        server_config_str = server_config.format(port=port,location_options=dict_to_nginx_option(location_options),
+                                                 server_options=dict_to_nginx_option(server_options),
+                                                 tmp_dir=nginx_tmp_dir)
+
+        proxy_config_str = config_template.format(port=port,server=server_config_str, tmp_dir=nginx_tmp_dir)
+        proxy_config = nginx_tmp_dir / 'nginx.conf'
         proxy_config.write_text(proxy_config_str)
         return proxy_config
 
@@ -272,18 +360,16 @@ http {{
 @pytest.fixture(scope='session')
 def nginx_proxy(nginx_config):
     """
-    Runs an nginx rate liming proxy, limiting download speeds to 70 KB/s. HTTP requests are
+    Runs an nginx proxy. HTTP requests are
     forwarded to port 8080 (default port of the docker hawkBit instance). Returns the port the
-    proxy is running on. This port can be set in the rauc-hawkbit-updater config to rate limit its
-    HTTP requests.
+    proxy is running on. This port can be set in the rauc-hawkbit-updater config.
     """
     import pexpect
 
     procs = []
-
-    def _nginx_proxy(options):
+    def _nginx_proxy(options, server_options=None, mtls=False):
         port = available_port()
-        proxy_config = nginx_config(port, options)
+        proxy_config = nginx_config(port, options, server_options, mtls)
 
         try:
             proc = run_pexpect(f'nginx -c {proxy_config} -p .', timeout=None)
@@ -332,3 +418,40 @@ def partial_download_port(nginx_proxy):
         'limit_rate': '70k',
     }
     return nginx_proxy(location_options)
+
+@pytest.fixture
+def mtls_download_port(nginx_proxy, mtls_certificates):
+    """
+    Runs an nginx proxy. HTTPS requests are forwarded to port 8080
+    (default port of the docker hawkBit instance). Returns the port the proxy is running on. This
+    port can be set in the rauc-hawkbit-updater config to test partial downloads.
+    """
+    mtls_cert = mtls_certificates()
+    hash_issuer = mtls_cert.get_issuer_hash()
+    location_options = {"proxy_set_header X-Ssl-Issuer-Hash-1": hash_issuer}
+    server_options = {
+        "ssl_certificate": mtls_cert.ca_cert,
+        "ssl_certificate_key": mtls_cert.ca_key,
+        "ssl_client_certificate": mtls_cert.ca_cert
+    }
+    return nginx_proxy(location_options, server_options, mtls=True)
+
+
+
+@pytest.fixture
+def mtls_config(tmp_path_factory):
+    return MtlsConfig(tmp_path_factory.getbasetemp())
+
+@pytest.fixture
+def mtls_certificates(mtls_config, tmp_path_factory, hawkbit_target_added):
+    """
+    Generate CA cert and key if they don't exist and also generate specific client cert and key
+    for the Hawkbit controller id as Common Name.
+    """
+    def _mtls_certificates():
+        out, err, exitcode = run(f'{os.path.dirname(__file__)}/gen_key.sh {mtls_config.certs_dir} {hawkbit_target_added}', timeout=20)
+        assert exitcode == 0
+        assert mtls_config.ca_cert_exist()
+        assert mtls_config.client_cert_exist()
+        return mtls_config
+    return _mtls_certificates

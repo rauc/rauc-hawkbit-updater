@@ -35,6 +35,8 @@ Setup target (device) configuration file:
   target_name               = test-target
   auth_token                = bhVahL1Il1shie2aj2poojeChee6ahShu
   #gateway_token            = bhVahL1Il1shie2aj2poojeChee6ahShu
+  #client_cert              = /path/to/client_certificate.pem
+  #client_key               = /path/to/client_certificate.key
   bundle_download_location  = /tmp/bundle.raucb
   retry_wait                = 60
   connect_timeout           = 20
@@ -98,7 +100,7 @@ Test Suite
 Prepare test suite:
 
 ```shell
-$ sudo apt install libgirepository1.0-dev nginx-full
+$ sudo apt install libgirepository1.0-dev nginx-full libcairo2-dev python3-dev
 $ python3 -m venv venv
 $ source venv/bin/activate
 (venv) $ pip install --upgrade pip
@@ -111,7 +113,10 @@ Run hawkBit docker container:
 $ docker pull hawkbit/hawkbit-update-server
 $ docker run -d --name hawkbit -p 8080:8080 hawkbit/hawkbit-update-server \
     --hawkbit.server.security.dos.filter.enabled=false \
-    --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1
+    --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1 \
+    --hawkbit.dmf.rabbitmq.enabled=false \
+    --server.forward-headers-strategy=NATIVE \
+    --hawkbit.artifact.url.protocols.download-http.protocol=<https or http>
 ```
 
 Run test suite:

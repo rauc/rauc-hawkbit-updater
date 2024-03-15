@@ -217,6 +217,9 @@ static char* get_auth_header()
                 return g_strdup_printf("Authorization: GatewayToken %s",
                                        hawkbit_config->gateway_token);
 
+        if (hawkbit_config->client_cert && hawkbit_config->client_key)
+                return NULL;
+
         g_return_val_if_reached(NULL);
 }
 
@@ -244,7 +247,7 @@ static gboolean set_auth_curl_header(struct curl_slist **headers, GError **error
 
 /**
  * @brief Set common Curl options, namely user agent, connect timeout, SSL
- *        verify peer and SSL verify host options.
+ *        verify peer, SSL verify host options, and client certificate.
  *
  * @param[in] curl Curl handle
  */
@@ -256,6 +259,12 @@ static void set_default_curl_opts(CURL *curl)
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, hawkbit_config->connect_timeout);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, hawkbit_config->ssl_verify ? 1L : 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, hawkbit_config->ssl_verify ? 1L : 0L);
+
+        if (hawkbit_config->client_cert && hawkbit_config->client_key) {
+                curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
+                curl_easy_setopt(curl, CURLOPT_SSLCERT, hawkbit_config->client_cert);
+                curl_easy_setopt(curl, CURLOPT_SSLKEY, hawkbit_config->client_key);
+        }
 }
 
 /**
@@ -417,6 +426,8 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, hawkbit_config->timeout);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_buffer);
+
+        g_debug("Request method: %s url: %s",HTTPMethod_STRING[method], url);
 
         if (jsonRequestBody) {
                 g_autoptr(JsonGenerator) generator = json_generator_new();
@@ -841,6 +852,7 @@ static gpointer download_thread(gpointer data)
                 .auth_header = NULL,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
+                .streaming_install = FALSE
         };
         g_autoptr(GError) error = NULL, feedback_error = NULL;
         g_autofree gchar *msg = NULL, *sha1sum = NULL;
@@ -996,6 +1008,7 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
                 .auth_header = auth_header,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
+                .streaming_install = TRUE
         };
 
         // installation might already be canceled
@@ -1360,6 +1373,8 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                                 g_warning("Failed to authenticate. Check if auth_token is correct?");
                         if (hawkbit_config->gateway_token)
                                 g_warning("Failed to authenticate. Check if gateway_token is correct?");
+                        if (hawkbit_config->client_cert && hawkbit_config->client_key)
+                                g_warning("Failed to authenticate. Check client certificate and client private key");
                 } else {
                         g_warning("Scheduled check for new software failed: %s (%d)",
                                   error->message, error->code);

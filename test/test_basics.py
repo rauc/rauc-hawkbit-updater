@@ -50,7 +50,7 @@ def test_config_no_auth_token(adjust_config):
     assert exitcode == 4
     assert out == ''
     assert err.strip() == \
-            "Loading config file failed: Neither 'auth_token' nor 'gateway_token' set"
+            'Loading config file failed: Neither a token nor client certificate are set!'
 
 def test_config_multiple_auth_methods(adjust_config):
     """Test config with auth_token and gateway_token options in client section."""
@@ -91,6 +91,57 @@ def test_register_and_check_valid_gateway_token(hawkbit, adjust_config, trailing
     assert exitcode == 0
     assert 'MESSAGE: Checking for new software...' in out
     assert err == ''
+
+def test_config_client_cert_ssl_false(adjust_config):
+    """Test config with client cert authentication but ssl false."""
+    file_path="/bad/file"
+    config = adjust_config({"client": {"client_cert": "any",
+                                       "client_key": "any",
+                                       }},
+                           remove={'client': 'auth_token'})
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    assert exitcode == 4
+    assert f"'ssl' config option must be true for client certificate authentication" in err
+
+@pytest.mark.parametrize("client_cert", [None, "bad_path", "good_file","empty"])
+@pytest.mark.parametrize("client_key", [None, "bad_path", "good_file","empty"])
+def test_config_client_cert_and_key(adjust_config,tmp_path_factory,client_cert,client_key):
+    """Test config with existent client key and cert files."""
+    def parameter_to_value(key, value):
+        if value=="bad_path":
+            return {key:value}
+        if value=="empty":
+            return {key:""}
+        if value=="good_file":
+            filename=str(tmp_path_factory.getbasetemp())+"/"+key
+            # create empty file
+            open(filename, 'a').close()
+            return {key:filename}
+        return {}
+
+    client_cert_conf = parameter_to_value("client_cert",client_cert)
+    client_key_conf = parameter_to_value("client_key",client_key)
+
+    config = adjust_config({"client": {**client_cert_conf, **client_key_conf, "ssl": "true"}},
+                           remove={'client': 'auth_token'})
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    if "good_file" == client_key == client_cert:
+        assert exitcode == 1
+        assert 'MESSAGE: Checking for new software...' in out
+    elif client_key is None or client_cert is None:
+        assert exitcode == 4
+        assert err.strip() == \
+               'Loading config file failed: Neither a token nor client certificate are set!'
+    elif client_cert in ["bad_path","empty"]:
+        expected_filename=list(client_cert_conf.values())[0]
+        assert f"Loading config file failed: Can't read client_cert: {expected_filename}" in err
+    elif client_key in ["bad_path","empty"]:
+        expected_filename=list(client_key_conf.values())[0]
+        assert f"Loading config file failed: Can't read client_key: {expected_filename}" in err
+    else:
+        raise Exception("Uncovered case")
 
 def test_register_and_check_invalid_auth_token(adjust_config):
     """Test config with invalid auth_token."""
