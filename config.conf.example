@@ -20,6 +20,11 @@ auth_token                = cb115a721af28f781b493fa467819ef5
 # Or gateway_token can be used instead of auth_token
 #gateway_token             = cb115a721af28f781b493fa467819ef5
 
+# Or ssl key/cert locations if mTLS is used
+#ssl_engine                = pkcs11
+#ssl_key                   = pkcs11:token=mytoken;object=mykey
+#ssl_cert                  = /path/to/certificate.pem
+
 # Temporay file RAUC bundle should be downloaded to
 bundle_download_location  = /tmp/bundle.raucb
 
