@@ -4,7 +4,7 @@ project(
   version : '1.3',
   meson_version : '>=0.50',
   default_options: [
-    'warning_level=3',
+    'warning_level=2',
   ],
   license : 'LGPL-2.1-only',
 )

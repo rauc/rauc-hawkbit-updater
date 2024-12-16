@@ -29,7 +29,7 @@ jobs:
 
     - name: Build (with ${{ matrix.options }} ${{ matrix.flags }})
       run: |
-        ${{ matrix.flags }} meson build ${{ matrix.options }} -Dwerror=true
+        ${{ matrix.flags }} meson setup build ${{ matrix.options }} -Dwerror=true
         ninja -C build
 
     - name: Build release
@@ -43,7 +43,7 @@ jobs:
 
     - name: Install test dependencies
       run: |
-        sudo apt-get install libgirepository1.0-dev nginx-full
+        sudo apt-get install libcairo2-dev libgirepository1.0-dev nginx-full
         python -m pip install --upgrade pip
         pip install -r test-requirements.txt
 
@@ -78,7 +78,7 @@ jobs:
 
     - name: Meson Build documentation (Sphinx & Doxygen)
       run: |
-        meson build
+        meson setup build
         ninja -C build docs/html
         ninja -C build doxygen
 
