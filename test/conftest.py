@@ -242,6 +242,12 @@ events {{ }}
 
 http {{
     access_log /dev/null;
+    # See part "Running nginx as a non-root user" of https://hub.docker.com/_/nginx
+    client_body_temp_path /tmp/client_temp;
+    proxy_temp_path       /tmp/proxy_temp_path;
+    fastcgi_temp_path     /tmp/fastcgi_temp;
+    uwsgi_temp_path       /tmp/uwsgi_temp;
+    scgi_temp_path        /tmp/scgi_temp;
 
     server {{
         listen {port};
