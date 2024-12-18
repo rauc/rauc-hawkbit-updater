@@ -241,6 +241,7 @@ Config* load_config_file(const gchar *config_file, GError **error)
         gboolean key_auth_token_exists = FALSE;
         gboolean key_gateway_token_exists = FALSE;
         gboolean bundle_location_given = FALSE;
+        gboolean token_auth = FALSE;
 
         g_return_val_if_fail(config_file, NULL);
         g_return_val_if_fail(error == NULL || *error == NULL, NULL);
@@ -255,11 +256,18 @@ Config* load_config_file(const gchar *config_file, GError **error)
                             error))
                 return NULL;
 
+        if (!get_key_bool(ini_file, "client", "ssl", &config->ssl, DEFAULT_SSL, error))
+                return NULL;
+        if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify,
+                          DEFAULT_SSL_VERIFY, error))
+                return NULL;
+
         key_auth_token_exists = get_key_string(ini_file, "client", "auth_token",
                                                &config->auth_token, NULL, NULL);
         key_gateway_token_exists = get_key_string(ini_file, "client", "gateway_token",
                                                   &config->gateway_token, NULL, NULL);
-        if (!key_auth_token_exists && !key_gateway_token_exists) {
+        token_auth = key_auth_token_exists || key_gateway_token_exists;
+        if (!token_auth) {
                 g_set_error(error, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_INVALID_VALUE,
                             "Neither 'auth_token' nor 'gateway_token' set");
                 return NULL;
@@ -277,11 +285,6 @@ Config* load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         bundle_location_given = get_key_string(ini_file, "client", "bundle_download_location",
                                                &config->bundle_download_location, NULL, NULL);
-        if (!get_key_bool(ini_file, "client", "ssl", &config->ssl, DEFAULT_SSL, error))
-                return NULL;
-        if (!get_key_bool(ini_file, "client", "ssl_verify", &config->ssl_verify,
-                          DEFAULT_SSL_VERIFY, error))
-                return NULL;
         if (!get_group(ini_file, "device", &config->device, error))
                 return NULL;
         if (!get_key_int(ini_file, "client", "connect_timeout", &config->connect_timeout,
