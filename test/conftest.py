@@ -244,8 +244,8 @@ http {{
     access_log /dev/null;
 
     server {{
-        listen {port};
-        listen [::]:{port};
+        listen 127.0.0.1:{port};
+        listen [::1]:{port};
 
         location / {{
             proxy_pass http://localhost:8080;
