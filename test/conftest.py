@@ -257,6 +257,7 @@ def nginx_config(tmp_path_factory, pki_dir):
             port=port,
             location_options=_to_nginx_option(location_options),
             server_options=_to_nginx_option(server_options),
+            module_path=os.environ.get('NGINX_MODULES', '/usr/lib/nginx/modules'),
         )
         proxy_config.write_text(proxy_config_str)
 
@@ -322,16 +323,21 @@ def rate_limited_port(nginx_proxy):
     return _rate_limited_port
 
 @pytest.fixture(scope='session')
-def partial_download_port(nginx_proxy):
+def partial_download_port(tmp_path_factory, rauc_bundle, nginx_proxy):
     """
     Runs an nginx proxy, forcing partial downloads. HTTP requests are forwarded to port 8080
     (default port of the docker hawkBit instance). Returns the port the proxy is running on. This
     port can be set in the rauc-hawkbit-updater config to test partial downloads.
     """
-    location_options = {
-        'limit_rate_after': '200k',
-        'limit_rate': '70k',
-    }
+    with open(f'{os.path.dirname(os.path.abspath(__file__))}/nginx/partial.inc.in') as f:
+        partial_include_template = Template(f.read())
+
+    partial_include_str = partial_include_template.substitute(
+        rauc_bundle=rauc_bundle,
+    )
+    proxy_partial_config = tmp_path_factory.mktemp('nginx') / 'partial.inc'
+    proxy_partial_config.write_text(partial_include_str)
+    location_options = {'include': proxy_partial_config}
     return nginx_proxy(location_options)
 
 @pytest.fixture
