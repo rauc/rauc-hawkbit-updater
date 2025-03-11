@@ -101,7 +101,7 @@ Test Suite
 Prepare test suite:
 
 ```shell
-$ sudo apt install libcairo2-dev libgirepository1.0-dev nginx-full
+$ sudo apt install libcairo2-dev libgirepository1.0-dev nginx-full libnginx-mod-http-ndk libnginx-mod-http-lua
 $ python3 -m venv venv
 $ source venv/bin/activate
 (venv) $ pip install --upgrade pip

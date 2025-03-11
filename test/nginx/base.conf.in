@@ -1,3 +1,6 @@
+load_module ${module_path}/ndk_http_module.so;
+load_module ${module_path}/ngx_http_lua_module.so;
+
 daemon off;
 pid /tmp/hawkbit-nginx-${port}.pid;
 
