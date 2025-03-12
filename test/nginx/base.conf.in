@@ -1,0 +1,46 @@
+daemon off;
+pid /tmp/hawkbit-nginx-${port}.pid;
+
+# non-fatal alert for /var/log/nginx/error.log will still be shown
+# https://trac.nginx.org/nginx/ticket/147
+error_log stderr notice;
+
+events { }
+
+http {
+    access_log /dev/null;
+
+    map $$ssl_client_s_dn $$ssl_client_s_dn_cn {
+        default "";
+        ~CN=(?<CN>[^,]+) $$CN;
+    }
+
+    server {
+        listen 127.0.0.1:${port} ${ssl};
+        listen [::1]:${port} ${ssl};
+
+        ssl_certificate pki/root-ca.crt;
+        ssl_certificate_key pki/root-ca.key;
+        ssl_client_certificate pki/root-ca.crt;
+        ${server_options}
+
+        location ~*/.*/controller/ {
+            proxy_pass http://localhost:8080;
+
+            proxy_set_header Host $$http_host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $$scheme;
+            proxy_set_header X-Forwarded-Protocol $$scheme;
+            proxy_set_header X-Forwarded-Port ${port};
+
+            proxy_set_header X-Ssl-Client-Cn $$ssl_client_s_dn_cn;
+
+            # These are required for clients to upload and download software.
+            proxy_request_buffering off;
+            client_max_body_size 1000m;
+
+            ${location_options}
+        }
+    }
+}
