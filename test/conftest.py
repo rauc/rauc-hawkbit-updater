@@ -268,10 +268,9 @@ def nginx_config(tmp_path_factory, pki_dir):
 @pytest.fixture(scope='session')
 def nginx_proxy(nginx_config):
     """
-    Runs an nginx rate liming proxy, limiting download speeds to 70 KB/s. HTTP requests are
-    forwarded to port 8080 (default port of the docker hawkBit instance). Returns the port the
-    proxy is running on. This port can be set in the rauc-hawkbit-updater config to rate limit its
-    HTTP requests.
+    Runs an nginx proxy. HTTP requests are forwarded to port 8080 (default port of the docker
+    hawkBit instance). Returns the port the proxy is running on. This port can be set in the
+    rauc-hawkbit-updater config to proxy HTTP requests with custom options.
     """
     import pexpect
 
