@@ -1019,7 +1019,7 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
 
         g_mutex_lock(&active_action->mutex);
 
-        // in case of run_once, userdata.install_access is set and must be passed on
+        // in case of run_once, userdata.install_success is set and must be passed on
         if (!userdata.install_success) {
                 g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR,
                             RHU_HAWKBIT_CLIENT_ERROR_STREAM_INSTALL,
