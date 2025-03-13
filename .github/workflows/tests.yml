@@ -43,7 +43,7 @@ jobs:
 
     - name: Install test dependencies
       run: |
-        sudo apt-get install libcairo2-dev libgirepository1.0-dev nginx-full
+        sudo apt-get install libcairo2-dev libgirepository1.0-dev nginx-full libnginx-mod-http-ndk libnginx-mod-http-lua
         python -m pip install --upgrade pip
         pip install -r test-requirements.txt
 
@@ -60,7 +60,8 @@ jobs:
         docker run -d --name hawkbit -p ::1:8080:8080 -p 127.0.0.1:8080:8080 \
           hawkbit/hawkbit-update-server \
           --hawkbit.server.security.dos.filter.enabled=false \
-          --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1
+          --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1 \
+          --server.forward-headers-strategy=NATIVE
 
     - name: Run test suite
       run: |

@@ -41,8 +41,8 @@ def test_config_file_non_existent():
     assert out == ''
     assert err.strip() == 'No such configuration file: does-not-exist.conf'
 
-def test_config_no_auth_token(adjust_config):
-    """Test config without auth_token option in client section."""
+def test_config_no_auth(adjust_config):
+    """Test config without authentication option in client section."""
     config = adjust_config(remove={'client': 'auth_token'})
 
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
@@ -50,9 +50,9 @@ def test_config_no_auth_token(adjust_config):
     assert exitcode == 4
     assert out == ''
     assert err.strip() == \
-            "Loading config file failed: Neither 'auth_token' nor 'gateway_token' set"
+            "Loading config file failed: Neither token nor ssl authentication set"
 
-def test_config_multiple_auth_methods(adjust_config):
+def test_config_multiple_token_auth_methods(adjust_config):
     """Test config with auth_token and gateway_token options in client section."""
     config = adjust_config({'client': {'gateway_token': 'wrong-gateway-token'}})
 
@@ -62,6 +62,19 @@ def test_config_multiple_auth_methods(adjust_config):
     assert out == ''
     assert err.strip() == \
             "Loading config file failed: Both 'auth_token' and 'gateway_token' set"
+
+def test_config_multiple_auth_methods(adjust_config):
+    """Test config with both token and ssl auth options in client section."""
+    config = adjust_config(
+            {'client': {'ssl': 'true', 'ssl_key': 'key', 'ssl_cert': 'cert'}}
+    )
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert exitcode == 4
+    assert out == ''
+    assert err.strip() == \
+            "Loading config file failed: Both token and ssl authentication set"
 
 def test_register_and_check_invalid_gateway_token(adjust_config):
     """Test config with invalid gateway_token."""

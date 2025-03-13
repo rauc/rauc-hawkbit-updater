@@ -151,7 +151,11 @@ static gpointer install_loop_thread(gpointer data)
                 gchar *headers[2] = {NULL, NULL};
                 headers[0] = context->auth_header;
                 g_variant_dict_insert(&args, "http-headers", "^as", headers);
-
+                g_variant_dict_insert(&args, "tls-no-verify", "b", !context->ssl_verify);
+        }
+        if (context->ssl_key && context->ssl_cert) {
+                g_variant_dict_insert(&args, "tls-key", "s", context->ssl_key);
+                g_variant_dict_insert(&args, "tls-cert", "s", context->ssl_cert);
                 g_variant_dict_insert(&args, "tls-no-verify", "b", !context->ssl_verify);
         }
 
@@ -200,7 +204,8 @@ notify_complete:
         return NULL;
 }
 
-gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ssl_verify,
+gboolean rauc_install(const gchar *bundle, const gchar *auth_header,
+                      gchar *ssl_key, gchar *ssl_cert, gboolean ssl_verify,
                       GSourceFunc on_install_notify, GSourceFunc on_install_complete,
                       gboolean wait)
 {
@@ -213,6 +218,8 @@ gboolean rauc_install(const gchar *bundle, const gchar *auth_header, gboolean ss
         context = install_context_new();
         context->bundle = g_strdup(bundle);
         context->auth_header = g_strdup(auth_header);
+        context->ssl_key = ssl_key,
+        context->ssl_cert = ssl_cert,
         context->ssl_verify = ssl_verify;
         context->notify_event = on_install_notify;
         context->notify_complete = on_install_complete;

@@ -6,12 +6,18 @@ Using the RAUC hawkbit Updater
 Authentication
 --------------
 
+Target token
+^^^^^^^^^^^^
+
 As described on the `hawkBit Authentication page <https://eclipse.dev/hawkbit/concepts/authentication/>`_
 in the "DDI API Authentication Modes" section, a device can be authenticated
 with a security token. A security token can be either a "Target" token or a
 "Gateway" token. The "Target" security token is specific to a single target
 defined in hawkBit. In the RAUC hawkBit updater's configuration file it's
 referred to as ``auth_token``.
+
+Gateway token
+^^^^^^^^^^^^^
 
 Targets can also be connected through a gateway which manages the targets
 directly and as a result these targets are indirectly connected to the hawkBit
@@ -23,6 +29,26 @@ In the RAUC hawkBit updater's configuration file it's called ``gateway_token``.
 Although gateway token is very handy during development or testing, it's
 recommended to use this token with care because it can be used to
 authenticate any device.
+
+Mutual TLS with client key/certificate
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+hawkBit also offers a certificate-based authentication mechanism, also known
+as mutual TLS (mTLS), which eliminates the need to share a security token with
+the server. This is the preferred authentication mode for targets connecting to
+bosch-iot-suite.com. The target needs to send a complete (self-contained)
+certificate chain along with the request which is then validated by a trusted
+reverse proxy. The certificate chain can contain multiple certificates,
+e.g. a target-specific client certificate, an intermediate certificate, and
+a root certificate. A full certificate chain is required because the reverse
+proxy only keeps fingerprints of issuer(s) certificates.
+In RAUC hawkBit updater's configuration file the options are called
+``ssl_key`` and ``ssl_cert``. They need to be set to the target's private
+key and a full certificate chain. If a file is supplied it needs to be in PEM
+format.
+Optionally, the ``ssl_engine`` option can be set if an OpenSSL engine
+needs to be loaded to access the private key. In that case the format of the
+value supplied to ``ssl_key`` depends on the engine configured.
 
 Streaming Support
 -----------------
