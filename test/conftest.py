@@ -37,7 +37,6 @@ def hawkbit(pytestconfig):
     client.set_config('authentication.targettoken.enabled', True)
     client.set_config('authentication.gatewaytoken.enabled', True)
     client.set_config('authentication.gatewaytoken.key', uuid4().hex)
-    client.set_config('anonymous.download.enabled', False)
 
     return client
 
