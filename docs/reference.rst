@@ -152,6 +152,15 @@ Optional options:
 
   Defaults to ``message``.
 
+``send_download_auth_header=<boolean>``
+  Whether to send authentication header for download requests.
+  Defaults to ``true``
+  hawkBit can be configured to use external storage providers for artifact
+  downloads. rauc-hawkbit-updater's default behavior is to provide
+  authentication headers, same as for all other DDI API requests. Sending
+  authentication headers can lead to errors in such configuration (e.g. on
+  Azure Blob Storage or AWS S3).
+
 .. _keyring-section:
 
 **[device] section**

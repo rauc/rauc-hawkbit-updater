@@ -1,0 +1,27 @@
+# serves only the first half of the dummy RAUC bundle by default, rest via
+# (pre-defined) range requests
+location ~*/.*/controller/v1/test-target/softwaremodules/.*/artifacts/ {
+    content_by_lua_block {
+        local file = io.open("${rauc_bundle}", "rb")
+        local range = ngx.req.get_headers()["Range"]
+        local size = file:seek("end")
+
+        if not range then
+            -- send only first half
+            file:seek("set", 0)
+            ngx.print(file:read(size / 2))
+            file:close()
+            ngx.flush()
+            ngx.exit(499)
+        else
+            local offset = range:match("bytes=(%d+)-")
+            if not offset then return ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR) end
+            offset = tonumber(offset)
+            file:seek("set", offset)
+            ngx.header["Content-Length"] = size - offset
+            ngx.header["Content-Range"] = string.format("bytes %d-%d/%d", offset, size - 1, size)
+            ngx.print(file:read(size - offset))
+            file:close()
+        end
+    }
+}
