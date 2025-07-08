@@ -224,6 +224,28 @@ def rauc_dbus_install_failure(rauc_bundle):
     assert proc.isalive()
     assert proc.terminate(force=True)
 
+@pytest.fixture
+def install_confirmation_plugin():
+    """
+    Starts a test implementation of confirmation plugin, which is able to confirm or deny
+    confirmation requests
+    """
+    procs = []
+
+    def confirmation_plugin(confirm, code=0, details=''):
+        confirmed = "confirmed" if confirm else "denied"
+        proc = run_pexpect(f'{sys.executable} -m install_confirm --{confirmed} --error-code={code} --details="{details}"',
+                           cwd=os.path.dirname(__file__), timeout=None)
+
+        proc.expect('Confirmation interface published')
+        procs.append(proc)
+
+    yield confirmation_plugin
+
+    for proc in procs:
+        assert proc.isalive()
+        proc.terminate(force=True)
+
 @pytest.fixture(scope='session')
 def pki_dir():
     return f'{os.path.dirname(__file__)}/pki'

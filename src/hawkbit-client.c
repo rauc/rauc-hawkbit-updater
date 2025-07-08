@@ -67,8 +67,11 @@ static const gint resumable_codes[] = {
 
 static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
+static GSourceFunc installation_confirm_request_cb;
 static struct HawkbitAction *active_action = NULL;
+static struct ConfirmationAction *active_confirmation = NULL;
 static GThread *thread_download = NULL;
+static GThread *thread_confirmation = NULL;
 
 static gsize curl_share_initialized = 0;
 static CURLSH *curl_share = NULL;
@@ -118,6 +121,23 @@ static struct HawkbitAction *action_new(void)
         action->state = ACTION_STATE_NONE;
 
         return action;
+}
+
+/**
+ * @brief Create and initialize a ConfirmationAction
+ *
+ * @return Pointer to initialized ConfirmationAction.
+ */
+static struct ConfirmationAction *confirmation_new(void)
+{
+        struct ConfirmationAction *c = g_new0(struct ConfirmationAction, 1);
+
+        g_mutex_init(&c->mutex);
+        g_cond_init(&c->cond);
+        c->id = NULL;
+        c->state = CONFIRMATION_STATE_NONE;
+
+        return c;
 }
 
 /**
@@ -615,6 +635,44 @@ static gboolean rest_request_retriable(enum HTTPMethod method, const gchar *url,
 }
 
 /**
+ * @brief Build hawkBit JSON response.
+ *
+ * @see https://eclipse.dev/hawkbit/rest-api/rootcontroller-api-guide.html#_post_tenantcontrollerv1controlleridconfirmationbaseactionidfeedback
+ *
+ * @param[in] response         Response string, HawkBit expects only "confirmed" or "denied"
+ * @param[in] error_code       Custom user return code
+ * @param[in] details          A string explaining the reason for the response, mostly relevant for "denied" case
+ * @return JsonBuilder* with built hawkBit response
+ */
+static JsonBuilder* json_build_confirmation(const gchar *response, gint error_code,
+                                            const gchar *details)
+{
+        g_autoptr(JsonBuilder) builder = NULL;
+
+        builder = json_builder_new();
+
+        // Build confirmation response
+        json_builder_begin_object(builder);
+
+        json_builder_set_member_name(builder, "confirmation");
+        json_builder_add_string_value(builder, response);
+
+        json_builder_set_member_name(builder, "code");
+        json_builder_add_int_value(builder, error_code);
+
+        if (details) {
+                json_builder_set_member_name(builder, "details");
+                json_builder_begin_array(builder);
+                json_builder_add_string_value(builder, details);
+                json_builder_end_array(builder);
+        }
+
+        json_builder_end_object(builder);
+
+        return g_steal_pointer(&builder);
+}
+
+/**
  * @brief Build hawkBit JSON request.
  *
  * @see https://eclipse.dev/hawkbit/rest-api/rootcontroller-api-guide.html#_post_tenantcontrollerv1controlleriddeploymentbaseactionidfeedback
@@ -690,6 +748,34 @@ static JsonBuilder* json_build_status(const gchar *id, const gchar *detail, cons
         json_builder_end_object(builder);
 
         return g_steal_pointer(&builder);
+}
+
+/**
+ * @brief Send confirmation feedback to hawkBit.
+ *
+ * @param[in]  url          hawkBit URL used for request
+ * @param[in]  response     Response string, HawkBit expects only "confirmed" or "denied"
+ * @param[in]  error_code   Custom user return code
+ * @param[in]  details      A string explaining the reason for the response, mostly relevant for "denied" case
+ * @param[out] error        Error
+ * @return TRUE if feedback was sent successfully, FALSE otherwise (error set)
+ */
+static gboolean feedback_confirmation(const gchar *url, const gchar *response, gint code,
+                                      const gchar *detail, GError **error)
+{
+        g_autoptr(JsonBuilder) builder = NULL;
+        gboolean res = FALSE;
+
+        g_return_val_if_fail(url, FALSE);
+        g_return_val_if_fail(response, FALSE);
+
+        builder = json_build_confirmation(response, code, detail);
+
+        res = rest_request_retriable(POST, url, builder, NULL, error);
+        if (!res)
+                g_prefix_error(error, "Failed to report \"%s\" feedback: ", detail);
+
+        return res;
 }
 
 /**
@@ -878,6 +964,33 @@ static void process_deployment_cleanup()
                 g_warning("Failed to delete file: %s", hawkbit_config->bundle_download_location);
 }
 
+gboolean confirmation_received_cb(gpointer ptr)
+{
+        gboolean res = FALSE;
+        g_autoptr(GError) error = NULL;
+        g_autofree gchar *feedback_url = NULL;
+        struct on_install_confirmed_userdata *result = ptr;
+
+        const gchar *response = result->confirmed ? "confirmed" : "denied";
+        feedback_url = build_api_url("confirmationBase/%s/feedback", result->action_id);
+
+        res = feedback_confirmation(feedback_url, response, result->error_code, result->details, &error);
+
+        g_info("Action %s %s", result->action_id, response);
+
+        if (!res)
+                g_warning("%s", error->message);
+
+        g_mutex_lock(&active_confirmation->mutex);
+        active_confirmation->state = result->confirmed ?
+                                     CONFIRMATION_STATE_CONFIRMED :
+                                     CONFIRMATION_STATE_DENIED;
+        g_cond_signal(&active_confirmation->cond);
+        g_mutex_unlock(&active_confirmation->mutex);
+
+        return G_SOURCE_REMOVE;
+}
+
 gboolean install_complete_cb(gpointer ptr)
 {
         gboolean res = FALSE;
@@ -911,6 +1024,32 @@ gboolean install_complete_cb(gpointer ptr)
         }
 
         return G_SOURCE_REMOVE;
+}
+
+/**
+ * @brief Thread to handle confirmation request/response, calls
+ * confirmation_received_cb() callback when a response is received
+ *
+ * @param[in] data Confirmation* to process
+ * @return gpointer being 1 (TRUE) is always returned
+ */
+static gpointer confirmation_thread(gpointer data)
+{
+        struct on_install_confirmation_request_userdata userdata = {
+                .response_callback = (GSourceFunc) confirmation_received_cb,
+        };
+        g_autoptr(Confirmation) confirmation = data;
+
+        userdata.action_id = confirmation->action_id;
+        userdata.version = confirmation->version;
+
+        installation_confirm_request_cb(&userdata);
+
+        g_mutex_lock(&active_confirmation->mutex);
+        active_confirmation->state = CONFIRMATION_STATE_REQUESTED;
+        g_mutex_unlock(&active_confirmation->mutex);
+
+        return GINT_TO_POINTER(TRUE);
 }
 
 /**
@@ -1123,6 +1262,62 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
         }
 
         return TRUE;
+}
+
+/**
+ * @brief Process hawkbit's confirmation request
+ */
+static gboolean process_confirmation(JsonNode *req_root, GError **error)
+{
+        g_autoptr(Confirmation) confirmation = g_new0(Confirmation, 1);
+        g_autofree gchar *confirmation_url = NULL;
+        g_autofree gchar *feedback_url = NULL;
+        g_autoptr(JsonParser) json_response_parser = NULL;
+        g_autoptr(JsonArray) json_chunks = NULL;
+        JsonNode *resp_root = NULL, *json_chunk = NULL;
+
+        // get confirmation URL
+        confirmation_url = json_get_string(req_root, "$._links.confirmationBase.href", error);
+        if (!confirmation_url)
+                goto error;
+
+        // get confirmation resource
+        if (!rest_request(GET, confirmation_url, NULL, &json_response_parser, error))
+                goto error;
+
+        resp_root = json_parser_get_root(json_response_parser);
+
+        confirmation->action_id = json_get_string(resp_root, "$.id", error);
+        feedback_url = build_api_url("confirmationBase/%s/feedback", active_action->id);
+
+        // downloading multiple chunks not supported, only first chunk is downloaded (RAUC bundle)
+        json_chunks = json_get_array(resp_root, "$.confirmation.chunks", error);
+        if (!json_chunks)
+                goto proc_error;
+        if (json_array_get_length(json_chunks) > 1) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_ERROR, RHU_HAWKBIT_CLIENT_ERROR_MULTI_CHUNKS,
+                            "Confirmation %s unsupported: cannot handle multiple chunks.", active_action->id);
+                goto proc_error;
+        }
+
+        json_chunk = json_array_get_element(json_chunks, 0);
+
+        confirmation->version = json_get_string(json_chunk, "$.version", error);
+
+        // unref/free previous download thread by joining it
+        if (thread_confirmation)
+                g_thread_join(thread_confirmation);
+
+        // start download thread
+        thread_confirmation = g_thread_new("confirmation-request", confirmation_thread,
+                                           (gpointer) g_steal_pointer(&confirmation));
+        return TRUE;
+
+proc_error:
+        feedback_confirmation(feedback_url, "denied", -100, (*error)->message, error);
+
+error:
+        return FALSE;
 }
 
 /**
@@ -1404,12 +1599,13 @@ static gboolean process_cancel(JsonNode *req_root, GError **error)
         return res;
 }
 
-void hawkbit_init(Config *config, GSourceFunc on_install_ready)
+void hawkbit_init(Config *config, GSourceFunc on_install_ready, GSourceFunc on_install_confirm)
 {
         g_return_if_fail(config);
 
         hawkbit_config = config;
         software_ready_cb = on_install_ready;
+        installation_confirm_request_cb = on_install_confirm;
         curl_global_init(CURL_GLOBAL_ALL);
 }
 
@@ -1479,6 +1675,37 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                         g_clear_error(&error);
                 }
         }
+        if (json_contains(json_root, "$._links.confirmationBase")) {
+                res = process_confirmation(json_root, &error);
+                g_message("Confirmation requested");
+
+                // We need to run the callback again to request the new software after confirmation
+                if (run_once) {
+                        if (thread_confirmation) {
+                                gpointer thread_ret = g_thread_join(thread_confirmation);
+                                res = GPOINTER_TO_INT(thread_ret);
+                        }
+
+                        // wait for result
+                        g_mutex_lock(&active_confirmation->mutex);
+                        while (active_confirmation->state == CONFIRMATION_STATE_REQUESTED)
+                                g_cond_wait(&active_confirmation->cond, &active_confirmation->mutex);
+
+                        if (active_confirmation->state == CONFIRMATION_STATE_CONFIRMED) {
+                                data->hawkbit_interval_check_sec = 0;
+                                goto repeat;
+                        }
+                }
+
+                if (active_confirmation->state != CONFIRMATION_STATE_DENIED) {
+                        goto out;
+                }
+
+                // in case the confirmation takes long time, we simply check for it every iteration
+                data->hawkbit_interval_check_sec = 5;
+
+                goto out;
+        }
         if (json_contains(json_root, "$._links.deploymentBase")) {
                 // hawkBit has a new deployment for us
                 g_mutex_lock(&active_action->mutex);
@@ -1517,6 +1744,7 @@ out:
                 return G_SOURCE_REMOVE;
         }
 
+repeat:
         return G_SOURCE_CONTINUE;
 }
 
@@ -1532,6 +1760,7 @@ int hawkbit_start_service_sync()
 #endif
 
         active_action = action_new();
+        active_confirmation = confirmation_new();
 
         ctx = g_main_context_new();
         cdata.loop = g_main_loop_new(ctx, FALSE);
@@ -1590,6 +1819,15 @@ finish:
                 g_warning("%s", strerror(-res));
 
         return res;
+}
+
+void confirmation_free(Confirmation *confirmation)
+{
+        if (!confirmation)
+                return;
+
+        g_free(confirmation->action_id);
+        g_free(confirmation->version);
 }
 
 void artifact_free(Artifact *artifact)
