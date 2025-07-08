@@ -235,7 +235,7 @@ static char* get_auth_header()
                 return g_strdup_printf("Authorization: GatewayToken %s",
                                        hawkbit_config->gateway_token);
 
-        g_return_val_if_reached(NULL);
+        return NULL;
 }
 
 /**
@@ -258,6 +258,60 @@ static gboolean set_auth_curl_header(struct curl_slist **headers, GError **error
                 res = add_curl_header(headers, token, error);
 
         return res;
+}
+
+/**
+ * @brief Set Curl options for TLS/SSL client authentication
+ *
+ * @param[in] curl Curl handle
+ * @param[out] error   Error
+ * @return TRUE if ssl authorization method set in config was set successfully,
+ *      FALSE otherwise (error set)
+ */
+static gboolean set_auth_curl_ssl(CURL *curl, GError **error)
+{
+        curl_easy_setopt(curl, CURLOPT_SSLKEY, hawkbit_config->ssl_key);
+        curl_easy_setopt(curl, CURLOPT_SSLCERT, hawkbit_config->ssl_cert);
+
+        if (!hawkbit_config->ssl_engine)
+                return TRUE;
+
+        if (curl_easy_setopt(curl, CURLOPT_SSLENGINE, hawkbit_config->ssl_engine) != CURLE_OK) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR,
+                            CURLE_FAILED_INIT, "Failed to set ssl engine");
+                return FALSE;
+        }
+        curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "ENG");
+        if (curl_easy_setopt(curl, CURLOPT_SSLENGINE_DEFAULT, 1L) != CURLE_OK) {
+                g_set_error(error, RHU_HAWKBIT_CLIENT_CURL_ERROR,
+                            CURLE_FAILED_INIT, "Failed to set engine as default");
+                return FALSE;
+        }
+        g_debug("Using SSL engine %s", hawkbit_config->ssl_engine);
+
+        return TRUE;
+}
+
+/**
+ * @brief Set Curl options for client authentication
+ *
+ * @param[in] curl Curl handle
+ * @param[out] headers curl_slist** of already set headers
+ * @param[out] error   Error
+ * @return TRUE if authorization method set in config and applied successfully,
+ *      FALSE otherwise (error set)
+ */
+static gboolean set_auth_curl(CURL *curl, struct curl_slist **headers, GError **error)
+{
+        // SSL client certificate authentication
+        if (hawkbit_config->ssl_key && hawkbit_config->ssl_cert)
+                return set_auth_curl_ssl(curl, error);
+
+        // Token authentication
+        if (hawkbit_config->auth_token || hawkbit_config->gateway_token)
+                return set_auth_curl_header(headers, error);
+
+        g_assert_not_reached();
 }
 
 /**
@@ -351,7 +405,7 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
 
         curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, resume_from);
 
-        if (!set_auth_curl_header(&headers, error))
+        if (!set_auth_curl(curl, &headers, error))
                 return FALSE;
 
         // set up request headers
@@ -471,7 +525,7 @@ static gboolean rest_request(enum HTTPMethod method, const gchar *url,
         if (!add_curl_header(&headers, "Accept: application/json;charset=UTF-8", error))
                 return FALSE;
 
-        if (!set_auth_curl_header(&headers, error))
+        if (!set_auth_curl(curl, &headers, error))
                 return FALSE;
 
         if (jsonRequestBody &&
@@ -876,6 +930,8 @@ static gpointer download_thread(gpointer data)
                 .install_complete_callback = install_complete_cb,
                 .file = hawkbit_config->bundle_download_location,
                 .auth_header = NULL,
+                .ssl_key = NULL,
+                .ssl_cert = NULL,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
         };
@@ -1031,6 +1087,8 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
                 .install_complete_callback = install_complete_cb,
                 .file = artifact->download_url,
                 .auth_header = auth_header,
+                .ssl_key = hawkbit_config->ssl_key,
+                .ssl_cert = hawkbit_config->ssl_cert,
                 .ssl_verify = hawkbit_config->ssl_verify,
                 .install_success = FALSE,
         };
@@ -1397,6 +1455,10 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                                 g_warning("Failed to authenticate. Check if auth_token is correct?");
                         if (hawkbit_config->gateway_token)
                                 g_warning("Failed to authenticate. Check if gateway_token is correct?");
+                        if (hawkbit_config->ssl_key && hawkbit_config->ssl_cert)
+                                g_warning("Failed to authenticate. Check if ssl_key/ssl_cert are correct?");
+                } else if (error->code == CURLE_SSL_CERTPROBLEM) {
+                        g_warning("Failed to authenticate. Check if ssl_key/cert are correct?");
                 } else {
                         g_warning("Scheduled check for new software failed: %s (%d)",
                                   error->message, error->code);
