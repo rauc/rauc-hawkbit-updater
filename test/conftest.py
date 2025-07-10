@@ -258,6 +258,7 @@ def nginx_config(tmp_path_factory, pki_dir):
             location_options=_to_nginx_option(location_options),
             server_options=_to_nginx_option(server_options),
             module_path=os.environ.get('NGINX_MODULES', '/usr/lib/nginx/modules'),
+            nginx_temp=nginx_temp,
         )
         proxy_config.write_text(proxy_config_str)
 
