@@ -5,6 +5,7 @@
 import os
 import sys
 from configparser import ConfigParser
+from string import Template
 
 import pytest
 
@@ -234,53 +235,6 @@ def nginx_config(tmp_path_factory, pki_dir):
     Creates a temporary nginx proxy configuration incorporating additional given options to the
     location section. See https://eclipse.dev/hawkbit/concepts/authentication/ for examples.
     """
-    config_template = """
-daemon off;
-pid /tmp/hawkbit-nginx-{port}.pid;
-
-# non-fatal alert for /var/log/nginx/error.log will still be shown
-# https://trac.nginx.org/nginx/ticket/147
-error_log stderr notice;
-
-events {{ }}
-
-http {{
-    access_log /dev/null;
-
-    map $ssl_client_s_dn $ssl_client_s_dn_cn {{
-        default "";
-        ~CN=(?<CN>[^,]+) $CN;
-    }}
-
-    server {{
-        listen 127.0.0.1:{port} {ssl};
-        listen [::1]:{port} {ssl};
-
-        ssl_certificate pki/root-ca.crt;
-        ssl_certificate_key pki/root-ca.key;
-        ssl_client_certificate pki/root-ca.crt;
-        {server_options}
-
-        location ~*/.*/controller/ {{
-            proxy_pass http://localhost:8080;
-
-            proxy_set_header Host $http_host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_set_header X-Forwarded-Protocol $scheme;
-            proxy_set_header X-Forwarded-Port {port};
-
-            proxy_set_header X-Ssl-Client-Cn $ssl_client_s_dn_cn;
-
-            # These are required for clients to upload and download software.
-            proxy_request_buffering off;
-            client_max_body_size 1000m;
-            {location_options}
-        }}
-    }}
-}}"""
-
     def _to_nginx_option(option):
         key_values = (f'{key} {value};' for key, value in option.items())
         return ' '.join(key_values)
@@ -294,13 +248,19 @@ http {{
         nginx_temp = tmp_path_factory.mktemp('nginx')
         proxy_config = nginx_temp / 'nginx.conf'
         os.symlink(pki_dir, nginx_temp / 'pki')
-        proxy_config_str = config_template.format(
-                ssl='ssl' if mtls else '',
-                port=port,
-                location_options=_to_nginx_option(location_options),
-                server_options=_to_nginx_option(server_options),
+
+        with open(f'{os.path.dirname(os.path.abspath(__file__))}/nginx/base.conf.in') as f:
+            base_config_template = Template(f.read())
+
+        proxy_config_str = base_config_template.substitute(
+            ssl='ssl' if mtls else '',
+            port=port,
+            location_options=_to_nginx_option(location_options),
+            server_options=_to_nginx_option(server_options),
+            module_path=os.environ.get('NGINX_MODULES', '/usr/lib/nginx/modules'),
         )
         proxy_config.write_text(proxy_config_str)
+
         return proxy_config
 
     return _nginx_config
@@ -308,10 +268,9 @@ http {{
 @pytest.fixture(scope='session')
 def nginx_proxy(nginx_config):
     """
-    Runs an nginx rate liming proxy, limiting download speeds to 70 KB/s. HTTP requests are
-    forwarded to port 8080 (default port of the docker hawkBit instance). Returns the port the
-    proxy is running on. This port can be set in the rauc-hawkbit-updater config to rate limit its
-    HTTP requests.
+    Runs an nginx proxy. HTTP requests are forwarded to port 8080 (default port of the docker
+    hawkBit instance). Returns the port the proxy is running on. This port can be set in the
+    rauc-hawkbit-updater config to proxy HTTP requests with custom options.
     """
     import pexpect
 
@@ -363,16 +322,21 @@ def rate_limited_port(nginx_proxy):
     return _rate_limited_port
 
 @pytest.fixture(scope='session')
-def partial_download_port(nginx_proxy):
+def partial_download_port(tmp_path_factory, rauc_bundle, nginx_proxy):
     """
     Runs an nginx proxy, forcing partial downloads. HTTP requests are forwarded to port 8080
     (default port of the docker hawkBit instance). Returns the port the proxy is running on. This
     port can be set in the rauc-hawkbit-updater config to test partial downloads.
     """
-    location_options = {
-        'limit_rate_after': '200k',
-        'limit_rate': '70k',
-    }
+    with open(f'{os.path.dirname(os.path.abspath(__file__))}/nginx/partial.inc.in') as f:
+        partial_include_template = Template(f.read())
+
+    partial_include_str = partial_include_template.substitute(
+        rauc_bundle=rauc_bundle,
+    )
+    proxy_partial_config = tmp_path_factory.mktemp('nginx') / 'partial.inc'
+    proxy_partial_config.write_text(partial_include_str)
+    location_options = {'include': proxy_partial_config}
     return nginx_proxy(location_options)
 
 @pytest.fixture
