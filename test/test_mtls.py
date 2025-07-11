@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: LGPL-2.1-only
+# SPDX-FileCopyrightText: 2024-2025 Florian Bezannier <florian.bezannier@hotmail.fr>
+# SPDX-FileCopyrightText: 2024-2025 Robin van der Gracht <robin@protonic.nl>, Protonic Holland
+
 import pytest
 
 from helper import run

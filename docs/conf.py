@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'RAUC hawkBit Updater'
-copyright = '2018-2022, Lasse Klok Mikkelsen, Enrico Jörns, Bastian Krause'
+copyright = '2018-2025, Lasse Klok Mikkelsen, Enrico Jörns, Bastian Krause'
 author = 'Lasse Klok Mikkelsen, Enrico Jörns, Bastian Krause'
 
 # The full version, including alpha/beta/rc tags
