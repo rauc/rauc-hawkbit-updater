@@ -49,7 +49,9 @@ Mandatory options:
   This is set for each device individually.
   For details, refer to https://eclipse.dev/hawkbit/concepts/authentication/.
 
-  .. note:: Either ``auth_token`` or ``gateway_token`` must be provided
+  .. note::
+    Either ``auth_token``, ``gateway_token`` or ``ssl_key``/``ssl_cert`` must
+    be provided.
 
 ``gateway_token=<token>``
   Gateway authentication token.
@@ -58,7 +60,29 @@ Mandatory options:
   manages/authenticates multiple targets, thus use with care.
   For details, refer to https://eclipse.dev/hawkbit/concepts/authentication/.
 
-  .. note:: Either ``auth_token`` or ``gateway_token`` must be provided
+  .. note::
+    Either ``auth_token``, ``gateway_token`` or ``ssl_key``/``ssl_cert`` must
+    be provided.
+
+``ssl_key=<path/URI>``
+  Set SSL private key for TLS/SSL client certificate authentication.
+  Only used if ``ssl_cert`` is also set.
+  See https://curl.se/libcurl/c/CURLOPT_SSLKEY.html.
+  See also ``ssl_engine``, ``send_download_authentication``.
+
+  .. note::
+    Either ``auth_token``, ``gateway_token`` or ``ssl_key``/``ssl_cert`` must
+    be provided.
+
+``ssl_cert=<path/URI>``
+  Set SSL client certificate for TLS/SSL client certificate authentication.
+  Only used if ``ssl_key`` is also set.
+  See https://curl.se/libcurl/c/CURLOPT_SSLCERT.html.
+  See also ``ssl_engine``, ``send_download_authentication``.
+
+  .. note::
+    Either ``auth_token``, ``gateway_token`` or ``ssl_key``/``ssl_cert`` must
+    be provided.
 
 ``bundle_download_location=<path>``
   Full path to where the bundle should be downloaded to.
@@ -79,6 +103,12 @@ Optional options:
 ``ssl_verify=<boolean>``
   Whether to enforce SSL verification or not.
   Defaults to ``true``.
+
+``ssl_engine=<engine/provider name>``
+  Set OpenSSL engine/provider for TLS/SSL client certificate authentication.
+  Only used if both ``ssl_key`` and ``ssl_cert`` are set.
+  See https://curl.se/libcurl/c/CURLOPT_SSLENGINE.html.
+  See also ``send_download_authentication``.
 
 ``connect_timeout=<seconds>``
   HTTP connection setup timeout [seconds].
