@@ -12,16 +12,13 @@ Reference
 Configuration File
 ------------------
 
-Example configuration:
+Minimal configuration example:
 
 .. code-block:: cfg
 
   [client]
-  hawkbit_server            = 127.0.0.1:8080
-  ssl                       = false
-  ssl_verify                = false
-  tenant_id                 = DEFAULT
-  target_name               = test-target
+  hawkbit_server            = hawkbit.example.com
+  target_name               = target-1234
   auth_token                = bhVahL1Il1shie2aj2poojeChee6ahShu
   bundle_download_location  = /tmp/bundle.raucb
 
