@@ -1,3 +1,59 @@
+Release 1.4 (released Jul 14, 2025)
+-----------------------------------
+
+.. rubric:: Enhancements
+
+* Add support for hawkBit "download-only" deployments. [#160] (by Vyacheslav
+  Yurkov)
+* Share connection between curl requests. [#170] (by Robin van der Gracht)
+* Add support for SSL client certificate authentication, see the new config
+  options ``ssl_cert``, ``ssl_key`` and ``ssl_engine``. [#169] (by Florian
+  Bezannier, Robin van der Gracht)
+* Add ``send_download_authentication`` option to allow disabling sending
+  authentication data for bundle downloads (needed if external storage
+  providers are used). [#174] (by Kevin Fardel)
+
+.. rubric:: Bug Fixes
+
+* Allow ``stream_bundle=true`` without setting ``bundle_download_location``.
+  [#150]
+
+.. rubric:: Testing
+
+* Add ``workflow_dispatch`` trigger allowing manually triggered CI runs. [#154]
+* Print subprocess's stdout/stderr on timeout errors for debugging purposes.
+  [#163] (by Vyacheslav Yurkov)
+* Add CodeQL workflow. [#167]
+* Add libcairo2-dev to test dependencies. [#182]
+* Bind hawkbit docker container and nginx to localhost only. [#185]
+* Drop hawkBit option ``anonymous.download.enabled`` removed in >= 0.8.0.
+  [#190]
+* Use hawkBit's ``server.forward-headers-strategy=NATIVE`` option allowing a
+  reverse proxy between rauc-hawkbit-updater and hawkBit. [#169] (by Robin van
+  der Gracht)
+* Add SSL client certificate authentication tests using nginx with a test PKI.
+  [#169] (by Robin van der Gracht)
+* Move nginx configs to dedicated files. [#188]
+* Make partial download tests more reliable with nginx lua scripting. [#188]
+* Fix non-root nginx execution in some rare cases. [#179] (by Thibaud Dufour)
+* Add test for ``send_download_authentication=false``. [#174] (by Kevin Fardel)
+
+.. rubric:: Documentation
+
+* Use correct ``stream_bundle`` configuration option in ``README.md``. [#145]
+  (by Lukas Reinecke)
+* Improve documentation of ``stream_bundle`` configuration option. [#146]
+* Update links to hawkBit documentation. [#164] (by Vyacheslav Yurkov)
+* Mention minimal build requirements. [#167]
+* Fix readthedocs builds. [#167], [#173]
+* Provide full-blown config in ``README.md`` and minimal one in the reference
+  documentation. [#195]
+
+.. rubric:: Build System
+
+* Lower ``warning_level`` to 2, because ``-Wpedantic`` is not supported for
+  compiling GLib-based code. [#182]
+
 Release 1.3 (released Oct 14, 2022)
 -----------------------------------
 

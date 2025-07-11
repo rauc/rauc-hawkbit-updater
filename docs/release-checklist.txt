@@ -5,13 +5,13 @@ Preparation
 -----------
 - check for GitHub milestone to be completed
   - review & merge open PRs if necessary
-- update CHANGES
+- update CHANGES.rst
 - update version in docs/conf.py and meson.build
 - create preparation PR, merge PR
 
 Release
 -------
-- update release date in CHANGES and commit
+- update release date in CHANGES.rst and commit
 - create signed git tag::
 
     git tag -m 'release v1.0' -s -u 925F79DAA74AF221 v1.0
@@ -35,6 +35,6 @@ Release
   - upload source archive and signature
   - add release text using CHANGES::
     
-      pandoc -f rst -t markdown_github CHANGES
+      pandoc -f rst -t markdown_github CHANGES.rst
 
   - Submit release button

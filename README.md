@@ -28,23 +28,27 @@ Setup target (device) configuration file:
 
 ```ini
   [client]
-  hawkbit_server            = 127.0.0.1:8080
-  ssl                       = false
-  ssl_verify                = false
-  tenant_id                 = DEFAULT
-  target_name               = test-target
-  auth_token                = bhVahL1Il1shie2aj2poojeChee6ahShu
-  #gateway_token            = bhVahL1Il1shie2aj2poojeChee6ahShu
-  #ssl_engine               = pkcs11
-  #ssl_key                  = pkcs11:token=mytoken;object=mykey
-  #ssl_cert                 = /path/to/certificate.pem
-  bundle_download_location  = /tmp/bundle.raucb
-  retry_wait                = 60
-  connect_timeout           = 20
-  timeout                   = 60
-  log_level                 = debug
-  post_update_reboot        = false
-  #stream_bundle            = true
+  hawkbit_server                = hawkbit.example.com
+  target_name                   = target-1234
+  auth_token                    = bhVahL1Il1shie2aj2poojeChee6ahShu
+  #gateway_token                = chietha8eiD8Ujaxerifoxoh6Aed1koof
+  #ssl_key                      = pkcs11:token=mytoken;object=mykey
+  #ssl_cert                     = /path/to/certificate.pem
+  bundle_download_location      = /tmp/bundle.raucb
+  #tenant_id                    = DEFAULT
+  #ssl                          = true
+  #ssl_verify                   = true
+  #ssl_engine                   = pkcs11
+  #connect_timeout              = 20
+  #timeout                      = 60
+  #retry_wait                   = 300
+  #low_speed_time               = 60
+  #low_speed_rate               = 100
+  #resume_downloads             = false
+  #stream_bundle                = false
+  #post_update_reboot           = false
+  #log_level                    = message
+  #send_download_authentication = true
 
   [device]
   product                   = Terminator
