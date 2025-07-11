@@ -5,4 +5,4 @@
 Changes in RAUC hawkBit Updater
 ===============================
 
-.. include:: ../CHANGES
+.. include:: ../CHANGES.rst
