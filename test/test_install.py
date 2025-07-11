@@ -70,6 +70,34 @@ def test_install_success(hawkbit, install_config, bundle_assigned, rauc_dbus_ins
     assert status[0]['type'] == 'finished'
 
 @pytest.mark.parametrize('mode', ('download', 'streaming'))
+def test_install_success_without_close(hawkbit, adjust_config, bundle_assigned, rauc_dbus_install_success, mode):
+    """
+    Assign bundle to target and test successful download and installation. Make sure installation
+    result is received correctly by hawkBit.
+    """
+
+    if mode == "streaming":
+        config = adjust_config(
+            {'client': {'stream_bundle': 'true', 'post_update_close': "false"}},
+            remove={'client': 'bundle_download_location'},
+        )
+    else:
+        config = adjust_config({'client': {'post_update_close': "false"}})
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+
+    assert 'New software ready for download' in out
+
+    if mode == 'download':
+        assert 'Download complete' in out
+
+    assert 'Software bundle installed successfully.' in out
+    assert err == ''
+    assert exitcode == 0
+
+    status = hawkbit.get_action_status()
+    assert status[0]['type'] == 'running'
+
+@pytest.mark.parametrize('mode', ('download', 'streaming'))
 def test_install_failure(hawkbit, install_config, bundle_assigned, rauc_dbus_install_failure, mode):
     """
     Assign bundle to target and test successful download and failing installation. Make sure

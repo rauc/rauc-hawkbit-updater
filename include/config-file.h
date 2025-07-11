@@ -19,6 +19,7 @@ typedef struct Config_ {
         gchar* ssl_cert;                  /**< SSL/TLS client certificate */
         gchar* ssl_engine;                /**< SSL engine to use with ssl_key */
         gboolean post_update_reboot;      /**< reboot system after successful update */
+        gboolean post_update_close;       /**< close(finish) update action after a successful update */
         gboolean resume_downloads;        /**< resume downloads or not */
         gboolean stream_bundle;           /**< streaming installation or not */
         gchar* auth_token;                /**< hawkBit target security token */
