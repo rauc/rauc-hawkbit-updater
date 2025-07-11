@@ -141,3 +141,55 @@ def test_download_only(hawkbit, config, assign_bundle):
 
     # check last status message
     assert 'File checksum OK.' in status[0]['messages']
+
+def test_download_only_with_auth_header(hawkbit, adjust_config, assign_bundle,
+                                   download_without_auth_headers_port):
+    """
+    Test that rauc-hawkbit-updater fails when sending authentication header to external storage
+    provider with send_download_authentication=true.
+    """
+    config = adjust_config({'client': {
+        'send_download_authentication': 'true',
+        'hawkbit_server': f'{hawkbit.host}:{download_without_auth_headers_port}'
+    }})
+    assign_bundle(params={'type': 'downloadonly'})
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    assert 'Start downloading' in out
+    assert 'hawkBit requested to skip installation, not invoking RAUC yet.' in out
+    assert 'Download failed: HTTP request failed: 401' in err
+    assert exitcode == 1
+
+    status = hawkbit.get_action_status()
+
+    assert status[0]['type'] == 'error'
+    # check last status message
+    assert 'Download failed: HTTP request failed: 401' in status[0]['messages']
+
+def test_download_only_without_auth_header(hawkbit, adjust_config, assign_bundle,
+                                           download_without_auth_headers_port):
+    """
+    Test that rauc-hawkbit-updater does not send authentication header with
+    send_download_authentication=false.
+    Test that rauc-hawkbit-updater succeeds when not sending authentication header to external
+    storage provider with send_download_authentication=false.
+    """
+    config = adjust_config({'client': {
+        'send_download_authentication': 'false',
+        'hawkbit_server': f'{hawkbit.host}:{download_without_auth_headers_port}'
+    }})
+    assign_bundle(params={'type': 'downloadonly'})
+
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r')
+    assert 'Start downloading' in out
+    assert 'hawkBit requested to skip installation, not invoking RAUC yet.' in out
+    assert 'Download complete' in out
+    assert 'File checksum OK' in out
+    assert err == ''
+    assert exitcode == 0
+
+    status = hawkbit.get_action_status()
+
+    assert status[0]['type'] == 'downloaded'
+    # check last status message
+    assert 'File checksum OK.' in status[0]['messages']

@@ -19,6 +19,7 @@ static const gboolean DEFAULT_SSL         = TRUE;
 static const gboolean DEFAULT_SSL_VERIFY  = TRUE;
 static const gboolean DEFAULT_REBOOT      = FALSE;
 static const gchar* DEFAULT_LOG_LEVEL     = "message";
+static const gboolean DEFAULT_SEND_DOWNLOAD_AUTHENTICATION = TRUE;
 
 /**
  * @brief Get string value from key_file for key in group, optional default_value can be specified
@@ -338,6 +339,11 @@ Config* load_config_file(const gchar *config_file, GError **error)
         config->log_level = log_level_from_string(val);
 
         if (!get_key_bool(ini_file, "client", "post_update_reboot", &config->post_update_reboot, DEFAULT_REBOOT, error))
+                return NULL;
+
+        if (!get_key_bool(ini_file, "client", "send_download_authentication",
+                          &config->send_download_authentication,
+                          DEFAULT_SEND_DOWNLOAD_AUTHENTICATION, error))
                 return NULL;
 
         if (config->timeout > 0 && config->connect_timeout > 0 &&

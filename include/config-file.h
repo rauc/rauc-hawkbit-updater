@@ -33,6 +33,7 @@ typedef struct Config_ {
         int low_speed_rate;               /**< low speed limit to abort transfer */
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
+        gboolean send_download_authentication; /**< Send security header in download requests */
 } Config;
 
 /**

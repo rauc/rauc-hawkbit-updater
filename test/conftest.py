@@ -349,3 +349,22 @@ def mtls_download_port(nginx_proxy, ssl_issuer_hash):
     """
     location_options = {"proxy_set_header X-Ssl-Issuer-Hash-1": ssl_issuer_hash}
     return nginx_proxy(location_options, mtls=True)
+
+@pytest.fixture
+def download_without_auth_headers_port(tmp_path_factory, rauc_bundle, nginx_proxy):
+    """
+    Runs an nginx proxy which requires artifact requests without authentication headers. HTTP
+    requests are forwarded to port 8080 (default port of the docker hawkBit instance). Returns the
+    port the proxy is running on. This port can be set in the rauc-hawkbit-updater config to test
+    downloads without auth headers.
+    """
+    nginx_conf_dir = f'{os.path.dirname(os.path.abspath(__file__))}/nginx'
+
+    with open(f'{nginx_conf_dir}/download_without_auth_headers.inc.in') as f:
+        dl_without_auth_include_template = Template(f.read())
+
+    dl_without_auth_include_str = dl_without_auth_include_template.substitute(rauc_bundle=rauc_bundle)
+    dl_without_auth_config = tmp_path_factory.mktemp('nginx') / 'download_without_auth_headers.inc'
+    dl_without_auth_config.write_text(dl_without_auth_include_str)
+    location_options = {'include': dl_without_auth_config}
+    return nginx_proxy(location_options)
