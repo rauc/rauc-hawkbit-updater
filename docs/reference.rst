@@ -167,6 +167,11 @@ Optional options:
     manager and without terminating any processes or unmounting any file systems.
     This may result in data loss.
 
+``post_update_close=<boolean>``
+  Whether to close/finish update action after a successful update.
+  Disabling allows an external program to determine if update is finish.
+  Defaults to ``true``.
+
 ``log_level=<level>``
   Log level to print, where ``level`` is a string of
 
