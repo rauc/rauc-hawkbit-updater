@@ -1087,7 +1087,7 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
                 .install_progress_callback = (GSourceFunc) hawkbit_progress,
                 .install_complete_callback = install_complete_cb,
                 .file = artifact->download_url,
-                .auth_header = auth_header,
+                .auth_header = hawkbit_config->send_download_authentication ? auth_header : NULL,
                 .ssl_key = hawkbit_config->ssl_key,
                 .ssl_cert = hawkbit_config->ssl_cert,
                 .ssl_verify = hawkbit_config->ssl_verify,
