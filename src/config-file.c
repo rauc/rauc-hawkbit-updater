@@ -346,6 +346,10 @@ Config* load_config_file(const gchar *config_file, GError **error)
                           DEFAULT_SEND_DOWNLOAD_AUTHENTICATION, error))
                 return NULL;
 
+        if (!get_key_bool(ini_file, "client", "identify_on_startup",
+                          &config->identify_on_startup, FALSE, error))
+                return NULL;
+
         if (config->timeout > 0 && config->connect_timeout > 0 &&
             config->timeout < config->connect_timeout) {
                 g_set_error(error,
