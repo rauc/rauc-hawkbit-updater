@@ -133,6 +133,11 @@ Optional options:
   See https://curl.se/libcurl/c/CURLOPT_LOW_SPEED_LIMIT.html.
   Has no effect when used with ``stream_bundle=true``.
 
+``download_speed_limit=<bytes per second>``
+  Average download speed cap for rate-limited environments.
+  Defaults to ``0`` (unlimited).
+  See https://curl.se/libcurl/c/CURLOPT_MAX_RECV_SPEED_LARGE.html.
+
 ``resume_downloads=<boolean>``
   Whether to resume aborted downloads or not.
   Defaults to ``false``.

@@ -328,6 +328,8 @@ Config* load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         if (!get_key_int(ini_file, "client", "low_speed_time", &config->low_speed_time, 60, error))
                 return NULL;
+        if (!get_key_int(ini_file, "client", "download_speed_limit", &config->download_speed_limit, 0, error))
+                return NULL;
         if (!get_key_bool(ini_file, "client", "resume_downloads", &config->resume_downloads, FALSE,
                           error))
                 return NULL;

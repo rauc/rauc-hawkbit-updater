@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: LGPL-2.1-only
 # SPDX-FileCopyrightText: 2021-2025 Bastian Krause <bst@pengutronix.de>, Pengutronix
 
+import os
 import re
+import time
 
 from helper import run
 
@@ -193,3 +195,29 @@ def test_download_only_without_auth_header(hawkbit, adjust_config, assign_bundle
     assert status[0]['type'] == 'downloaded'
     # check last status message
     assert 'File checksum OK.' in status[0]['messages']
+
+def test_download_speed_limit(hawkbit, assign_bundle, adjust_config, rauc_bundle):
+    """Test client-side download speed limiting."""
+    bundle_size = os.path.getsize(rauc_bundle)
+    speed_limit = 100 * 1024  # 100KB/s
+    min_time = bundle_size / speed_limit * 0.8  # 20% tolerance since cap is across average speed
+
+    config = adjust_config({'client': {'download_speed_limit': str(speed_limit)}})
+    assign_bundle(params={'type': 'downloadonly'})  # Don't attempt installation that would fail
+
+    start_time = time.time()
+    out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r', timeout=120)
+    elapsed_time = time.time() - start_time
+
+    assert 'Start downloading' in out
+    assert 'Download complete.' in out
+    assert 'File checksum OK.' in out
+    assert err == ''
+    assert exitcode == 0
+
+    status = hawkbit.get_action_status()
+    assert status[0]['type'] == 'downloaded'
+
+    assert elapsed_time >= min_time, \
+        f'Download too fast: {bundle_size} bytes in {elapsed_time:.2f}s ' \
+        f'(average speed: {bundle_size/elapsed_time:.0f} B/s, limit: {speed_limit} B/s)'
