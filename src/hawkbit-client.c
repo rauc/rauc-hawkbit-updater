@@ -403,6 +403,8 @@ static gboolean get_binary(const gchar *download_url, const gchar *file, curl_of
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, hawkbit_config->low_speed_time);
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, hawkbit_config->low_speed_rate);
 
+        curl_easy_setopt(curl, CURLOPT_MAX_RECV_SPEED_LARGE, hawkbit_config->download_speed_limit);
+
         curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, resume_from);
 
         if (hawkbit_config->send_download_authentication &&
