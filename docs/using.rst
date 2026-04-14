@@ -9,7 +9,7 @@ Authentication
 Target token
 ^^^^^^^^^^^^
 
-As described on the `hawkBit Authentication page <https://eclipse.dev/hawkbit/concepts/authentication/>`_
+As described on the `hawkBit Authentication page <https://hawkbit.eclipse.dev/#/authentication>`_
 in the "DDI API Authentication Modes" section, a device can be authenticated
 with a security token. A security token can be either a "Target" token or a
 "Gateway" token. The "Target" security token is specific to a single target
