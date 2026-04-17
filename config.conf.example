@@ -52,6 +52,19 @@ post_update_reboot        = false
 # debug, info, message, critical, error, fatal
 log_level                 = message
 
+# D-Bus well-known service name to call for install permission on soft updates.
+# When set, the client calls IsReadyForUpdate() on the service (system bus, object path "/",
+# interface named after the service) before proceeding with a soft update. If the method
+# returns False the update is skipped and retried on the next poll. Forced and Download Only
+# updates bypass this check entirely.
+# If unset (default), soft updates are applied unconditionally.
+#soft_update_check_dbus_service = de.example.SoftUpdateCheck
+
+# Controls the fallback behavior when soft_update_check_dbus_service is set but the D-Bus
+# service is unreachable (e.g. not running). If true (default), the update proceeds
+# unconditionally. If false, the update is skipped until the service becomes available.
+#soft_update_check_force_on_unavailable = true
+
 # Every key / value under [device] is sent to HawkBit (target attributes),
 # and can be used in target filter.
 [device]

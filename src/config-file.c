@@ -346,6 +346,12 @@ Config* load_config_file(const gchar *config_file, GError **error)
                           DEFAULT_SEND_DOWNLOAD_AUTHENTICATION, error))
                 return NULL;
 
+        get_key_string(ini_file, "client", "soft_update_check_dbus_service",
+                       &config->soft_update_check_dbus_service, NULL, NULL);
+        if (!get_key_bool(ini_file, "client", "soft_update_check_force_on_unavailable",
+                          &config->soft_update_check_force_on_unavailable, TRUE, error))
+                return NULL;
+
         if (config->timeout > 0 && config->connect_timeout > 0 &&
             config->timeout < config->connect_timeout) {
                 g_set_error(error,
@@ -378,6 +384,7 @@ void config_file_free(Config *config)
         g_free(config->ssl_key);
         g_free(config->ssl_cert);
         g_free(config->bundle_download_location);
+        g_free(config->soft_update_check_dbus_service);
         if (config->device)
                 g_hash_table_destroy(config->device);
         g_free(config);

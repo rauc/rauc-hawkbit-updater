@@ -49,6 +49,8 @@ Setup target (device) configuration file:
   #post_update_reboot           = false
   #log_level                    = message
   #send_download_authentication = true
+  #soft_update_check_dbus_service = de.example.SoftUpdateCheck
+  #soft_update_check_force_on_unavailable = true
 
   [device]
   product                   = Terminator
@@ -66,6 +68,82 @@ Finally start the updater as daemon:
 
 ```shell
 $ ./rauc-hawkbit-updater -c config.conf
+```
+
+
+Soft Update Permission Check
+----------------------------
+
+hawkBit supports four rollout action types: **Forced**, **Soft**, **Time Forced**, and
+**Download Only**. For soft updates the server signals that installation is at the device's
+discretion (DDI fields `download=attempt`, `update=attempt`). Time Forced actions report as
+Soft until their deadline, at which point hawkBit switches them to Forced transparently.
+
+The updater can optionally consult an external D-Bus service before proceeding with a soft
+update, allowing another application (e.g. a UI or a workload manager) to gate the
+installation — for example, to defer it until the device is idle.
+
+**How it works:**
+
+1. On each poll cycle, if a soft update is pending the updater calls `IsReadyForUpdate()` on the
+   configured D-Bus service (system bus, object path `/`, interface named after the service).
+2. If the method returns `True` the update proceeds normally.
+3. If the method returns `False` the update is silently skipped and retried on the next poll
+   (controlled by `retry_wait`). No error is reported to hawkBit — the action stays open.
+4. Once the service starts returning `True` the update is applied on the very next poll.
+5. **Forced** and **Download Only** updates always bypass this check.
+
+**Configuration:**
+
+```ini
+[client]
+# D-Bus well-known name of the permission service
+soft_update_check_dbus_service = de.example.SoftUpdateCheck
+
+# Fallback when the service is unreachable: true = force the update (default), false = skip
+soft_update_check_force_on_unavailable = true
+```
+
+**Expected D-Bus interface** (object path `/`, interface = service name):
+
+```xml
+<interface name='de.example.SoftUpdateCheck'>
+  <method name='IsReadyForUpdate'>
+    <arg type='b' name='ready' direction='out'/>
+  </method>
+</interface>
+```
+
+If `soft_update_check_dbus_service` is not set (the default), soft updates are applied unconditionally.
+
+**D-Bus policy file (system bus):**
+
+Because the updater connects to the **system bus**, the D-Bus daemon will reject calls to the
+permission service unless a policy file explicitly grants access. Without it the service will be
+unreachable and the updater will either skip the update or force it through, depending on
+`soft_update_check_force_on_unavailable`.
+
+Create a policy file for your service name, e.g.
+`/etc/dbus-1/system.d/de.example.SoftUpdateCheck.conf`:
+
+```xml
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <!-- allow any process to own the service name and communicate with it -->
+  <policy context="default">
+    <allow own="de.example.SoftUpdateCheck"/>
+    <allow send_destination="de.example.SoftUpdateCheck"/>
+    <allow receive_sender="de.example.SoftUpdateCheck"/>
+  </policy>
+</busconfig>
+```
+
+Replace `de.example.SoftUpdateCheck` with the actual service name configured in
+`soft_update_check_dbus_service`. After installing the file, reload the D-Bus daemon:
+
+```shell
+$ sudo systemctl reload dbus
 ```
 
 
@@ -121,6 +199,14 @@ $ docker run -d --name hawkbit -p ::1:8080:8080 -p 127.0.0.1:8080:8080 \
     --hawkbit.server.security.dos.filter.enabled=false \
     --hawkbit.server.security.dos.maxStatusEntriesPerAction=-1 \
     --server.forward-headers-strategy=NATIVE
+```
+
+If you want to run the soft update permission check tests, install the D-Bus policy file described
+in the `Soft Update Permission Check` section above first (the test dummy connects to the system
+bus and requires it):
+
+```shell
+$ sudo systemctl reload dbus
 ```
 
 Run test suite:
