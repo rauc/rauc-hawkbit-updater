@@ -211,6 +211,42 @@ def rauc_dbus_install_success(rauc_bundle):
     proc.expect(pexpect.EOF)
 
 @pytest.fixture
+def soft_update_check_permitted():
+    """
+    Creates a soft update check D-Bus dummy service on the SystemBus that grants update
+    permission when IsReadyForUpdate() is called.
+    """
+    import pexpect
+
+    proc = run_pexpect(f'{sys.executable} -m soft_update_check_dbus_dummy',
+                       cwd=os.path.dirname(__file__))
+    proc.expect('Interface published')
+
+    yield
+
+    assert proc.isalive()
+    assert proc.terminate(force=True)
+    proc.expect(pexpect.EOF)
+
+@pytest.fixture
+def soft_update_check_denied():
+    """
+    Creates a soft update check D-Bus dummy service on the SystemBus that denies update
+    permission when IsReadyForUpdate() is called.
+    """
+    import pexpect
+
+    proc = run_pexpect(f'{sys.executable} -m soft_update_check_dbus_dummy --denied',
+                       cwd=os.path.dirname(__file__))
+    proc.expect('Interface published')
+
+    yield
+
+    assert proc.isalive()
+    assert proc.terminate(force=True)
+    proc.expect(pexpect.EOF)
+
+@pytest.fixture
 def rauc_dbus_install_failure(rauc_bundle):
     """
     Creates a RAUC D-Bus dummy interface on the SessionBus mimicing a failing installation on
