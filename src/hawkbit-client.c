@@ -969,8 +969,15 @@ static gpointer download_thread(gpointer data)
                                resume_from, &sha1sum, &speed, &error))
                         break;
 
+                // resume download under certain conditions
                 for (const gint *code = &resumable_codes[0]; *code; code++)
                         resumable |= g_error_matches(error, RHU_HAWKBIT_CLIENT_CURL_ERROR, *code);
+
+                // but do not resume download on persistent HTTP server errors
+                if (error->domain == RHU_HAWKBIT_CLIENT_HTTP_ERROR &&
+                    error->code >= 400 && error->code < 500 &&
+                    error->code != 408 && error->code != 429)
+                        resumable = FALSE;
 
                 if (!hawkbit_config->resume_downloads || !resumable) {
                         g_prefix_error(&error, "Download failed: ");
