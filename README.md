@@ -47,6 +47,7 @@ Setup target (device) configuration file:
   #resume_downloads             = false
   #stream_bundle                = false
   #post_update_reboot           = false
+  #identify_on_startup          = false
   #log_level                    = message
   #send_download_authentication = true
 

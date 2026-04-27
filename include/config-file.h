@@ -34,6 +34,7 @@ typedef struct Config_ {
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
         gboolean send_download_authentication; /**< Send security header in download requests */
+        gboolean identify_on_startup;     /**< Send device attributes (configData) on startup */
 } Config;
 
 /**

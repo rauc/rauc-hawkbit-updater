@@ -1534,6 +1534,14 @@ int hawkbit_start_service_sync()
 
         active_action = action_new();
 
+        // Optionally send device attributes (configData) on startup
+        if (hawkbit_config->identify_on_startup) {
+                g_autoptr(GError) error = NULL;
+                g_message("Sending device attributes on startup");
+                if (!identify(&error))
+                        g_warning("Failed to send device attributes on startup: %s", error->message);
+        }
+
         ctx = g_main_context_new();
         cdata.loop = g_main_loop_new(ctx, FALSE);
         cdata.hawkbit_interval_check_sec = hawkbit_config->retry_wait;
