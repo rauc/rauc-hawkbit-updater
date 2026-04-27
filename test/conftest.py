@@ -233,7 +233,7 @@ def pki_dir():
 def nginx_config(tmp_path_factory, pki_dir):
     """
     Creates a temporary nginx proxy configuration incorporating additional given options to the
-    location section. See https://eclipse.dev/hawkbit/concepts/authentication/ for examples.
+    location section. See https://hawkbit.eclipse.dev/#/authentication for examples.
     """
     def _to_nginx_option(option):
         key_values = (f'{key} {value};' for key, value in option.items())
