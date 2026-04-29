@@ -205,9 +205,9 @@ def test_download_speed_limit(hawkbit, assign_bundle, adjust_config, rauc_bundle
     config = adjust_config({'client': {'download_speed_limit': str(speed_limit)}})
     assign_bundle(params={'type': 'downloadonly'})  # Don't attempt installation that would fail
 
-    start_time = time.time()
+    start_time = time.monotonic()
     out, err, exitcode = run(f'rauc-hawkbit-updater -c "{config}" -r', timeout=120)
-    elapsed_time = time.time() - start_time
+    elapsed_time = time.monotonic() - start_time
 
     assert 'Start downloading' in out
     assert 'Download complete.' in out
