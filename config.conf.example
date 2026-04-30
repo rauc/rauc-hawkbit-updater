@@ -46,6 +46,10 @@ low_speed_time            = 0
 # average transfer speed to be below during "low_speed_time" seconds
 low_speed_rate            = 0
 
+# average download speed cap in bytes per second for rate limiting
+# has no effect when stream_bundle = true
+download_speed_limit      = 0
+
 # reboot after a successful update
 post_update_reboot        = false
 
