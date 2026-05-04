@@ -69,6 +69,7 @@ static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static struct HawkbitAction *active_action = NULL;
 static GThread *thread_download = NULL;
+static gint soft_update_check_unavailable_count = 0;
 
 static gsize curl_share_initialized = 0;
 static CURLSH *curl_share = NULL;
@@ -869,6 +870,8 @@ static gboolean identify(GError **error)
  */
 static void process_deployment_cleanup()
 {
+        soft_update_check_unavailable_count = 0;
+
         if (!hawkbit_config->bundle_download_location)
                 return;
 
@@ -1127,6 +1130,83 @@ static gboolean start_streaming_installation(Artifact *artifact, GError **error)
 }
 
 /**
+ * @brief Ask the configured D-Bus service for permission to proceed with a soft update.
+ *
+ * Calls the IsReadyForUpdate() method on the well-known D-Bus name set in
+ * hawkbit_config->soft_update_check_dbus_service (system bus, object path "/", interface
+ * named after the service). If no service is configured, permission is granted implicitly.
+ *
+ * @param[out] error Error
+ * @return TRUE if install is permitted or no check is configured,
+ *         FALSE without error if the service explicitly denies the update,
+ *         FALSE with error set if the D-Bus call fails
+ */
+static gboolean soft_update_check(GError **error)
+{
+        g_autoptr(GDBusConnection) conn = NULL;
+        g_autoptr(GVariant) result = NULL;
+        gboolean permitted;
+
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        if (!hawkbit_config->soft_update_check_dbus_service)
+                return TRUE;
+
+        conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, error);
+        if (!conn)
+                return FALSE;
+
+        result = g_dbus_connection_call_sync(
+                conn,
+                hawkbit_config->soft_update_check_dbus_service,
+                "/",
+                hawkbit_config->soft_update_check_dbus_service,
+                "IsReadyForUpdate",
+                NULL,
+                G_VARIANT_TYPE("(b)"),
+                G_DBUS_CALL_FLAGS_NONE,
+                -1,
+                NULL,
+                error);
+
+        if (!result) {
+                if (hawkbit_config->soft_update_check_force_on_unavailable) {
+                        g_warning("Soft update permission service unavailable: %s. "
+                                  "Forcing update.", (*error)->message);
+                        g_clear_error(error);
+                        return TRUE;
+                }
+
+                soft_update_check_unavailable_count++;
+                gint max = hawkbit_config->soft_update_check_unavailable_max_retries;
+                if (max > 0 && soft_update_check_unavailable_count >= max) {
+                        g_warning("Soft update permission service unavailable for %d consecutive "
+                                  "poll cycles (max_retries=%d): %s. Forcing update.",
+                                  soft_update_check_unavailable_count, max, (*error)->message);
+                        g_clear_error(error);
+                        soft_update_check_unavailable_count = 0;
+                        return TRUE;
+                }
+
+                if (max > 0)
+                        g_warning("Soft update permission service unavailable (attempt %d/%d): %s. "
+                                  "Skipping update.",
+                                  soft_update_check_unavailable_count, max, (*error)->message);
+                else
+                        g_warning("Soft update permission service unavailable (attempt %d): %s. "
+                                  "Skipping update.",
+                                  soft_update_check_unavailable_count, (*error)->message);
+                return FALSE;
+        }
+
+        soft_update_check_unavailable_count = 0;
+        g_variant_get(result, "(b)", &permitted);
+        if (permitted)
+                g_message("Soft update permission granted.");
+        return permitted;
+}
+
+/**
  * @brief Process hawkBit deployment described by req_root.
  *        Must be called under locked active_action->mutex.
  *
@@ -1140,6 +1220,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
         g_autofree gchar *deployment = NULL, *temp_id = NULL,
                          *deployment_download = NULL, *deployment_update = NULL,
                          *maintenance_window = NULL, *maintenance_msg = NULL;
+        const gchar *action_type_label = NULL;
         g_autoptr(JsonParser) json_response_parser = NULL;
         g_autoptr(JsonArray) json_chunks = NULL, json_artifacts = NULL;
         JsonNode *resp_root = NULL, *json_chunk = NULL, *json_artifact = NULL;
@@ -1194,9 +1275,35 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto error;
 
         artifact->do_install = g_strcmp0(deployment_update, "skip") != 0;
+
+        // infer and log action type from deployment handling types:
+        // Download Only is the only case where update="skip" without a maintenance window
+        if (!artifact->do_install && !maintenance_window)
+                action_type_label = "Download Only";
+        else if (!g_strcmp0(deployment_download, "forced"))
+                action_type_label = "Forced";
+        else
+                action_type_label = "Soft";
+        g_message("Action type: %s.", action_type_label);
+
         if (!artifact->do_install)
                 g_message("hawkBit requested to skip installation, not invoking RAUC yet%s.",
                           maintenance_msg);
+
+        // for soft updates that are ready to install, ask the configured D-Bus service for
+        // permission; Forced and Download Only updates bypass this check
+        if (!g_strcmp0(action_type_label, "Soft") && artifact->do_install) {
+                g_autoptr(GError) soft_error = NULL;
+                if (!soft_update_check(&soft_error)) {
+                        if (soft_error)
+                                g_warning("Soft update permission check failed: %s",
+                                          soft_error->message);
+                        else
+                                g_message("Soft update permission denied, skipping update.");
+                        active_action->state = ACTION_STATE_NONE;
+                        return TRUE;
+                }
+        }
 
         // remember deployment's action id
         temp_id = json_get_string(resp_root, "$.id", error);

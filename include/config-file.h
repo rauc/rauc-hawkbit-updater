@@ -34,6 +34,17 @@ typedef struct Config_ {
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
         gboolean send_download_authentication; /**< Send security header in download requests */
+        gchar* soft_update_check_dbus_service; /**< D-Bus service name to call for soft update
+                                                     permission; NULL disables the check */
+        gboolean soft_update_check_force_on_unavailable; /**< if TRUE (default), proceed with the
+                                                               update when the D-Bus service is
+                                                               unreachable; if FALSE,
+                                                               skip the update */
+        gint soft_update_check_unavailable_max_retries;  /**< when force_on_unavailable is FALSE,
+                                                               number of consecutive poll cycles
+                                                               with an unreachable service after
+                                                               which the update is forced anyway;
+                                                               0 (default) disables forced retry */
 } Config;
 
 /**
