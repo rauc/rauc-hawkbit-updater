@@ -351,6 +351,9 @@ Config* load_config_file(const gchar *config_file, GError **error)
         if (!get_key_bool(ini_file, "client", "soft_update_check_force_on_unavailable",
                           &config->soft_update_check_force_on_unavailable, TRUE, error))
                 return NULL;
+        if (!get_key_int(ini_file, "client", "soft_update_check_unavailable_max_retries",
+                         &config->soft_update_check_unavailable_max_retries, 0, error))
+                return NULL;
 
         if (config->timeout > 0 && config->connect_timeout > 0 &&
             config->timeout < config->connect_timeout) {

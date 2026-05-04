@@ -40,6 +40,11 @@ typedef struct Config_ {
                                                                update when the D-Bus service is
                                                                unreachable; if FALSE,
                                                                skip the update */
+        gint soft_update_check_unavailable_max_retries;  /**< when force_on_unavailable is FALSE,
+                                                               number of consecutive poll cycles
+                                                               with an unreachable service after
+                                                               which the update is forced anyway;
+                                                               0 (default) disables forced retry */
 } Config;
 
 /**

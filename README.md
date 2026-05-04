@@ -116,6 +116,8 @@ soft_update_check_force_on_unavailable = true
 
 If `soft_update_check_dbus_service` is not set (the default), soft updates are applied unconditionally.
 
+When `soft_update_check_force_on_unavailable` is `false` and `soft_update_check_unavailable_max_retries` is set to a positive integer, the updater will force the update after that many consecutive poll cycles where the D-Bus service was unreachable. This prevents a permanently unavailable service from blocking updates indefinitely. The retry counter resets when the service becomes reachable again or when a new deployment is received.
+
 **D-Bus policy file (system bus):**
 
 Because the updater connects to the **system bus**, the D-Bus daemon will reject calls to the
