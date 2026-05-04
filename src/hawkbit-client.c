@@ -69,6 +69,7 @@ static Config *hawkbit_config = NULL;
 static GSourceFunc software_ready_cb;
 static struct HawkbitAction *active_action = NULL;
 static GThread *thread_download = NULL;
+static gint soft_update_check_unavailable_count = 0;
 
 static gsize curl_share_initialized = 0;
 static CURLSH *curl_share = NULL;
@@ -869,6 +870,8 @@ static gboolean identify(GError **error)
  */
 static void process_deployment_cleanup()
 {
+        soft_update_check_unavailable_count = 0;
+
         if (!hawkbit_config->bundle_download_location)
                 return;
 
@@ -1173,9 +1176,30 @@ static gboolean soft_update_check(GError **error)
                         g_clear_error(error);
                         return TRUE;
                 }
+
+                soft_update_check_unavailable_count++;
+                gint max = hawkbit_config->soft_update_check_unavailable_max_retries;
+                if (max > 0 && soft_update_check_unavailable_count >= max) {
+                        g_warning("Soft update permission service unavailable for %d consecutive "
+                                  "poll cycles (max_retries=%d): %s. Forcing update.",
+                                  soft_update_check_unavailable_count, max, (*error)->message);
+                        g_clear_error(error);
+                        soft_update_check_unavailable_count = 0;
+                        return TRUE;
+                }
+
+                if (max > 0)
+                        g_warning("Soft update permission service unavailable (attempt %d/%d): %s. "
+                                  "Skipping update.",
+                                  soft_update_check_unavailable_count, max, (*error)->message);
+                else
+                        g_warning("Soft update permission service unavailable (attempt %d): %s. "
+                                  "Skipping update.",
+                                  soft_update_check_unavailable_count, (*error)->message);
                 return FALSE;
         }
 
+        soft_update_check_unavailable_count = 0;
         g_variant_get(result, "(b)", &permitted);
         if (permitted)
                 g_message("Soft update permission granted.");

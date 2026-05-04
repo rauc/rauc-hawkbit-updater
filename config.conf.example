@@ -65,6 +65,12 @@ log_level                 = message
 # unconditionally. If false, the update is skipped until the service becomes available.
 #soft_update_check_force_on_unavailable = true
 
+# When soft_update_check_force_on_unavailable is false, this sets the maximum number of
+# consecutive poll cycles in which the D-Bus service is unreachable before the update is
+# forced anyway (to prevent updates from being blocked indefinitely).
+# 0 (default) disables forced retry; the update is skipped until the service reappears.
+#soft_update_check_unavailable_max_retries = 0
+
 # Every key / value under [device] is sent to HawkBit (target attributes),
 # and can be used in target filter.
 [device]
