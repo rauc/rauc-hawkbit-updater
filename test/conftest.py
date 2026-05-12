@@ -233,7 +233,7 @@ def pki_dir():
 def nginx_config(tmp_path_factory, pki_dir):
     """
     Creates a temporary nginx proxy configuration incorporating additional given options to the
-    location section. See https://eclipse.dev/hawkbit/concepts/authentication/ for examples.
+    location section. See https://hawkbit.eclipse.dev/#/authentication for examples.
     """
     def _to_nginx_option(option):
         key_values = (f'{key} {value};' for key, value in option.items())
@@ -347,7 +347,7 @@ def mtls_download_port(nginx_proxy, ssl_issuer_hash):
     hawkBit instance). Returns the port the proxy is running on. This port can be set in the
     rauc-hawkbit-updater config to test mTLS authentication.
     """
-    location_options = {"proxy_set_header X-Ssl-Issuer-Hash-1": ssl_issuer_hash}
+    location_options = {"proxy_set_header X-Authority-1": ssl_issuer_hash}
     return nginx_proxy(location_options, mtls=True)
 
 @pytest.fixture

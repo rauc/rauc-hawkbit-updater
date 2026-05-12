@@ -44,7 +44,7 @@ Mandatory options:
 ``auth_token=<token>``
   Controller-specific authentication token.
   This is set for each device individually.
-  For details, refer to https://eclipse.dev/hawkbit/concepts/authentication/.
+  For details, refer to https://hawkbit.eclipse.dev/#/authentication.
 
   .. note::
     Either ``auth_token``, ``gateway_token`` or ``ssl_key``/``ssl_cert`` must
@@ -55,7 +55,7 @@ Mandatory options:
   This is a tenant-wide token and must explicitly be enabled in hakwBit first.
   It is actually meant to authenticate a gateway that itself
   manages/authenticates multiple targets, thus use with care.
-  For details, refer to https://eclipse.dev/hawkbit/concepts/authentication/.
+  For details, refer to https://hawkbit.eclipse.dev/#/authentication.
 
   .. note::
     Either ``auth_token``, ``gateway_token`` or ``ssl_key``/``ssl_cert`` must

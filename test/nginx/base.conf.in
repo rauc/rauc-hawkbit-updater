@@ -39,7 +39,7 @@ http {
             proxy_set_header X-Forwarded-Protocol $$scheme;
             proxy_set_header X-Forwarded-Port ${port};
 
-            proxy_set_header X-Ssl-Client-Cn $$ssl_client_s_dn_cn;
+            proxy_set_header X-Controller-Id $$ssl_client_s_dn_cn;
 
             # These are required for clients to upload and download software.
             proxy_request_buffering off;
