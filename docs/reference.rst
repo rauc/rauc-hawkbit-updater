@@ -167,6 +167,12 @@ Optional options:
     manager and without terminating any processes or unmounting any file systems.
     This may result in data loss.
 
+``identify_on_startup=<boolean>``
+  Whether to send device attributes (configData) to the server on startup,
+  regardless of whether the server requests it.
+  This is useful to report the current software version (sw_version) after a reboot.
+  Defaults to ``false``.
+
 ``log_level=<level>``
   Log level to print, where ``level`` is a string of
 
