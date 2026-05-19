@@ -153,6 +153,46 @@ static gboolean get_key_int(GKeyFile *key_file, const gchar *group, const gchar 
 }
 
 /**
+ * @brief Get 64-bit integer value from key_file for key in group, default_value must be specified,
+ * returned in case key not found in group.
+ *
+ * @param[in]  key_file      GKeyFile to look value up
+ * @param[in]  group         A group name
+ * @param[in]  key           A key
+ * @param[out] value         Output 64-bit integer value
+ * @param[in]  default_value Return this value in case no value found
+ * @param[out] error         Error
+ * @return FALSE on error (error is set), TRUE otherwise. Note that TRUE is returned if key in
+ *         group is not found, value is set to default_value in this case.
+ */
+static gboolean get_key_int64(GKeyFile *key_file, const gchar *group, const gchar *key, gint64 *value,
+                              const gint64 default_value, GError **error)
+{
+        GError *ierror = NULL;
+        gint64 val;
+
+        g_return_val_if_fail(key_file, FALSE);
+        g_return_val_if_fail(group, FALSE);
+        g_return_val_if_fail(key, FALSE);
+        g_return_val_if_fail(value, FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        val = g_key_file_get_int64(key_file, group, key, &ierror);
+
+        if (g_error_matches(ierror, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND)) {
+                g_clear_error(&ierror);
+                *value = default_value;
+                return TRUE;
+        } else if (ierror) {
+                g_propagate_error(error, ierror);
+                return FALSE;
+        }
+
+        *value = val;
+        return TRUE;
+}
+
+/**
  * @brief Get GHashTable containing keys/values from group in key_file.
  *
  * @param[in]  key_file GKeyFile to look value up
@@ -327,6 +367,8 @@ Config* load_config_file(const gchar *config_file, GError **error)
                          error))
                 return NULL;
         if (!get_key_int(ini_file, "client", "low_speed_time", &config->low_speed_time, 60, error))
+                return NULL;
+        if (!get_key_int64(ini_file, "client", "download_speed_limit", &config->download_speed_limit, 0, error))
                 return NULL;
         if (!get_key_bool(ini_file, "client", "resume_downloads", &config->resume_downloads, FALSE,
                           error))
