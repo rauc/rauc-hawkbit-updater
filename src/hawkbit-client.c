@@ -766,7 +766,7 @@ static long json_get_sleeptime(JsonNode *root)
 {
         g_autofree gchar *sleeptime_str = NULL;
         g_autoptr(GError) error = NULL;
-        struct tm time;
+        struct tm time = {0};
 
         g_return_val_if_fail(root, 0L);
 
@@ -788,7 +788,11 @@ static long json_get_sleeptime(JsonNode *root)
                 return hawkbit_config->retry_wait;
         }
 
-        strptime(sleeptime_str, "%T", &time);
+        if (!strptime(sleeptime_str, "%T", &time)) {
+                g_warning("Invalid polling sleep time: %s. Using fallback: %ds",
+                          sleeptime_str, hawkbit_config->retry_wait);
+                return hawkbit_config->retry_wait;
+        }
         return (time.tm_sec + (time.tm_min * 60) + (time.tm_hour * 60 * 60));
 }
 
