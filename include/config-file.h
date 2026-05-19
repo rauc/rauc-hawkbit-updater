@@ -31,6 +31,7 @@ typedef struct Config_ {
         int retry_wait;                   /**< wait between retries */
         int low_speed_time;               /**< time to be below the speed to trigger low speed abort */
         int low_speed_rate;               /**< low speed limit to abort transfer */
+        int hawkbit_interval_active_override;       /**< hawkbit check interval */
         GLogLevelFlags log_level;         /**< log level */
         GHashTable* device;               /**< Additional attributes sent to hawkBit */
         gboolean send_download_authentication; /**< Send security header in download requests */

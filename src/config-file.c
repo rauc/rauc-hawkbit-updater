@@ -18,6 +18,7 @@ static const gint DEFAULT_RETRY_WAIT      = 5 * 60; // 5 min.
 static const gboolean DEFAULT_SSL         = TRUE;
 static const gboolean DEFAULT_SSL_VERIFY  = TRUE;
 static const gboolean DEFAULT_REBOOT      = FALSE;
+static const gint DEFAULT_HAWKBIT_INTERVAL_ACTIVE_OVERRIDE = -1;
 static const gchar* DEFAULT_LOG_LEVEL     = "message";
 static const gboolean DEFAULT_SEND_DOWNLOAD_AUTHENTICATION = TRUE;
 
@@ -328,6 +329,10 @@ Config* load_config_file(const gchar *config_file, GError **error)
                 return NULL;
         if (!get_key_int(ini_file, "client", "low_speed_time", &config->low_speed_time, 60, error))
                 return NULL;
+        if (!get_key_int(ini_file, "client", "hawkbit_interval_active_override", &config->hawkbit_interval_active_override,
+                         DEFAULT_HAWKBIT_INTERVAL_ACTIVE_OVERRIDE, error))
+                return NULL;
+        g_debug("hawkbit_interval_active_override: %d", config->hawkbit_interval_active_override);
         if (!get_key_bool(ini_file, "client", "resume_downloads", &config->resume_downloads, FALSE,
                           error))
                 return NULL;
