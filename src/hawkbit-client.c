@@ -1258,7 +1258,7 @@ static gboolean process_deployment(JsonNode *req_root, GError **error)
                 goto proc_error;
 
         artifact->size = json_get_int(json_artifact, "$.size", error);
-        if (!artifact->size && error)
+        if (!artifact->size && *error)
                 goto proc_error;
 
         artifact->sha1 = json_get_string(json_artifact, "$.hashes.sha1", error);
