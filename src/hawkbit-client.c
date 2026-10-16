@@ -1440,6 +1440,10 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
         g_autoptr(JsonParser) json_response_parser = NULL;
         JsonNode *json_root = NULL;
 
+        gboolean no_downloads = FALSE;
+        gboolean no_cancellations = FALSE;
+        long check_interval;
+
         g_return_val_if_fail(user_data, FALSE);
 
         if (++data->last_run_sec < data->hawkbit_interval_check_sec)
@@ -1496,6 +1500,7 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                 }
         } else {
                 g_message("No new software.");
+                no_downloads = TRUE;
         }
         if (json_contains(json_root, "$._links.cancelAction")) {
                 res = process_cancel(json_root, &error);
@@ -1503,10 +1508,16 @@ static gboolean hawkbit_pull_cb(gpointer user_data)
                         g_warning("%s", error->message);
                         g_clear_error(&error);
                 }
+        } else {
+                no_cancellations = TRUE;
         }
 
         // get hawkbit sleep time (how often should we check for new software)
-        data->hawkbit_interval_check_sec = json_get_sleeptime(json_root);
+        check_interval = (hawkbit_config->hawkbit_interval_active_override != -1) ?
+                         hawkbit_config->hawkbit_interval_active_override : json_get_sleeptime(json_root);
+
+        data->hawkbit_interval_check_sec = (no_downloads && no_cancellations) ? json_get_sleeptime(json_root) : check_interval;
+        g_debug("Next check in %ld seconds", data->hawkbit_interval_check_sec);
 
 out:
         if (run_once) {
