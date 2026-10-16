@@ -22,6 +22,7 @@ incdir = include_directories('include')
 sources_updater = [
   'src/rauc-hawkbit-updater.c',
   'src/rauc-installer.c',
+  'src/rauc-install-confirmation.c',
   'src/config-file.c',
   'src/hawkbit-client.c',
   'src/json-helper.c',
@@ -52,12 +53,28 @@ if systemddep.found()
   install_data('script/rauc-hawkbit-updater.service', install_dir : systemdsystemunitdir)
 endif
 
+datadir = get_option('datadir')
+
+dbuspolicydir = get_option('dbuspolicydir')
+if dbuspolicydir == ''
+  dbuspolicydir = datadir / 'dbus-1' / 'system.d'
+endif
+
 gnome = import('gnome')
 dbus = 'rauc-installer-gen'
 dbus_ifaces = files('src/rauc-installer.xml')
 dbus_sources = gnome.gdbus_codegen(
   dbus,
   sources : dbus_ifaces,
+  interface_prefix : 'de.pengutronix.rauc.',
+  namespace: 'R',
+)
+
+dbus_confirm_output = 'rauc-install-confirmation-gen'
+dbus_confirm_iface = files('src/rauc-install-confirmation.xml')
+dbus_confirm_sources = gnome.gdbus_codegen(
+  dbus_confirm_output,
+  sources : dbus_confirm_iface,
   interface_prefix : 'de.pengutronix.rauc.',
   namespace: 'R',
 )
@@ -88,11 +105,13 @@ if doxygen.found()
     )
 endif
 
+subdir('data')
 subdir('docs')
 
 executable('rauc-hawkbit-updater',
   sources_updater,
   dbus_sources,
+  dbus_confirm_sources,
   config_h,
   dependencies : [libcurldep, giodep, giounixdep, jsonglibdep, libsystemddep],
   include_directories : incdir,

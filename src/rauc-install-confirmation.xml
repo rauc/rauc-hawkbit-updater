@@ -1,0 +1,32 @@
+<!-- License note: This file is considered data and thus no license is needed for any usage. -->
+<node>
+  <interface name="de.pengutronix.rauc.InstallConfirmation">
+    <!--
+         ConfirmInstallationRequest:
+         @action_id: Internal Action ID coming from Hawkbit
+         @version: Component version coming from Hawkbit (not bundle version!)
+
+         Request a user software to confirm a new installation
+    -->
+    <method name="ConfirmInstallationRequest">
+      <arg name="action_id" type="s" direction="in"/>
+      <arg name="version" type="s" direction="in"/>
+    </method>
+
+    <!--
+         ConfirmationStatus:
+         @action_id: Should match the earlier installation request
+         @confirmation: "confirmed" or "denied"
+         @error_code: Optional error code
+         @details: Optional message with the details of reported status
+
+         This signal is emitted when a user software processed the request.
+    -->
+    <signal name="ConfirmationStatus">
+      <arg name="action_id" type="s"/>
+      <arg name="confirmation" type="b"/>
+      <arg name="error_code" type="i"/>
+      <arg name="details" type="s"/>
+    </signal>
+  </interface>
+</node>
